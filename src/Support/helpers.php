@@ -121,6 +121,33 @@ function prototype_apply(string $html, array $payload): string
     return $html;
 }
 
+function prototype_sanitize_runtime_data(mixed $value): mixed
+{
+    if (is_array($value)) {
+        $sanitized = [];
+
+        foreach ($value as $key => $item) {
+            if (is_string($key) && in_array($key, ['password'], true)) {
+                continue;
+            }
+
+            $sanitized[$key] = prototype_sanitize_runtime_data($item);
+        }
+
+        return $sanitized;
+    }
+
+    if (is_object($value)) {
+        return prototype_sanitize_runtime_data((array) $value);
+    }
+
+    if (is_scalar($value) || $value === null) {
+        return $value;
+    }
+
+    return null;
+}
+
 function prototype_runtime_html(array $payload): string
 {
     $app = $payload['app'] ?? null;
@@ -146,6 +173,7 @@ function prototype_runtime_html(array $payload): string
         ?? ($_SERVER['REQUEST_URI'] ?? current_path());
     $conversationId = $prototype['subscriber_message']['conversation_id'] ?? null;
     $moderationIds = $prototype['moderation']['content_ids'] ?? [];
+    $settings = prototype_sanitize_runtime_data($app->repository->settings());
 
     $runtime = [
         'page' => $prototype['page'] ?? '',
@@ -153,6 +181,8 @@ function prototype_runtime_html(array $payload): string
         'role' => $user['role'] ?? null,
         'currentUserName' => $user['name'] ?? null,
         'currentUrl' => $_SERVER['REQUEST_URI'] ?? current_path(),
+        'settings' => is_array($settings) ? $settings : [],
+        'data' => prototype_sanitize_runtime_data($payload['data'] ?? null),
         'routes' => [
             'home' => '/',
             'explore' => '/explore',
@@ -259,6 +289,7 @@ function prototype_runtime_html(array $payload): string
     return prototype_flash_stack_html(is_array($flashMessages) ? $flashMessages : []) . "\n" .
         implode("\n", $forms) .
         "\n<script>window.SexyLuaPrototype = " . json_encode($runtime, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ";</script>\n" .
+        '<script src="' . e(asset('js/prototype-data.js')) . '"></script>' . "\n" .
         '<script src="' . e(asset('js/prototype-actions.js')) . '"></script>';
 }
 

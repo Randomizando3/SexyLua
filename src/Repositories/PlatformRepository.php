@@ -118,8 +118,8 @@ final class PlatformRepository
         $featuredContent = array_values(array_filter($this->contentsWithCreators(), static fn (array $item): bool => $item['status'] === 'approved'));
 
         return [
-            'featured_creators' => array_slice($creators, 0, 4),
-            'live_now' => array_slice($liveNow, 0, 3),
+            'featured_creators' => array_slice($creators, 0, 5),
+            'live_now' => array_slice($liveNow, 0, 4),
             'featured_content' => array_slice($featuredContent, 0, 6),
             'stats' => [
                 'creators' => count($this->creators()),
@@ -239,11 +239,41 @@ final class PlatformRepository
         }, $messages);
 
         $related = array_values(array_filter($this->livesWithCreators(), static fn (array $item): bool => (int) $item['id'] !== $liveId));
+        $tipTransactions = array_values(array_filter($this->walletTransactions(), static fn (array $transaction): bool => $transaction['type'] === 'tip' && (int) ($transaction['creator_id'] ?? 0) === (int) $decoratedLive['creator_id']));
+        $tipTransactions = $this->sortByDate($tipTransactions, 'created_at');
+        $tipTransactions = array_map(function (array $transaction): array {
+            $transaction['sender'] = $this->findUserById((int) $transaction['user_id']);
+
+            return $transaction;
+        }, $tipTransactions);
+
+        $supporters = [];
+
+        foreach ($tipTransactions as $transaction) {
+            $senderId = (int) ($transaction['sender']['id'] ?? 0);
+
+            if ($senderId === 0) {
+                continue;
+            }
+
+            if (! isset($supporters[$senderId])) {
+                $supporters[$senderId] = [
+                    'user' => $transaction['sender'],
+                    'amount' => 0,
+                ];
+            }
+
+            $supporters[$senderId]['amount'] += (int) $transaction['amount'];
+        }
+
+        usort($supporters, static fn (array $left, array $right): int => $right['amount'] <=> $left['amount']);
 
         return [
             'live' => $decoratedLive,
             'messages' => array_slice($messages, -20),
             'related_lives' => array_slice($related, 0, 5),
+            'recent_tips' => array_slice($tipTransactions, 0, 5),
+            'top_supporters' => array_slice($supporters, 0, 3),
             'can_chat' => $viewerId !== null,
             'can_tip' => $viewerId !== null,
         ];
@@ -693,10 +723,18 @@ final class PlatformRepository
     public function creatorPlansData(int $creatorId): array
     {
         $plans = array_values(array_filter($this->plansWithCreators(), static fn (array $plan): bool => (int) $plan['creator_id'] === $creatorId));
+        $subscribers = array_values(array_filter($this->subscriptions(), static fn (array $subscription): bool => (int) $subscription['creator_id'] === $creatorId && $subscription['status'] === 'active'));
+        $subscribers = array_map(function (array $subscription): array {
+            $subscription['subscriber'] = $this->findUserById((int) $subscription['subscriber_id']);
+            $subscription['plan'] = $this->findPlanById((int) $subscription['plan_id']);
+
+            return $subscription;
+        }, $subscribers);
 
         return [
             'plans' => $plans,
             'active_subscribers' => count(array_filter($this->subscriptions(), static fn (array $subscription): bool => (int) $subscription['creator_id'] === $creatorId && $subscription['status'] === 'active')),
+            'subscribers' => $subscribers,
         ];
     }
 
@@ -855,6 +893,9 @@ final class PlatformRepository
         $pendingContent = array_values(array_filter($this->contentsWithCreators(), static fn (array $item): bool => $item['status'] === 'pending'));
         $liveNow = array_values(array_filter($this->livesWithCreators(), static fn (array $live): bool => $live['status'] === 'live'));
         $finance = $this->financeData();
+        $creators = $this->creators();
+
+        usort($creators, static fn (array $left, array $right): int => [$right['wallet_balance'], $right['subscriber_count'], $right['followers'] ?? 0] <=> [$left['wallet_balance'], $left['subscriber_count'], $left['followers'] ?? 0]);
 
         return [
             'metrics' => [
@@ -868,6 +909,7 @@ final class PlatformRepository
             'pending_content' => array_slice($pendingContent, 0, 5),
             'recent_users' => array_slice($this->sortByDate($users, 'created_at'), 0, 5),
             'live_now' => $liveNow,
+            'top_creators' => array_slice($creators, 0, 5),
         ];
     }
 
