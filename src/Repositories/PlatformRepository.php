@@ -302,64 +302,162 @@ final class PlatformRepository
 
     public function subscriberDashboardData(int $subscriberId): array
     {
+        $subscriber = $this->findUserById($subscriberId) ?? [];
+        $wallet = $this->walletData($subscriberId);
         $activeSubscriptions = $this->activeSubscriptionsForSubscriber($subscriberId);
+        $activeCreatorIds = array_map(static fn (array $item): int => (int) ($item['creator_id'] ?? 0), $activeSubscriptions);
         $upcomingLives = array_values(array_filter($this->livesWithCreators(), function (array $live) use ($activeSubscriptions): bool {
             foreach ($activeSubscriptions as $subscription) {
-                if ((int) $subscription['creator_id'] === (int) $live['creator_id'] && in_array($live['status'], ['live', 'scheduled'], true)) {
+                if ((int) $subscription['creator_id'] === (int) $live['creator_id'] && in_array((string) ($live['status'] ?? ''), ['live', 'scheduled'], true)) {
                     return true;
                 }
             }
 
             return false;
         }));
-
         $favorites = $this->favoritesData($subscriberId);
         $conversations = $this->conversationList($subscriberId);
+        $availablePlans = array_values(array_filter(
+            $this->plansWithCreators(),
+            static fn (array $plan): bool => ! in_array((int) ($plan['creator_id'] ?? 0), $activeCreatorIds, true) && (bool) ($plan['active'] ?? false)
+        ));
 
         return [
-            'wallet_balance' => $this->walletBalance($subscriberId),
+            'subscriber' => $subscriber,
+            'wallet_balance' => $wallet['balance'],
+            'wallet' => $wallet,
             'subscriptions' => array_slice($activeSubscriptions, 0, 4),
+            'active_subscriptions' => $activeSubscriptions,
             'favorites_count' => count($favorites['favorite_creators']),
             'saved_count' => count($favorites['saved_content']),
             'conversations' => array_slice($conversations, 0, 3),
-            'upcoming_lives' => array_slice($upcomingLives, 0, 4),
-            'transactions' => array_slice($this->walletTransactionsFor($subscriberId), 0, 5),
+            'recent_messages_count' => count($conversations),
+            'upcoming_lives' => array_slice($this->sortByDate($upcomingLives, 'scheduled_for'), 0, 4),
+            'available_plans' => array_slice($availablePlans, 0, 4),
+            'transactions' => array_slice($wallet['transactions'], 0, 5),
         ];
     }
 
-    public function subscriberSubscriptionsData(int $subscriberId): array
+    public function subscriberSubscriptionsData(int $subscriberId, array $filters = []): array
     {
+        $subscriber = $this->findUserById($subscriberId) ?? [];
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $status = trim((string) ($filters['status'] ?? ''));
         $active = $this->activeSubscriptionsForSubscriber($subscriberId);
-        $activeCreatorIds = array_map(static fn (array $item): int => (int) $item['creator_id'], $active);
-        $availablePlans = array_values(array_filter($this->plansWithCreators(), static fn (array $plan): bool => ! in_array((int) $plan['creator_id'], $activeCreatorIds, true) && (bool) $plan['active']));
+        $activeCreatorIds = array_map(static fn (array $item): int => (int) ($item['creator_id'] ?? 0), $active);
+        $availablePlans = array_values(array_filter(
+            $this->plansWithCreators(),
+            static fn (array $plan): bool => ! in_array((int) ($plan['creator_id'] ?? 0), $activeCreatorIds, true) && (bool) ($plan['active'] ?? false)
+        ));
+        $filterSubscription = static function (array $subscription) use ($query, $status): bool {
+            if ($status !== '' && (string) ($subscription['status'] ?? '') !== $status) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower(
+                (string) (($subscription['creator']['name'] ?? '') . ' ' . ($subscription['creator']['email'] ?? '') . ' ' . ($subscription['plan']['name'] ?? ''))
+            );
+
+            return str_contains($haystack, $query);
+        };
+        $filterPlan = static function (array $plan) use ($query): bool {
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower(
+                (string) (($plan['creator']['name'] ?? '') . ' ' . ($plan['name'] ?? '') . ' ' . ($plan['description'] ?? ''))
+            );
+
+            return str_contains($haystack, $query);
+        };
+        $filteredSubscriptions = array_values(array_filter($active, $filterSubscription));
+        $filteredPlans = array_values(array_filter($availablePlans, $filterPlan));
+        $monthlySpend = array_reduce(
+            array_filter($active, static fn (array $subscription): bool => (string) ($subscription['status'] ?? '') === 'active'),
+            static fn (int $carry, array $subscription): int => $carry + (int) (($subscription['plan']['price_tokens'] ?? 0)),
+            0
+        );
 
         return [
+            'subscriber' => $subscriber,
             'active_subscriptions' => $active,
+            'filtered_subscriptions' => $filteredSubscriptions,
             'available_plans' => $availablePlans,
+            'filtered_plans' => $filteredPlans,
+            'filters' => [
+                'q' => $query,
+                'status' => $status,
+            ],
+            'summary' => [
+                'active_count' => count(array_filter($active, static fn (array $subscription): bool => (string) ($subscription['status'] ?? '') === 'active')),
+                'available_count' => count($availablePlans),
+                'monthly_spend' => $monthlySpend,
+            ],
         ];
     }
 
     public function favoritesData(int $subscriberId): array
     {
-        $favoriteRows = array_values(array_filter($this->favorites(), static fn (array $favorite): bool => (int) $favorite['user_id'] === $subscriberId));
-        $savedRows = array_values(array_filter($this->savedItems(), static fn (array $saved): bool => (int) $saved['user_id'] === $subscriberId));
-
-        $favoriteCreators = array_map(fn (array $row): ?array => $this->findCreatorBySlugOrId(null, (int) $row['creator_id']), $favoriteRows);
-        $savedContent = array_map(fn (array $row): ?array => $this->findContentWithCreator((int) $row['content_id']), $savedRows);
+        $favoriteRows = array_values(array_filter($this->favorites(), static fn (array $favorite): bool => (int) ($favorite['user_id'] ?? 0) === $subscriberId));
+        $savedRows = array_values(array_filter($this->savedItems(), static fn (array $saved): bool => (int) ($saved['user_id'] ?? 0) === $subscriberId));
+        $favoriteCreators = array_values(array_filter(array_map(
+            fn (array $row): ?array => $this->findCreatorBySlugOrId(null, (int) ($row['creator_id'] ?? 0)),
+            $favoriteRows
+        )));
+        $savedContent = array_values(array_filter(array_map(
+            fn (array $row): ?array => $this->findContentWithCreator((int) ($row['content_id'] ?? 0)),
+            $savedRows
+        )));
+        $favoriteCreatorIds = array_map(static fn (array $creator): int => (int) ($creator['id'] ?? 0), $favoriteCreators);
+        $savedContentIds = array_map(static fn (array $item): int => (int) ($item['id'] ?? 0), $savedContent);
+        $trackedLives = array_values(array_filter(
+            $this->livesWithCreators(),
+            static fn (array $live): bool => in_array((int) ($live['creator_id'] ?? 0), $favoriteCreatorIds, true) && in_array((string) ($live['status'] ?? ''), ['live', 'scheduled'], true)
+        ));
+        $suggestedCreators = array_values(array_filter(
+            $this->creators(),
+            static fn (array $creator): bool => ! in_array((int) ($creator['id'] ?? 0), $favoriteCreatorIds, true) && (int) ($creator['id'] ?? 0) !== $subscriberId
+        ));
+        usort($suggestedCreators, static fn (array $left, array $right): int => [$right['featured'] ? 1 : 0, $right['followers'] ?? 0] <=> [$left['featured'] ? 1 : 0, $left['followers'] ?? 0]);
+        $suggestedContent = array_values(array_filter(
+            $this->contentsWithCreators(),
+            static fn (array $item): bool => ! in_array((int) ($item['id'] ?? 0), $savedContentIds, true) && (string) ($item['status'] ?? '') === 'approved'
+        ));
 
         return [
-            'favorite_creators' => array_values(array_filter($favoriteCreators)),
-            'saved_content' => array_values(array_filter($savedContent)),
+            'subscriber' => $this->findUserById($subscriberId),
+            'favorite_creators' => $favoriteCreators,
+            'saved_content' => $savedContent,
+            'tracked_lives' => array_slice($this->sortByDate($trackedLives, 'scheduled_for'), 0, 4),
+            'suggested_creators' => array_slice($suggestedCreators, 0, 4),
+            'suggested_content' => array_slice($this->sortByDate($suggestedContent, 'created_at'), 0, 4),
         ];
     }
 
-    public function conversationsData(int $subscriberId, ?int $conversationId = null): array
+    public function conversationsData(int $subscriberId, ?int $conversationId = null, array $filters = []): array
     {
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
         $conversations = $this->conversationList($subscriberId);
+        $filteredConversations = array_values(array_filter($conversations, static function (array $conversation) use ($query): bool {
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower(
+                (string) (($conversation['creator']['name'] ?? '') . ' ' . ($conversation['creator']['email'] ?? '') . ' ' . ($conversation['latest_message']['body'] ?? ''))
+            );
+
+            return str_contains($haystack, $query);
+        }));
         $selected = null;
 
         if ($conversationId !== null) {
-            foreach ($conversations as $conversation) {
+            foreach ($filteredConversations as $conversation) {
                 if ((int) $conversation['id'] === $conversationId) {
                     $selected = $conversation;
                     break;
@@ -368,47 +466,97 @@ final class PlatformRepository
         }
 
         if ($selected === null) {
-            $selected = $conversations[0] ?? null;
+            $selected = $filteredConversations[0] ?? null;
         }
 
         $messages = [];
 
         if ($selected) {
-            $messages = array_values(array_filter($this->messages(), static fn (array $message): bool => (int) $message['conversation_id'] === (int) $selected['id']));
+            $messages = array_values(array_filter($this->messages(), static fn (array $message): bool => (int) ($message['conversation_id'] ?? 0) === (int) ($selected['id'] ?? 0)));
             $messages = $this->sortByDate($messages, 'created_at');
             $messages = array_map(function (array $message): array {
-                $message['sender'] = $this->findUserById((int) $message['sender_id']);
+                $message['sender'] = $this->findUserById((int) ($message['sender_id'] ?? 0));
 
                 return $message;
             }, $messages);
         }
 
         return [
+            'subscriber' => $this->findUserById($subscriberId),
             'conversations' => $conversations,
+            'filtered_conversations' => $filteredConversations,
             'selected_conversation' => $selected,
             'messages' => $messages,
+            'filters' => [
+                'q' => $query,
+            ],
+            'summary' => [
+                'conversation_count' => count($conversations),
+                'visible_count' => count($filteredConversations),
+            ],
         ];
     }
 
-    public function walletData(int $userId): array
+    public function walletData(int $userId, array $filters = []): array
     {
         $transactions = $this->walletTransactionsFor($userId);
         $inflow = 0;
         $outflow = 0;
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $type = trim((string) ($filters['type'] ?? ''));
 
         foreach ($transactions as $transaction) {
-            if ($transaction['direction'] === 'in') {
-                $inflow += (int) $transaction['amount'];
+            if (($transaction['direction'] ?? 'in') === 'in') {
+                $inflow += (int) ($transaction['amount'] ?? 0);
             } else {
-                $outflow += (int) $transaction['amount'];
+                $outflow += (int) ($transaction['amount'] ?? 0);
             }
         }
+
+        $filteredTransactions = array_values(array_filter($transactions, static function (array $transaction) use ($query, $type): bool {
+            if ($type !== '' && ! str_contains((string) ($transaction['type'] ?? ''), $type)) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower((string) (($transaction['note'] ?? '') . ' ' . ($transaction['type'] ?? '')));
+
+            return str_contains($haystack, $query);
+        }));
+        $topUpTotal = array_reduce(
+            array_filter($transactions, static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'top_up'),
+            static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0),
+            0
+        );
+        $subscriptionSpend = array_reduce(
+            array_filter($transactions, static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'subscription'),
+            static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0),
+            0
+        );
+        $tipSpend = array_reduce(
+            array_filter($transactions, static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'tip'),
+            static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0),
+            0
+        );
 
         return [
             'balance' => $this->walletBalance($userId),
             'inflow' => $inflow,
             'outflow' => $outflow,
             'transactions' => $transactions,
+            'filtered_transactions' => $filteredTransactions,
+            'filters' => [
+                'q' => $query,
+                'type' => $type,
+            ],
+            'summary' => [
+                'top_up_total' => $topUpTotal,
+                'subscription_spend' => $subscriptionSpend,
+                'tip_spend' => $tipSpend,
+            ],
         ];
     }
 
@@ -1484,6 +1632,10 @@ final class PlatformRepository
         $liveNow = array_values(array_filter($this->livesWithCreators(), static fn (array $live): bool => $live['status'] === 'live'));
         $finance = $this->financeData();
         $creators = $this->creators();
+        $pendingPayouts = array_values(array_filter(
+            $finance['transactions'] ?? [],
+            static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'payout_request' && (string) ($transaction['status'] ?? 'pending') === 'pending'
+        ));
 
         usort($creators, static fn (array $left, array $right): int => [$right['wallet_balance'], $right['subscriber_count'], $right['followers'] ?? 0] <=> [$left['wallet_balance'], $left['subscriber_count'], $left['followers'] ?? 0]);
 
@@ -1500,23 +1652,49 @@ final class PlatformRepository
             'recent_users' => array_slice($this->sortByDate($users, 'created_at'), 0, 5),
             'live_now' => $liveNow,
             'top_creators' => array_slice($creators, 0, 5),
+            'pending_payouts' => array_slice($pendingPayouts, 0, 5),
         ];
     }
 
-    public function adminUsersData(string $search = ''): array
+    public function adminUsersData(string|array $filters = ''): array
     {
-        $search = mb_strtolower(trim($search));
-        $users = array_values(array_filter($this->users(), function (array $user) use ($search): bool {
+        $filters = is_array($filters) ? $filters : ['q' => $filters];
+        $search = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $role = trim((string) ($filters['role'] ?? ''));
+        $status = trim((string) ($filters['status'] ?? ''));
+        $allUsers = $this->users();
+        $users = array_values(array_filter($allUsers, function (array $user) use ($search, $role, $status): bool {
+            if ($role !== '' && (string) ($user['role'] ?? '') !== $role) {
+                return false;
+            }
+
+            if ($status !== '' && (string) ($user['status'] ?? '') !== $status) {
+                return false;
+            }
+
             if ($search === '') {
                 return true;
             }
 
-            $haystack = mb_strtolower($user['name'] . ' ' . $user['email'] . ' ' . $user['role']);
+            $haystack = mb_strtolower((string) (($user['name'] ?? '') . ' ' . ($user['email'] ?? '') . ' ' . ($user['role'] ?? '')));
 
             return str_contains($haystack, $search);
         }));
 
-        return $this->sortByDate($users, 'created_at');
+        return [
+            'items' => $this->sortByDate($users, 'created_at'),
+            'summary' => [
+                'total' => count($allUsers),
+                'creators' => count(array_filter($allUsers, static fn (array $user): bool => (string) ($user['role'] ?? '') === 'creator')),
+                'subscribers' => count(array_filter($allUsers, static fn (array $user): bool => (string) ($user['role'] ?? '') === 'subscriber')),
+                'suspended' => count(array_filter($allUsers, static fn (array $user): bool => (string) ($user['status'] ?? '') === 'suspended')),
+            ],
+            'filters' => [
+                'q' => $search,
+                'role' => $role,
+                'status' => $status,
+            ],
+        ];
     }
 
     public function updateUser(int $userId, array $data): bool
@@ -1544,13 +1722,40 @@ final class PlatformRepository
         return $changed;
     }
 
-    public function moderationData(): array
+    public function moderationData(array $filters = []): array
     {
         $content = $this->contentsWithCreators();
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $status = trim((string) ($filters['status'] ?? ''));
+        $pending = array_values(array_filter($content, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'pending'));
+        $recent = array_values(array_filter($content, static fn (array $item): bool => in_array((string) ($item['status'] ?? ''), ['approved', 'rejected'], true)));
+        $filtered = array_values(array_filter($content, static function (array $item) use ($query, $status): bool {
+            if ($status !== '' && (string) ($item['status'] ?? '') !== $status) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower((string) (($item['title'] ?? '') . ' ' . ($item['creator']['name'] ?? '') . ' ' . ($item['kind'] ?? '')));
+
+            return str_contains($haystack, $query);
+        }));
 
         return [
-            'pending' => array_values(array_filter($content, static fn (array $item): bool => $item['status'] === 'pending')),
-            'recent' => array_values(array_filter($content, static fn (array $item): bool => in_array($item['status'], ['approved', 'rejected'], true))),
+            'pending' => $pending,
+            'recent' => $recent,
+            'filtered_items' => $filtered,
+            'filters' => [
+                'q' => $query,
+                'status' => $status,
+            ],
+            'summary' => [
+                'pending' => count($pending),
+                'approved' => count(array_filter($content, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'approved')),
+                'rejected' => count(array_filter($content, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'rejected')),
+            ],
         ];
     }
 
@@ -1582,7 +1787,7 @@ final class PlatformRepository
         return $changed;
     }
 
-    public function financeData(): array
+    public function financeData(array $filters = []): array
     {
         $transactions = $this->sortByDate($this->walletTransactions(), 'created_at');
         $decorated = array_map(function (array $transaction): array {
@@ -1591,6 +1796,9 @@ final class PlatformRepository
 
             return $transaction;
         }, $transactions);
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $type = trim((string) ($filters['type'] ?? ''));
+        $status = trim((string) ($filters['status'] ?? ''));
 
         $subscriberSpend = 0;
         $creatorIncome = 0;
@@ -1605,15 +1813,101 @@ final class PlatformRepository
             }
         }
 
+        $filteredTransactions = array_values(array_filter($decorated, static function (array $transaction) use ($query, $type, $status): bool {
+            if ($type !== '' && ! str_contains((string) ($transaction['type'] ?? ''), $type)) {
+                return false;
+            }
+
+            if ($status !== '' && (string) ($transaction['status'] ?? 'completed') !== $status) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower((string) (($transaction['note'] ?? '') . ' ' . ($transaction['user']['name'] ?? '') . ' ' . ($transaction['type'] ?? '')));
+
+            return str_contains($haystack, $query);
+        }));
+        $pendingPayouts = array_values(array_filter(
+            $decorated,
+            static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'payout_request' && (string) ($transaction['status'] ?? 'pending') === 'pending'
+        ));
+
         return [
             'summary' => [
                 'gross_volume' => $subscriberSpend,
                 'creator_income' => $creatorIncome,
                 'platform_result' => max(0, $subscriberSpend - $creatorIncome),
                 'top_ups' => count(array_filter($transactions, static fn (array $transaction): bool => $transaction['type'] === 'top_up')),
+                'pending_payout_tokens' => array_reduce($pendingPayouts, static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0), 0),
+                'pending_payout_count' => count($pendingPayouts),
             ],
             'transactions' => $decorated,
+            'filtered_transactions' => $filteredTransactions,
+            'pending_payouts' => $pendingPayouts,
+            'filters' => [
+                'q' => $query,
+                'type' => $type,
+                'status' => $status,
+            ],
         ];
+    }
+
+    public function reviewPayoutRequest(int $transactionId, string $status, string $adminNote = ''): bool
+    {
+        if (! in_array($status, ['processing', 'paid', 'rejected'], true)) {
+            return false;
+        }
+
+        $transactions = $this->walletTransactions();
+        $changed = false;
+        $target = null;
+
+        foreach ($transactions as &$transaction) {
+            if ((int) ($transaction['id'] ?? 0) !== $transactionId || (string) ($transaction['type'] ?? '') !== 'payout_request') {
+                continue;
+            }
+
+            $target = $transaction;
+            $transaction['status'] = $status;
+            $transaction['admin_note'] = trim($adminNote);
+            $transaction['reviewed_at'] = date('Y-m-d H:i:s');
+            $changed = true;
+            break;
+        }
+        unset($transaction);
+
+        if (! $changed || ! is_array($target)) {
+            return false;
+        }
+
+        if ($status === 'rejected') {
+            $alreadyRefunded = array_values(array_filter(
+                $transactions,
+                static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'payout_reversal'
+                    && (int) ($transaction['related_transaction_id'] ?? 0) === $transactionId
+            ));
+
+            if ($alreadyRefunded === []) {
+                $transactions[] = [
+                    'id' => $this->store->nextId($transactions),
+                    'user_id' => (int) ($target['user_id'] ?? 0),
+                    'type' => 'payout_reversal',
+                    'direction' => 'in',
+                    'amount' => (int) ($target['amount'] ?? 0),
+                    'note' => 'Estorno automatico de saque rejeitado',
+                    'related_transaction_id' => $transactionId,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'status' => 'completed',
+                ];
+            }
+        }
+
+        $this->save('wallet_transactions', $transactions);
+
+        return true;
     }
 
     public function updateSettings(array $data): array

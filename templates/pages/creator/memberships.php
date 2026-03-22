@@ -248,7 +248,7 @@ $redirectBase = path_with_query('/creator/memberships', [
                     </div>
                 </form>
 
-                <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div class="grid grid-cols-1 gap-6 2xl:grid-cols-2">
                     <?php foreach ($subscribers as $subscription): ?>
                         <?php
                         $subscriber = $subscription['subscriber'] ?? [];
@@ -261,21 +261,21 @@ $redirectBase = path_with_query('/creator/memberships', [
                         };
                         ?>
                         <article class="rounded-xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-                            <div class="flex items-start gap-5">
+                            <div class="flex flex-col gap-5 lg:flex-row lg:items-start">
                                 <div class="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-secondary-container/40 text-2xl font-bold text-primary"><?= e(avatar_initials((string) ($subscriber['name'] ?? 'Assinante'))) ?></div>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <h3 class="truncate text-xl font-bold"><?= e((string) ($subscriber['name'] ?? 'Assinante')) ?></h3>
+                                        <h3 class="break-words text-xl font-bold"><?= e((string) ($subscriber['name'] ?? 'Assinante')) ?></h3>
                                         <span class="<?= e($statusClass) ?> rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest"><?= e($status) ?></span>
                                         <?php if ((bool) ($subscription['vip'] ?? false)): ?>
                                             <span class="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary">VIP</span>
                                         <?php endif; ?>
                                     </div>
-                                    <p class="mt-2 text-sm text-on-surface-variant"><?= e((string) ($subscriber['email'] ?? '')) ?></p>
-                                    <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+                                    <p class="mt-2 break-all text-sm text-on-surface-variant"><?= e((string) ($subscriber['email'] ?? '')) ?></p>
+                                    <div class="mt-4 grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
                                         <div>
                                             <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Plano</p>
-                                            <p class="font-semibold"><?= e((string) ($plan['name'] ?? 'Plano ativo')) ?></p>
+                                            <p class="break-words font-semibold"><?= e((string) ($plan['name'] ?? 'Plano ativo')) ?></p>
                                         </div>
                                         <div>
                                             <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Renova em</p>
@@ -297,7 +297,7 @@ $redirectBase = path_with_query('/creator/memberships', [
                                 <button class="mt-3 rounded-full bg-surface-container-high px-5 py-3 text-xs font-bold uppercase tracking-widest text-on-surface" data-prototype-skip="1" type="submit">Salvar nota</button>
                             </form>
 
-                            <div class="mt-5 grid grid-cols-2 gap-3">
+                            <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
                                 <form action="/creator/memberships/subscription" method="post">
                                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                     <input name="subscription_id" type="hidden" value="<?= e((string) ($subscription['id'] ?? 0)) ?>">
@@ -312,7 +312,7 @@ $redirectBase = path_with_query('/creator/memberships', [
                                     <input name="redirect" type="hidden" value="<?= e($redirectBase) ?>">
                                     <button class="w-full rounded-full bg-slate-900 px-4 py-3 text-xs font-bold uppercase tracking-widest text-white" data-prototype-skip="1" type="submit"><?= $status === 'paused' ? 'Reativar' : 'Pausar' ?></button>
                                 </form>
-                                <form action="/creator/memberships/subscription" class="col-span-2" method="post" onsubmit="return confirm('Cancelar o acesso deste assinante?');">
+                                <form action="/creator/memberships/subscription" class="md:col-span-2" method="post" onsubmit="return confirm('Cancelar o acesso deste assinante?');">
                                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                     <input name="subscription_id" type="hidden" value="<?= e((string) ($subscription['id'] ?? 0)) ?>">
                                     <input name="action" type="hidden" value="cancel">

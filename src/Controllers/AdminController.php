@@ -26,13 +26,15 @@ final class AdminController extends Controller
     public function users(Request $request): void
     {
         $this->app->auth->requireRole('admin');
+        $filters = [
+            'q' => (string) $request->query('q', ''),
+            'role' => (string) $request->query('role', ''),
+            'status' => (string) $request->query('status', ''),
+        ];
 
         $this->render('pages/admin/users', [
             'title' => 'Gestao de Usuarios',
-            'data' => [
-                'users' => $this->app->repository->adminUsersData((string) $request->query('q', '')),
-                'query' => (string) $request->query('q', ''),
-            ],
+            'data' => $this->app->repository->adminUsersData($filters),
             'sidebar_role' => 'admin',
             'prototype' => [
                 'page' => 'admin.users',
@@ -43,7 +45,10 @@ final class AdminController extends Controller
     public function moderation(Request $request): void
     {
         $this->app->auth->requireRole('admin');
-        $data = $this->app->repository->moderationData();
+        $data = $this->app->repository->moderationData([
+            'q' => (string) $request->query('q', ''),
+            'status' => (string) $request->query('status', ''),
+        ]);
 
         $this->render('pages/admin/moderation', [
             'title' => 'Moderacao de Conteudo',
@@ -64,10 +69,15 @@ final class AdminController extends Controller
     public function finance(Request $request): void
     {
         $this->app->auth->requireRole('admin');
+        $filters = [
+            'q' => (string) $request->query('q', ''),
+            'type' => (string) $request->query('type', ''),
+            'status' => (string) $request->query('status', ''),
+        ];
 
         $this->render('pages/admin/finance', [
             'title' => 'Relatorios Financeiros',
-            'data' => $this->app->repository->financeData(),
+            'data' => $this->app->repository->financeData($filters),
             'sidebar_role' => 'admin',
             'prototype' => [
                 'page' => 'admin.finance',
@@ -115,5 +125,18 @@ final class AdminController extends Controller
         $this->app->repository->updateSettings($request->all());
 
         $this->redirect('/admin/settings', 'Configuracoes salvas.');
+    }
+
+    public function reviewPayout(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/finance');
+        $ok = $this->app->repository->reviewPayoutRequest(
+            (int) $request->input('transaction_id', 0),
+            (string) $request->input('status', 'processing'),
+            (string) $request->input('admin_note', '')
+        );
+
+        $this->redirect('/admin/finance', $ok ? 'Saque atualizado.' : 'Nao foi possivel atualizar o saque.', $ok ? 'success' : 'error');
     }
 }

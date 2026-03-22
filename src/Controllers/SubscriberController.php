@@ -28,7 +28,10 @@ final class SubscriberController extends Controller
     public function subscriptions(Request $request): void
     {
         $this->app->auth->requireRole('subscriber');
-        $subscriptions = $this->app->repository->subscriberSubscriptionsData((int) $this->user()['id']);
+        $subscriptions = $this->app->repository->subscriberSubscriptionsData((int) $this->user()['id'], [
+            'q' => (string) $request->query('q', ''),
+            'status' => (string) $request->query('status', ''),
+        ]);
 
         $this->render('pages/subscriber/subscriptions', [
             'title' => 'Minhas Assinaturas',
@@ -58,7 +61,13 @@ final class SubscriberController extends Controller
     public function messages(Request $request): void
     {
         $this->app->auth->requireRole('subscriber');
-        $messages = $this->app->repository->conversationsData((int) $this->user()['id'], $request->query('conversation') !== null ? (int) $request->query('conversation') : null);
+        $messages = $this->app->repository->conversationsData(
+            (int) $this->user()['id'],
+            $request->query('conversation') !== null ? (int) $request->query('conversation') : null,
+            [
+                'q' => (string) $request->query('q', ''),
+            ]
+        );
 
         $this->render('pages/subscriber/messages', [
             'title' => 'Mensagens e Chat',
@@ -76,7 +85,10 @@ final class SubscriberController extends Controller
     public function wallet(Request $request): void
     {
         $this->app->auth->requireRole('subscriber');
-        $wallet = $this->app->repository->walletData((int) $this->user()['id']);
+        $wallet = $this->app->repository->walletData((int) $this->user()['id'], [
+            'q' => (string) $request->query('q', ''),
+            'type' => (string) $request->query('type', ''),
+        ]);
 
         $this->render('pages/subscriber/wallet', [
             'title' => 'Carteira e Tokens',

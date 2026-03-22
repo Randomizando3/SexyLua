@@ -64,4 +64,5 @@ $router->get('/admin/finance', [AdminController::class, 'finance']);
 $router->get('/admin/settings', [AdminController::class, 'settings']);
 $router->post('/admin/users/update', [AdminController::class, 'updateUser']);
 $router->post('/admin/moderation/review', [AdminController::class, 'reviewContent']);
+$router->post('/admin/finance/review-payout', [AdminController::class, 'reviewPayout']);
 $router->post('/admin/settings/update', [AdminController::class, 'updateSettings']);

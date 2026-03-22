@@ -1,276 +1,274 @@
-<!DOCTYPE html>
+<?php
 
-<html lang="pt-BR"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              "error": "#ba1a1a",
-              "background": "#fbf9fb",
-              "on-primary-container": "#fff2f4",
-              "on-background": "#1b1c1d",
-              "inverse-surface": "#303032",
-              "surface-container-lowest": "#ffffff",
-              "surface-container-low": "#f5f3f5",
-              "on-tertiary-fixed-variant": "#5a2a9c",
-              "on-secondary-fixed": "#3f001b",
-              "surface-bright": "#fbf9fb",
-              "on-tertiary": "#ffffff",
-              "on-secondary-fixed-variant": "#8b0e45",
-              "on-error-container": "#93000a",
-              "surface-tint": "#b41b5c",
-              "surface": "#fbf9fb",
-              "surface-variant": "#e3e2e4",
-              "tertiary-fixed": "#eddcff",
-              "outline": "#8e6f74",
-              "tertiary-fixed-dim": "#d7baff",
-              "surface-container-high": "#e9e7e9",
-              "secondary-fixed-dim": "#ffb1c5",
-              "primary": "#ab1155",
-              "secondary-fixed": "#ffd9e1",
-              "on-tertiary-fixed": "#280056",
-              "on-surface-variant": "#5a4044",
-              "on-primary-fixed-variant": "#8f0045",
-              "secondary-container": "#fd6c9c",
-              "surface-container-highest": "#e3e2e4",
-              "error-container": "#ffdad6",
-              "primary-fixed": "#ffd9e1",
-              "inverse-on-surface": "#f2f0f2",
-              "on-tertiary-container": "#fcf3ff",
-              "on-primary": "#ffffff",
-              "on-secondary": "#ffffff",
-              "surface-dim": "#dbd9db",
-              "primary-container": "#cc326e",
-              "secondary": "#ab2c5d",
-              "inverse-primary": "#ffb1c5",
-              "tertiary": "#6c3eaf",
-              "outline-variant": "#e3bdc3",
-              "on-surface": "#1b1c1d",
-              "on-error": "#ffffff",
-              "tertiary-container": "#8658ca",
-              "on-secondary-container": "#6e0034",
-              "on-primary-fixed": "#3f001a",
-              "surface-container": "#efedef",
-              "primary-fixed-dim": "#ffb1c5"
+declare(strict_types=1);
+
+$subscriber = $data['subscriber'] ?? [];
+$subscriptions = $data['subscriptions'] ?? [];
+$upcomingLives = $data['upcoming_lives'] ?? [];
+$conversations = $data['conversations'] ?? [];
+$transactions = $data['transactions'] ?? [];
+$availablePlans = $data['available_plans'] ?? [];
+$walletBalance = (int) ($data['wallet_balance'] ?? 0);
+$favoritesCount = (int) ($data['favorites_count'] ?? 0);
+$savedCount = (int) ($data['saved_count'] ?? 0);
+$recentMessagesCount = (int) ($data['recent_messages_count'] ?? 0);
+?>
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>SexyLua - Area do Assinante</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#ab1155",
+                        background: "#fbf9fb",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f5f3f5",
+                        "surface-container-high": "#e9e7e9",
+                        "on-surface": "#1b1c1d",
+                        "on-surface-variant": "#5a4044",
+                    },
+                    fontFamily: {
+                        headline: ["Plus Jakarta Sans"],
+                        body: ["Manrope"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "1rem",
+                        lg: "2rem",
+                        xl: "3rem",
+                        full: "9999px",
+                    },
+                },
             },
-            fontFamily: {
-              "headline": ["Plus Jakarta Sans"],
-              "body": ["Manrope"],
-              "label": ["Manrope"]
-            },
-            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
-          },
-        },
-      }
+        };
     </script>
-<style>
-      .material-symbols-outlined {
-        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-      }
-      .lunar-glass {
-        background: rgba(251, 249, 251, 0.7);
-        backdrop-filter: blur(24px);
-      }
-      body {
-        font-family: 'Manrope', sans-serif;
-        background-color: #fbf9fb;
-        color: #1b1c1d;
-      }
-      h1, h2, h3 {
-        font-family: 'Plus Jakarta Sans', sans-serif;
-      }
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+        }
+        body {
+            background: #fbf9fb;
+            color: #1b1c1d;
+            font-family: "Manrope", sans-serif;
+        }
+        h1, h2, h3, h4 {
+            font-family: "Plus Jakarta Sans", sans-serif;
+        }
+        .signature-glow {
+            background: linear-gradient(135deg, #ab1155 0%, #cc326e 100%);
+        }
     </style>
 </head>
-<body class="bg-background text-on-background min-h-screen flex flex-col">
-<!-- TopNavBar (Shared Component: Updated to brand pink background with white text) -->
-<header class="bg-[#D81B60] dark:bg-[#ab1155] docked full-width top-0 sticky z-50 tonal-shift shadow-lg shadow-pink-900/20">
-<div class="flex justify-between items-center px-8 py-4 w-full max-w-screen-2xl mx-auto">
-<div class="text-2xl font-black italic tracking-tighter text-white">SexyLua</div>
-<nav class="hidden md:flex gap-8 items-center font-plus-jakarta-sans tracking-wide text-sm font-bold uppercase">
-<a class="text-pink-100/80 hover:text-white hover:scale-105 transition-transform duration-200" href="#">Métricas Lunares</a>
-<a class="text-pink-100/80 hover:text-white hover:scale-105 transition-transform duration-200" href="#">Ganhos Estelares</a>
-<a class="text-pink-100/80 hover:text-white hover:scale-105 transition-transform duration-200" href="#">Configuração ao Vivo</a>
-</nav>
-<div class="flex items-center gap-4">
-<button class="material-symbols-outlined text-white hover:scale-105 transition-transform duration-200" data-icon="notifications">notifications</button>
-<button class="material-symbols-outlined text-white hover:scale-105 transition-transform duration-200" data-icon="account_circle">account_circle</button>
-</div>
-</div>
+<body class="min-h-screen">
+<header class="fixed top-0 z-50 flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 font-['Plus_Jakarta_Sans'] font-bold tracking-wide text-white shadow-lg shadow-[#D81B60]/20">
+    <div class="flex items-center gap-4">
+        <h1 class="text-2xl font-black">SexyLua</h1>
+        <span class="hidden border-l border-white/20 pl-4 text-xs uppercase tracking-widest opacity-80 md:block">Subscriber Club</span>
+    </div>
+    <nav class="hidden items-center gap-6 text-sm md:flex">
+        <a class="border-b-2 border-white py-1" href="/subscriber">Inicio</a>
+        <a class="opacity-80 transition-opacity hover:opacity-100" href="/subscriber/subscriptions">Assinaturas</a>
+        <a class="opacity-80 transition-opacity hover:opacity-100" href="/subscriber/messages">Mensagens</a>
+        <a class="opacity-80 transition-opacity hover:opacity-100" href="/explore">Explorar</a>
+    </nav>
+    <div class="flex items-center gap-3">
+        <a class="rounded-full border border-white/20 px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-white/10" href="/subscriber/wallet">Carteira</a>
+        <div class="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 font-bold"><?= e(avatar_initials((string) ($subscriber['name'] ?? 'Assinante'))) ?></div>
+    </div>
 </header>
-<div class="flex flex-1 w-full max-w-screen-2xl mx-auto">
-<!-- SideNavBar (Shared Component) -->
-<aside class="bg-zinc-50 dark:bg-zinc-900 h-screen w-64 rounded-r-[3rem] shadow-xl fixed left-0 top-0 h-full hidden lg:flex flex-col py-8 z-40">
-<div class="px-8 mb-10">
-<h2 class="text-pink-700 font-bold text-xl font-headline">Hub Celestial</h2>
-<p class="text-xs text-zinc-500 font-label">Fase: Lua Cheia</p>
-</div>
-<nav class="flex flex-col gap-1 overflow-y-auto">
-<a class="bg-pink-50 dark:bg-pink-900/20 text-pink-700 dark:text-pink-400 rounded-full mx-2 px-4 py-3 flex items-center gap-3 font-['Plus_Jakarta_Sans'] font-medium scale-102 duration-200" href="#">
-<span class="material-symbols-outlined" data-icon="brightness_4" style="font-variation-settings: 'FILL' 1;">brightness_4</span>
-<span>Meu Conteúdo</span>
-</a>
-<a class="text-zinc-600 dark:text-zinc-400 mx-2 px-4 py-3 flex items-center gap-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors font-['Plus_Jakarta_Sans'] font-medium" href="#">
-<span class="material-symbols-outlined" data-icon="insights">insights</span>
-<span>Métricas Lunares</span>
-</a>
-<a class="text-zinc-600 dark:text-zinc-400 mx-2 px-4 py-3 flex items-center gap-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors font-['Plus_Jakarta_Sans'] font-medium" href="#">
-<span class="material-symbols-outlined" data-icon="settings_input_antenna">settings_input_antenna</span>
-<span>Configuração ao Vivo</span>
-</a>
-<a class="text-zinc-600 dark:text-zinc-400 mx-2 px-4 py-3 flex items-center gap-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors font-['Plus_Jakarta_Sans'] font-medium" href="#">
-<span class="material-symbols-outlined" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
-<span>Minhas Assinaturas</span>
-</a>
-<a class="text-zinc-600 dark:text-zinc-400 mx-2 px-4 py-3 flex items-center gap-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors font-['Plus_Jakarta_Sans'] font-medium" href="#">
-<span class="material-symbols-outlined" data-icon="favorite">favorite</span>
-<span>Favoritos</span>
-</a>
-<a class="text-zinc-600 dark:text-zinc-400 mx-2 px-4 py-3 flex items-center gap-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors font-['Plus_Jakarta_Sans'] font-medium" href="#">
-<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
-<span>Carteira</span>
-</a>
-</nav>
+
+<aside class="fixed left-0 top-16 hidden h-[calc(100vh-64px)] w-64 flex-col bg-[#f5f3f5] p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:flex">
+    <nav class="space-y-2">
+        <a class="flex items-center gap-4 rounded-full bg-white px-4 py-3 font-bold text-primary" href="/subscriber">
+            <span class="material-symbols-outlined">home</span>
+            <span>Inicio</span>
+        </a>
+        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/subscriptions">
+            <span class="material-symbols-outlined">stars</span>
+            <span>Minhas Assinaturas</span>
+        </a>
+        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/favorites">
+            <span class="material-symbols-outlined">favorite</span>
+            <span>Favoritos</span>
+        </a>
+        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/messages">
+            <span class="material-symbols-outlined">chat</span>
+            <span>Mensagens</span>
+        </a>
+        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/wallet">
+            <span class="material-symbols-outlined">account_balance_wallet</span>
+            <span>Carteira</span>
+        </a>
+    </nav>
+    <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
+        <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Saldo atual</p>
+        <h3 class="mt-3 text-3xl font-extrabold"><?= e(token_amount($walletBalance)) ?></h3>
+        <p class="mt-2 text-sm text-on-surface-variant">Use seus tokens para renovar planos, enviar gorjetas e entrar em experiencias especiais.</p>
+    </div>
 </aside>
-<!-- Main Content Area -->
-<main class="flex-1 lg:ml-64 p-8 lg:p-12">
-<!-- Dashboard Header / Welcome -->
-<section class="mb-12 flex flex-col md:flex-row justify-between items-end gap-6">
-<div>
-<h1 class="text-4xl font-extrabold tracking-tighter text-on-background mb-2">Olá, Explorador Lunar</h1>
-<p class="text-on-surface-variant text-lg">Suas estrelas estão alinhadas hoje.</p>
-</div>
-<!-- Minha Carteira / Balance (Contextual Feature) -->
-<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0px_20px_40px_rgba(27,28,29,0.04)] flex items-center gap-6">
-<div class="bg-secondary-fixed w-14 h-14 rounded-full flex items-center justify-center text-on-secondary-fixed">
-<span class="material-symbols-outlined text-3xl" data-icon="diamond" style="font-variation-settings: 'FILL' 1;">diamond</span>
-</div>
-<div>
-<p class="text-xs font-label uppercase tracking-widest text-on-surface-variant mb-1">Minha Carteira</p>
-<h3 class="text-2xl font-bold text-primary">2.450 <span class="text-sm font-medium">Tokens</span></h3>
-</div>
-<button class="bg-primary text-on-primary px-6 py-2 rounded-full font-bold hover:scale-105 transition-transform">Recarregar</button>
-</div>
-</section>
-<!-- Grid Content -->
-<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
-<!-- Minhas Assinaturas (Bento Large) -->
-<section class="md:col-span-8">
-<div class="flex justify-between items-center mb-6">
-<h2 class="text-2xl font-bold tracking-tight">Minhas Assinaturas</h2>
-<a class="text-primary font-bold text-sm hover:underline" href="#">Ver todas</a>
-</div>
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-<!-- Creator Card 1 -->
-<div class="group relative bg-surface-container-low rounded-lg overflow-hidden transition-all hover:translate-y-[-4px]">
-<img class="w-full h-80 object-cover rounded-lg group-hover:scale-105 transition-transform duration-500" data-alt="Bia Velvet portrait with soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOs-53GhAf_noODoN-XghBmQROrR95HbxOJNTd7Hled_6vMIV4ZatWkvFRHScyVBoQJeFNjdia87UzizadvcZPIcsdT3FRmMihS3jb9-4jK4KhxtVDcPzO1b_sV9zx7kxivln5p6ll3M94YS1utcp53gbakfKrsZ4Oah9ACYkbohx-wWsZpa6g0ZgZmoisrGDdWAbu_OPp44e3auDfJ4QtGeudYP00tPMU6uUCD9rbFAVAJphUOb7gooVGpOa0zYfCSjs-BI746Wo"/>
-<div class="absolute inset-0 bg-gradient-to-t from-on-background/80 via-transparent to-transparent"></div>
-<div class="absolute bottom-6 left-6 right-6 flex justify-between items-end">
-<div>
-<span class="bg-primary text-on-primary text-[10px] font-bold px-2 py-1 rounded-full uppercase mb-2 inline-block">Assinado</span>
-<h4 class="text-white text-xl font-bold">Bia Velvet</h4>
-<p class="text-white/70 text-sm">Próxima renovação: 12 Out</p>
-</div>
-<button class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-primary transition-colors">
-<span class="material-symbols-outlined" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
-</button>
-</div>
-</div>
-<!-- Creator Card 2 -->
-<div class="group relative bg-surface-container-low rounded-lg overflow-hidden transition-all hover:translate-y-[-4px]">
-<img class="w-full h-80 object-cover rounded-lg group-hover:scale-105 transition-transform duration-500" data-alt="Elegant woman in dramatic studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIfHzCOZkxvRl6pMwUwgM55k2x9bH-Oe-AiosDXKtFd0umKpWluBd266EHMRFAP9E1KDiQDir6SS1WtRk_UYlWSgk1N935HQhI7qwNqrPL6149UEN58G7H8qdKEjCYnjn_HAlbk1zYychcNQAIEtZrtHgBl_FlJdjk_ex1T-cOFzjmqPcEY8z3cKNzQr_ag9LY5V9ZpiJRpSbp0SOMlHb-feB8CqW_o1Yh9oCycRF99mzmjMiJRmsntOvqtUZI_WInOfcRKEqo97M"/>
-<div class="absolute inset-0 bg-gradient-to-t from-on-background/80 via-transparent to-transparent"></div>
-<div class="absolute bottom-6 left-6 right-6 flex justify-between items-end">
-<div>
-<span class="bg-primary text-on-primary text-[10px] font-bold px-2 py-1 rounded-full uppercase mb-2 inline-block">Assinado</span>
-<h4 class="text-white text-xl font-bold">Luna Star</h4>
-<p class="text-white/70 text-sm">Próxima renovação: 25 Set</p>
-</div>
-<button class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-primary transition-colors">
-<span class="material-symbols-outlined" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
-</button>
-</div>
-</div>
-</div>
-</section>
-<!-- Favoritos do Mês (Bento Sidebar Content) -->
-<section class="md:col-span-4 flex flex-col gap-8">
-<div>
-<h2 class="text-2xl font-bold tracking-tight mb-6">Favoritos do Mês</h2>
-<div class="space-y-4">
-<div class="bg-surface-container-lowest p-4 rounded-xl flex items-center gap-4 group cursor-pointer hover:bg-surface-container-high transition-colors">
-<img class="w-16 h-16 rounded-full object-cover" data-alt="Model profile picture thumbnail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDLuYDvQN_w57J6gcFk4S1-A0cqQkOXcT9EKoNZ5lv9u9wcuj38YjEt9Q9HFQACWYUwyMhWBKkv3XxEI_eWu3Eb0wWbUilI2HTr0lZYgtSFmuVjHG01oZlry8HntFORzSv7G21P7QaxgbGD2OL-5Sw1FR7aPgUp_OfK_K3CQWBNRtfaAveC3nQOSrv8fgvmaMQ-WzOFWWXQCu24Frahaq07RalyIS-rLaYb41bNeECho604YJl-NGioW0Mk2fjcl9GUJOw_pHwTy8s"/>
-<div class="flex-1">
-<h5 class="font-bold text-on-background">Maya Dreams</h5>
-<p class="text-xs text-on-surface-variant">42 novos conteúdos</p>
-</div>
-<span class="material-symbols-outlined text-primary" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
-</div>
-<div class="bg-surface-container-lowest p-4 rounded-xl flex items-center gap-4 group cursor-pointer hover:bg-surface-container-high transition-colors">
-<img class="w-16 h-16 rounded-full object-cover" data-alt="Fashion portrait of a creator" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmRXhOMvqiNdcs1GbrMcY4EwZnXx3JZFjnPqwnGzQKjXZvZsd5EZrqDh53khmdzVcVxr_JVJXzPgN3S1cfIJTxumWg8zvxhZSIz8X-y24LbHpDsbq43MVr-k_buskgX3OVXiTlqVTdCyd13vqDNuwXf43tRAnQskBz-t4oLQeyTdyHGtNYwkeNUlRn5uYq5X6GZJPE8zTYfXY1GemdNCHg9MK2NmTEOWmE1LaaRBKFoNqyZLZmQb93ZO1Dv_zm8etSJmfZ_piLZNA"/>
-<div class="flex-1">
-<h5 class="font-bold text-on-background">Red Velvet</h5>
-<p class="text-xs text-on-surface-variant">15 novos conteúdos</p>
-</div>
-<span class="material-symbols-outlined text-primary" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
-</div>
-</div>
-</div>
-<!-- Explorar Novas Luas -->
-<div class="bg-primary-container text-on-primary-container p-8 rounded-xl relative overflow-hidden">
-<div class="relative z-10">
-<h3 class="text-2xl font-extrabold mb-4 leading-tight">Descubra Novas Galáxias</h3>
-<p class="text-sm mb-6 opacity-90">Novas criadoras entraram em órbita hoje. Explore talentos exclusivos.</p>
-<button class="bg-white text-primary px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform">
-<span>Explorar Novas Luas</span>
-<span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
-</button>
-</div>
-<!-- Abstract Moon Pattern -->
-<div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/20 rounded-full blur-2xl"></div>
-<div class="absolute top-5 right-5 w-20 h-20 border-4 border-white/10 rounded-full"></div>
-</div>
-</section>
-</div>
+
+<main class="min-h-screen px-6 pb-10 pt-24 lg:ml-64 lg:px-10">
+    <section class="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+            <p class="text-xs font-bold uppercase tracking-[0.3em] text-primary">Painel pessoal</p>
+            <h2 class="mt-2 text-5xl font-extrabold tracking-tight">Area do <span class="italic text-primary">Assinante</span></h2>
+            <p class="mt-4 max-w-2xl text-on-surface-variant">Acompanhe seus planos ativos, favoritas, conversas abertas e os proximos eventos dos criadores que voce segue.</p>
+        </div>
+        <div class="signature-glow rounded-3xl px-6 py-5 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.2)]">
+            <p class="text-xs font-bold uppercase tracking-[0.25em] text-white/70">Bem-vindo</p>
+            <p class="mt-2 text-2xl font-extrabold"><?= e((string) ($subscriber['name'] ?? 'Assinante')) ?></p>
+            <p class="mt-1 text-sm text-white/80"><?= e((string) ($subscriber['email'] ?? '')) ?></p>
+        </div>
+    </section>
+
+    <section class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm">
+            <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Assinaturas</p>
+            <p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) count($subscriptions)) ?></p>
+            <p class="mt-2 text-sm text-on-surface-variant">Planos ativos no momento.</p>
+        </article>
+        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm">
+            <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Favoritos</p>
+            <p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) $favoritesCount) ?></p>
+            <p class="mt-2 text-sm text-on-surface-variant">Criadores marcados no seu radar.</p>
+        </article>
+        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm">
+            <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Conteudos salvos</p>
+            <p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) $savedCount) ?></p>
+            <p class="mt-2 text-sm text-on-surface-variant">Itens guardados para ver depois.</p>
+        </article>
+        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm">
+            <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Conversas</p>
+            <p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) $recentMessagesCount) ?></p>
+            <p class="mt-2 text-sm text-on-surface-variant">Threads abertas com criadores.</p>
+        </article>
+    </section>
+
+    <div class="grid grid-cols-1 gap-8 2xl:grid-cols-[1.1fr_0.9fr]">
+        <section class="space-y-8">
+            <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
+                <div class="mb-6 flex items-center justify-between">
+                    <h3 class="text-2xl font-extrabold">Minhas assinaturas</h3>
+                    <a class="text-sm font-bold text-primary hover:underline" href="/subscriber/subscriptions">Gerenciar</a>
+                </div>
+                <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <?php foreach ($subscriptions as $subscription): ?>
+                        <?php $creator = $subscription['creator'] ?? []; $plan = $subscription['plan'] ?? []; ?>
+                        <article class="rounded-3xl bg-surface-container-low p-5">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <p class="text-lg font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
+                                </div>
+                                <span class="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-700"><?= e((string) ($subscription['status'] ?? 'active')) ?></span>
+                            </div>
+                            <p class="mt-4 text-sm text-on-surface-variant"><?= e((string) ($plan['name'] ?? 'Plano ativo')) ?> • <?= e(token_amount((int) ($plan['price_tokens'] ?? 0))) ?></p>
+                            <p class="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Renova em <?= e((string) ($subscription['days_to_renew'] ?? 0)) ?> dias</p>
+                        </article>
+                    <?php endforeach; ?>
+                    <?php if ($subscriptions === []): ?>
+                        <p class="rounded-3xl bg-surface-container-low p-6 text-sm text-on-surface-variant">Nenhuma assinatura ativa no momento.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
+                <div class="mb-6 flex items-center justify-between">
+                    <h3 class="text-2xl font-extrabold">Proximas lives</h3>
+                    <a class="text-sm font-bold text-primary hover:underline" href="/explore">Ver mais</a>
+                </div>
+                <div class="space-y-4">
+                    <?php foreach ($upcomingLives as $live): ?>
+                        <article class="rounded-3xl bg-surface-container-low p-5">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <p class="text-lg font-bold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($live['creator']['name'] ?? 'Criador')) ?></p>
+                                </div>
+                                <span class="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest <?= (string) ($live['status'] ?? '') === 'live' ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-600' ?>"><?= e((string) ($live['status'] ?? 'scheduled')) ?></span>
+                            </div>
+                            <p class="mt-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(format_datetime((string) ($live['scheduled_for'] ?? ''), 'd/m/Y H:i')) ?></p>
+                        </article>
+                    <?php endforeach; ?>
+                    <?php if ($upcomingLives === []): ?>
+                        <p class="rounded-3xl bg-surface-container-low p-6 text-sm text-on-surface-variant">Nenhuma live agendada para os criadores que voce acompanha.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </section>
+
+        <section class="space-y-8">
+            <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
+                <div class="mb-6 flex items-center justify-between">
+                    <h3 class="text-2xl font-extrabold">Conversas recentes</h3>
+                    <a class="text-sm font-bold text-primary hover:underline" href="/subscriber/messages">Abrir chat</a>
+                </div>
+                <div class="space-y-4">
+                    <?php foreach ($conversations as $conversation): ?>
+                        <a class="block rounded-3xl bg-surface-container-low p-5 transition-colors hover:bg-surface-container-high" href="<?= e('/subscriber/messages?conversation=' . (int) ($conversation['id'] ?? 0)) ?>">
+                            <p class="font-bold"><?= e((string) ($conversation['creator']['name'] ?? 'Criador')) ?></p>
+                            <p class="mt-1 text-sm text-on-surface-variant"><?= e(excerpt((string) ($conversation['latest_message']['body'] ?? 'Sem mensagens ainda.'), 80)) ?></p>
+                            <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(format_datetime((string) ($conversation['updated_at'] ?? ''), 'd/m H:i')) ?></p>
+                        </a>
+                    <?php endforeach; ?>
+                    <?php if ($conversations === []): ?>
+                        <p class="rounded-3xl bg-surface-container-low p-6 text-sm text-on-surface-variant">Nenhuma conversa aberta ainda.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
+                <div class="mb-6 flex items-center justify-between">
+                    <h3 class="text-2xl font-extrabold">Ultimas movimentacoes</h3>
+                    <a class="text-sm font-bold text-primary hover:underline" href="/subscriber/wallet">Ver carteira</a>
+                </div>
+                <div class="space-y-4">
+                    <?php foreach ($transactions as $transaction): ?>
+                        <?php $isIn = (string) ($transaction['direction'] ?? 'in') === 'in'; ?>
+                        <div class="rounded-3xl bg-surface-container-low p-5">
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <p class="font-bold"><?= e((string) ($transaction['note'] ?? 'Movimentacao')) ?></p>
+                                    <p class="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['type'] ?? 'mov')) ?></p>
+                                </div>
+                                <strong class="<?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?>"><?= $isIn ? '+' : '-' ?><?= e(token_amount((int) ($transaction['amount'] ?? 0))) ?></strong>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                    <?php if ($transactions === []): ?>
+                        <p class="rounded-3xl bg-surface-container-low p-6 text-sm text-on-surface-variant">Sem movimentacoes recentes.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
+                <div class="mb-6 flex items-center justify-between">
+                    <h3 class="text-2xl font-extrabold">Novos planos</h3>
+                    <a class="text-sm font-bold text-primary hover:underline" href="/subscriber/subscriptions">Assinar</a>
+                </div>
+                <div class="space-y-4">
+                    <?php foreach ($availablePlans as $plan): ?>
+                        <article class="rounded-3xl bg-surface-container-low p-5">
+                            <p class="text-lg font-bold"><?= e((string) ($plan['creator']['name'] ?? 'Criador')) ?></p>
+                            <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($plan['name'] ?? 'Plano')) ?> • <?= e(token_amount((int) ($plan['price_tokens'] ?? 0))) ?></p>
+                            <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($plan['description'] ?? ''), 90)) ?></p>
+                        </article>
+                    <?php endforeach; ?>
+                    <?php if ($availablePlans === []): ?>
+                        <p class="rounded-3xl bg-surface-container-low p-6 text-sm text-on-surface-variant">Sem novas sugestoes de plano agora.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </section>
+    </div>
 </main>
-</div>
-<!-- Footer (Shared Component: Updated to brand pink background with white text) -->
-<footer class="bg-[#D81B60] dark:bg-[#ab1155] full-width py-12 soft-shadow-top w-full flex flex-col items-center justify-center gap-6 px-4">
-<div class="font-bold text-white text-lg tracking-tighter">SexyLua</div>
-<div class="flex flex-wrap justify-center gap-8 font-manrope text-xs tracking-widest uppercase text-pink-100">
-<a class="hover:text-white hover:underline transition-opacity" href="#">Termos de Serviço</a>
-<a class="hover:text-white hover:underline transition-opacity" href="#">Política de Privacidade</a>
-<a class="hover:text-white hover:underline transition-opacity" href="#">Suporte Lunar</a>
-</div>
-<p class="font-manrope text-[10px] uppercase tracking-widest text-pink-100/60">© 2024 SexyLua Celestial Editorial. All phases reserved.</p>
-</footer>
-<!-- Mobile Bottom NavBar (Contextual) -->
-<div class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-t-[3rem] shadow-[0px_-10px_30px_rgba(216,27,96,0.1)]">
-<a class="flex flex-col items-center justify-center text-[#D81B60] relative after:content-[''] after:w-1 after:h-1 after:bg-[#D81B60] after:rounded-full after:mt-1 active:scale-110 transition-all duration-300 ease-out" href="#">
-<span class="material-symbols-outlined" data-icon="wb_twilight" style="font-variation-settings: 'FILL' 1;">wb_twilight</span>
-<span class="font-manrope text-[10px] font-medium">Home</span>
-</a>
-<a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 hover:text-[#D81B60] dark:hover:text-pink-400 transition-all" href="#">
-<span class="material-symbols-outlined" data-icon="explore">explore</span>
-<span class="font-manrope text-[10px] font-medium">Explore</span>
-</a>
-<a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 hover:text-[#D81B60] dark:hover:text-pink-400 transition-all" href="#">
-<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
-<span class="font-manrope text-[10px] font-medium">Create</span>
-</a>
-<a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 hover:text-[#D81B60] dark:hover:text-pink-400 transition-all" href="#">
-<span class="material-symbols-outlined" data-icon="nights_stay">nights_stay</span>
-<span class="font-manrope text-[10px] font-medium">Activity</span>
-</a>
-<a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 hover:text-[#D81B60] dark:hover:text-pink-400 transition-all" href="#">
-<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
-<span class="font-manrope text-[10px] font-medium">Profile</span>
-</a>
-</div>
-</body></html>
+</body>
+</html>
