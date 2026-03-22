@@ -39,6 +39,20 @@ final class CreatorController extends Controller
         ], null);
     }
 
+    public function favorites(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+
+        $this->render('pages/creator/favorites', [
+            'title' => 'Favoritos do Criador',
+            'data' => $this->app->repository->creatorFavoritesData((int) $this->user()['id']),
+            'sidebar_role' => 'creator',
+            'prototype' => [
+                'page' => 'creator.favorites',
+            ],
+        ], null);
+    }
+
     public function memberships(Request $request): void
     {
         $this->app->auth->requireRole('creator');
@@ -81,6 +95,21 @@ final class CreatorController extends Controller
                 'page' => 'creator.wallet',
                 'wallet_payout' => true,
                 'payout_tokens' => max(50, (int) ($wallet['min_withdrawal'] ?? 50)),
+            ],
+        ], null);
+    }
+
+    public function settings(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+
+        $this->render('pages/creator/settings', [
+            'title' => 'Configuracoes do Criador',
+            'data' => $this->app->repository->creatorSettingsData((int) $this->user()['id']),
+            'sidebar_role' => 'creator',
+            'prototype' => [
+                'page' => 'creator.settings',
+                'creator_settings' => true,
             ],
         ], null);
     }
@@ -146,5 +175,14 @@ final class CreatorController extends Controller
         $result = $this->app->repository->requestPayout((int) $this->user()['id'], (int) $request->input('tokens', 0));
 
         $this->redirect('/creator/wallet', $result['message'], $result['ok'] ? 'success' : 'error');
+    }
+
+    public function updateSettings(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+        $this->validateCsrf($request, '/creator/settings');
+        $ok = $this->app->repository->updateCreatorSettings((int) $this->user()['id'], $request->all());
+
+        $this->redirect('/creator/settings', $ok ? 'Configuracoes atualizadas com sucesso.' : 'Nao foi possivel salvar as configuracoes.', $ok ? 'success' : 'error');
     }
 }

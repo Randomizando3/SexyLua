@@ -37,9 +37,11 @@ $router->post('/subscriber/wallet/add-funds', [SubscriberController::class, 'add
 
 $router->get('/creator', [CreatorController::class, 'dashboard']);
 $router->get('/creator/content', [CreatorController::class, 'content']);
+$router->get('/creator/favorites', [CreatorController::class, 'favorites']);
 $router->get('/creator/memberships', [CreatorController::class, 'memberships']);
 $router->get('/creator/live', [CreatorController::class, 'live']);
 $router->get('/creator/wallet', [CreatorController::class, 'wallet']);
+$router->get('/creator/settings', [CreatorController::class, 'settings']);
 $router->post('/creator/content/create', [CreatorController::class, 'createContent']);
 $router->post('/creator/content/status', [CreatorController::class, 'updateContentStatus']);
 $router->post('/creator/content/delete', [CreatorController::class, 'deleteContent']);
@@ -47,6 +49,7 @@ $router->post('/creator/memberships/save', [CreatorController::class, 'savePlan'
 $router->post('/creator/live/save', [CreatorController::class, 'saveLive']);
 $router->post('/creator/live/status', [CreatorController::class, 'updateLiveStatus']);
 $router->post('/creator/wallet/payout', [CreatorController::class, 'requestPayout']);
+$router->post('/creator/settings/update', [CreatorController::class, 'updateSettings']);
 
 $router->get('/admin', [AdminController::class, 'dashboard']);
 $router->get('/admin/users', [AdminController::class, 'users']);

@@ -243,6 +243,50 @@
     const profileUrl = (id) => `/profile?id=${id}`
     const conversationUrl = (id) => `/subscriber/messages?conversation=${id}`
 
+    const applyNavigationRoute = (element, route) => {
+        if (!element || !route) {
+            return
+        }
+
+        if (element.tagName === 'A') {
+            element.setAttribute('href', route)
+        }
+
+        setRoute(element, route)
+    }
+
+    const bindCreatorNavigation = () => {
+        if (!page.startsWith('creator.')) {
+            return
+        }
+
+        const routeMap = [
+            { labels: ['gestao de usuarios'], route: config.routes.adminUsers },
+            { labels: ['financeiro'], route: config.routes.adminFinance },
+            { labels: ['moderacao de conteudo'], route: config.routes.adminModeration },
+            { labels: ['meu conteudo', 'conteudo', 'content', 'ver tudo'], route: config.routes.creatorContent },
+            { labels: ['metricas lunares', 'painel', 'dashboard'], route: config.routes.creatorMetrics || config.routes.creator },
+            { labels: ['ganhos estelares', 'carteira', 'wallet'], route: config.routes.creatorWallet },
+            { labels: ['configurar live', 'live stream', 'transmissao ao vivo', 'transmissao', 'go live', 'iniciar live', 'entrar ao vivo'], route: config.routes.creatorLive },
+            { labels: ['minhas assinaturas', 'assinaturas', 'assinantes', 'subscribers'], route: config.routes.creatorMemberships },
+            { labels: ['favoritos'], route: config.routes.creatorFavorites },
+            { labels: ['configuracoes', 'settings'], route: config.routes.creatorSettings },
+        ]
+
+        const elements = qa('a[href="#"], button:not([type]), button[type="button"]')
+
+        elements.forEach((element) => {
+            const label = normalize(element.textContent)
+            const match = routeMap.find((item) => item.labels.some((text) => label.includes(text)))
+
+            if (!match || !match.route) {
+                return
+            }
+
+            applyNavigationRoute(element, match.route)
+        })
+    }
+
     const attachRouteHandler = () => {
         document.addEventListener('click', (event) => {
             const target = event.target.closest('[data-prototype-route]')
@@ -825,6 +869,7 @@
     }
 
     attachRouteHandler()
+    bindCreatorNavigation()
 
     const pagePatches = {
         'public.home': patchPublicHome,
@@ -838,9 +883,11 @@
         'subscriber.wallet': patchSubscriberWallet,
         'creator.dashboard': patchCreatorDashboard,
         'creator.content': patchCreatorContent,
+        'creator.favorites': () => {},
         'creator.memberships': patchCreatorMemberships,
         'creator.live': patchCreatorLive,
         'creator.wallet': patchCreatorWallet,
+        'creator.settings': () => {},
         'admin.dashboard': patchAdminDashboard,
         'admin.users': patchAdminUsers,
         'admin.moderation': patchAdminModeration,

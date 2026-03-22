@@ -860,6 +860,163 @@ final class PlatformRepository
         ];
     }
 
+    public function creatorFavoritesData(int $creatorId): array
+    {
+        $favorites = $this->favoritesData($creatorId);
+        $favoriteCreators = array_values(array_filter(
+            $favorites['favorite_creators'],
+            static fn (array $creator): bool => (int) ($creator['id'] ?? 0) !== $creatorId
+        ));
+        $savedContent = array_values(array_filter(
+            $favorites['saved_content'],
+            static fn (array $item): bool => (int) ($item['creator_id'] ?? 0) !== $creatorId
+        ));
+
+        if ($favoriteCreators === []) {
+            $fallbackCreators = array_values(array_filter(
+                $this->creators(),
+                static fn (array $creator): bool => (int) $creator['id'] !== $creatorId
+            ));
+            usort($fallbackCreators, static fn (array $left, array $right): int => [$right['featured'] ? 1 : 0, $right['followers'] ?? 0] <=> [$left['featured'] ? 1 : 0, $left['followers'] ?? 0]);
+            $favoriteCreators = array_slice($fallbackCreators, 0, 4);
+        }
+
+        if ($savedContent === []) {
+            $fallbackContent = array_values(array_filter(
+                $this->contentsWithCreators(),
+                static fn (array $item): bool => (int) $item['creator_id'] !== $creatorId && $item['status'] === 'approved'
+            ));
+            $savedContent = array_slice($this->sortByDate($fallbackContent, 'created_at'), 0, 6);
+        }
+
+        $trackedCreatorIds = array_map(static fn (array $creator): int => (int) $creator['id'], $favoriteCreators);
+        $trackedLives = array_values(array_filter(
+            $this->livesWithCreators(),
+            static fn (array $live): bool => in_array((int) $live['creator_id'], $trackedCreatorIds, true) && in_array($live['status'], ['live', 'scheduled'], true)
+        ));
+
+        return [
+            'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
+            'favorite_creators' => $favoriteCreators,
+            'saved_content' => $savedContent,
+            'tracked_lives' => array_slice($this->sortByDate($trackedLives, 'scheduled_for'), 0, 4),
+        ];
+    }
+
+    public function creatorSettingsData(int $creatorId): array
+    {
+        $creator = $this->findCreatorBySlugOrId(null, $creatorId);
+        $wallet = $this->creatorWalletData($creatorId);
+        $plans = $this->creatorPlansData($creatorId);
+        $lives = $this->creatorLiveData($creatorId);
+        $settings = $this->settings();
+
+        return [
+            'creator' => $creator,
+            'wallet' => $wallet,
+            'plans' => $plans['plans'],
+            'active_subscribers' => $plans['active_subscribers'],
+            'active_live' => $lives['active_live'],
+            'next_live' => $lives['lives'][0] ?? null,
+            'platform' => [
+                'token_price_brl' => (float) ($settings['token_price_brl'] ?? 0.35),
+                'withdraw_min_tokens' => (int) ($settings['withdraw_min_tokens'] ?? 50),
+                'withdraw_max_tokens' => (int) ($settings['withdraw_max_tokens'] ?? 25000),
+            ],
+        ];
+    }
+
+    public function updateCreatorSettings(int $creatorId, array $data): bool
+    {
+        $users = $this->users();
+        $profiles = $this->creatorProfiles();
+        $foundCreator = false;
+        $foundProfile = false;
+        $changedUsers = false;
+        $changedProfiles = false;
+        $name = trim((string) ($data['name'] ?? ''));
+        $headline = trim((string) ($data['headline'] ?? ''));
+        $bio = trim((string) ($data['bio'] ?? ''));
+        $city = trim((string) ($data['city'] ?? ''));
+        $mood = trim((string) ($data['mood'] ?? ''));
+        $coverStyle = trim((string) ($data['cover_style'] ?? ''));
+
+        foreach ($users as &$user) {
+            if ((int) $user['id'] !== $creatorId || ($user['role'] ?? null) !== 'creator') {
+                continue;
+            }
+
+            $foundCreator = true;
+
+            if ($name !== '' && $name !== (string) $user['name']) {
+                $user['name'] = $name;
+                $changedUsers = true;
+            }
+
+            if ($headline !== '' && $headline !== (string) ($user['headline'] ?? '')) {
+                $user['headline'] = $headline;
+                $changedUsers = true;
+            }
+
+            if ($bio !== '' && $bio !== (string) ($user['bio'] ?? '')) {
+                $user['bio'] = $bio;
+                $changedUsers = true;
+            }
+
+            if ($city !== '' && $city !== (string) ($user['city'] ?? '')) {
+                $user['city'] = $city;
+                $changedUsers = true;
+            }
+        }
+        unset($user);
+
+        foreach ($profiles as &$profile) {
+            if ((int) $profile['user_id'] !== $creatorId) {
+                continue;
+            }
+
+            $foundProfile = true;
+
+            if ($mood !== '' && $mood !== (string) ($profile['mood'] ?? '')) {
+                $profile['mood'] = $mood;
+                $changedProfiles = true;
+            }
+
+            if ($coverStyle !== '' && $coverStyle !== (string) ($profile['cover_style'] ?? '')) {
+                $profile['cover_style'] = $coverStyle;
+                $changedProfiles = true;
+            }
+        }
+        unset($profile);
+
+        if (! $foundCreator) {
+            return false;
+        }
+
+        if (! $foundProfile) {
+            $profiles[] = [
+                'user_id' => $creatorId,
+                'slug' => $this->uniqueSlug($name !== '' ? $name : ((string) ($this->findUserById($creatorId)['name'] ?? 'criador'))),
+                'mood' => $mood !== '' ? $mood : 'Lua Nova',
+                'cover_style' => $coverStyle !== '' ? $coverStyle : 'rose-dawn',
+                'featured' => false,
+                'followers' => 0,
+                'rating' => 5.0,
+            ];
+            $changedProfiles = true;
+        }
+
+        if ($changedUsers) {
+            $this->save('users', $users);
+        }
+
+        if ($changedProfiles) {
+            $this->save('creator_profiles', $profiles);
+        }
+
+        return true;
+    }
+
     public function requestPayout(int $creatorId, int $tokens): array
     {
         $minWithdrawal = (int) ($this->settings()['withdraw_min_tokens'] ?? 50);
