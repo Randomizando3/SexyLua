@@ -9,6 +9,9 @@ use App\Support\SeedFactory;
 
 final class PlatformRepository
 {
+    private const LIVE_PRESENCE_TIMEOUT_SECONDS = 90;
+    private const LIVE_SIGNAL_TIMEOUT_SECONDS = 180;
+
     public function __construct(
         private readonly StoreInterface $store,
         private readonly array $config,
@@ -28,7 +31,7 @@ final class PlatformRepository
     {
         foreach ($this->users() as $user) {
             if ((int) $user['id'] === $id) {
-                return $user;
+                return $this->sanitizeUser($user);
             }
         }
 
@@ -108,7 +111,7 @@ final class PlatformRepository
             $this->save('wallet_transactions', $transactions);
         }
 
-        return $user;
+        return $this->sanitizeUser($user);
     }
 
     public function homepageData(): array
@@ -222,13 +225,15 @@ final class PlatformRepository
 
     public function liveRoomData(int $liveId, ?int $viewerId = null): ?array
     {
+        $this->cleanupLiveRtcData();
         $live = $this->findLiveById($liveId);
 
         if (! $live) {
             return null;
         }
 
-        $decoratedLive = $this->decorateLive($live);
+        $access = $this->accessStateForLive($live, $viewerId);
+        $decoratedLive = $this->hydrateLiveRuntime($this->decorateLive($live));
         $messages = array_values(array_filter($this->liveMessages(), static fn (array $message): bool => (int) $message['live_id'] === $liveId));
         $messages = $this->sortByDate($messages, 'created_at');
         $messages = array_map(function (array $message): array {
@@ -274,16 +279,27 @@ final class PlatformRepository
             'related_lives' => array_slice($related, 0, 5),
             'recent_tips' => array_slice($tipTransactions, 0, 5),
             'top_supporters' => array_slice($supporters, 0, 3),
-            'can_chat' => $viewerId !== null,
-            'can_tip' => $viewerId !== null,
+            'can_watch' => (bool) ($access['granted'] ?? false),
+            'requires_login' => (bool) ($access['requires_login'] ?? false),
+            'requires_subscription' => (bool) ($access['requires_subscription'] ?? false),
+            'can_chat' => $viewerId !== null && (bool) ($access['granted'] ?? false) && (bool) ($decoratedLive['chat_enabled'] ?? false),
+            'can_tip' => $viewerId !== null && (bool) ($access['granted'] ?? false),
+            'stream' => $this->publicLiveStreamState($liveId),
         ];
     }
 
     public function postLiveMessage(int $liveId, int $userId, string $body): bool
     {
         $body = trim($body);
+        $live = $this->findLiveById($liveId);
 
-        if ($body === '' || ! $this->findLiveById($liveId) || ! $this->findUserById($userId)) {
+        if (
+            $body === ''
+            || ! $live
+            || ! $this->findUserById($userId)
+            || ! (bool) ($live['chat_enabled'] ?? false)
+            || ! (bool) ($this->accessStateForLive($live, $userId)['granted'] ?? false)
+        ) {
             return false;
         }
 
@@ -1150,6 +1166,7 @@ final class PlatformRepository
     {
         $lives = array_values(array_filter($this->livesWithCreators(), static fn (array $live): bool => (int) $live['creator_id'] === $creatorId));
         $lives = $this->sortByDate($lives, 'scheduled_for');
+        $lives = array_map(fn (array $live): array => $this->hydrateLiveRuntime($live), $lives);
         $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
         $status = trim((string) ($filters['status'] ?? ''));
         $selectedId = (int) ($filters['live'] ?? 0);
@@ -1228,6 +1245,11 @@ final class PlatformRepository
             'cover_url' => trim((string) ($data['cover_url'] ?? '')),
             'pinned_notice' => trim((string) ($data['pinned_notice'] ?? '')),
             'recording_enabled' => ($data['recording_enabled'] ?? '0') === '1',
+            'stream_mode' => 'p2p_mesh',
+            'max_bitrate_kbps' => max(300, min(2500, (int) ($data['max_bitrate_kbps'] ?? 1500))),
+            'video_width' => max(320, min(1920, (int) ($data['video_width'] ?? 960))),
+            'video_height' => max(240, min(1080, (int) ($data['video_height'] ?? 540))),
+            'video_fps' => max(12, min(30, (int) ($data['video_fps'] ?? 24))),
         ];
 
         if ($liveId > 0) {
@@ -1264,9 +1286,6 @@ final class PlatformRepository
         foreach ($lives as &$live) {
             if ((int) $live['id'] === $liveId && (int) $live['creator_id'] === $creatorId) {
                 $live['status'] = $status;
-                if ($status === 'live' && (int) $live['viewer_count'] === 0) {
-                    $live['viewer_count'] = random_int(20, 180);
-                }
                 $changed = true;
                 break;
             }
@@ -1295,6 +1314,338 @@ final class PlatformRepository
         $this->save('live_messages', $messages);
 
         return true;
+    }
+
+    public function joinLiveRtc(int $liveId, string $role, ?int $userId, string $sessionId): array
+    {
+        $this->cleanupLiveRtcData();
+        $live = $this->findLiveById($liveId);
+
+        if (! $live) {
+            return ['ok' => false, 'message' => 'Live nao encontrada.'];
+        }
+
+        $role = $role === 'creator' ? 'creator' : 'viewer';
+        $access = $this->accessStateForLive($live, $userId);
+
+        if ($role === 'creator') {
+            if ($userId === null || (int) $live['creator_id'] !== $userId) {
+                return ['ok' => false, 'message' => 'Apenas o criador desta live pode abrir a transmissao.'];
+            }
+        } elseif (! (bool) ($access['granted'] ?? false)) {
+            return [
+                'ok' => false,
+                'message' => (bool) ($access['requires_login'] ?? false) ? 'Entre para acessar esta live.' : 'Esta live exige assinatura ativa.',
+                'requires_login' => (bool) ($access['requires_login'] ?? false),
+                'requires_subscription' => (bool) ($access['requires_subscription'] ?? false),
+            ];
+        }
+
+        $presence = array_values(array_filter(
+            $this->livePresence(),
+            static function (array $row) use ($liveId, $role, $userId, $sessionId): bool {
+                $sameLive = (int) ($row['live_id'] ?? 0) === $liveId;
+                $sameRole = (string) ($row['role'] ?? '') === $role;
+                $sameSession = (string) ($row['session_id'] ?? '') === $sessionId;
+                $sameUser = (int) ($row['user_id'] ?? 0) === (int) ($userId ?? 0);
+
+                return ! ($sameLive && $sameRole && $sameSession && $sameUser);
+            }
+        ));
+        $peerId = $this->generateLivePeerId($role);
+        $user = $userId !== null ? $this->findUserById($userId) : null;
+        $displayName = trim((string) ($user['name'] ?? ''));
+
+        if ($displayName === '') {
+            $displayName = $role === 'creator' ? 'Criador' : 'Visitante ' . strtoupper(substr($peerId, -4));
+        }
+
+        $presence[] = [
+            'id' => $this->store->nextId($presence),
+            'live_id' => $liveId,
+            'peer_id' => $peerId,
+            'role' => $role,
+            'user_id' => $userId,
+            'session_id' => $sessionId,
+            'display_name' => $displayName,
+            'created_at' => date('Y-m-d H:i:s'),
+            'last_seen' => date('Y-m-d H:i:s'),
+        ];
+        $this->save('live_presence', $presence);
+
+        return [
+            'ok' => true,
+            'peer_id' => $peerId,
+            'role' => $role,
+            'display_name' => $displayName,
+            'live' => $this->hydrateLiveRuntime($this->decorateLive($live)),
+            'stream' => $this->publicLiveStreamState($liveId),
+            'viewer_count' => $this->activeViewerCountForLive($liveId),
+            'poll_interval_ms' => 1500,
+            'heartbeat_interval_ms' => 10000,
+        ];
+    }
+
+    public function startLiveBroadcast(int $creatorId, int $liveId, string $peerId, string $sessionId, array $settings = []): array
+    {
+        $this->cleanupLiveRtcData();
+        $live = $this->findLiveById($liveId);
+
+        if (! $live || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+            return ['ok' => false, 'message' => 'Live nao encontrada para este criador.'];
+        }
+
+        $presence = $this->findLivePresencePeer($liveId, $peerId, $sessionId, $creatorId);
+        if (! $presence || (string) ($presence['role'] ?? '') !== 'creator') {
+            return ['ok' => false, 'message' => 'Sessao do criador nao encontrada. Recarregue o studio.'];
+        }
+
+        $this->clearLiveSignals($liveId);
+        $streams = $this->liveStreams();
+        $updated = false;
+        $now = date('Y-m-d H:i:s');
+
+        foreach ($streams as &$stream) {
+            if ((int) ($stream['live_id'] ?? 0) !== $liveId) {
+                continue;
+            }
+
+            $stream['status'] = 'live';
+            $stream['broadcaster_peer_id'] = $peerId;
+            $stream['updated_at'] = $now;
+            $stream['started_at'] = (string) ($stream['started_at'] ?? $now);
+            $stream['max_bitrate_kbps'] = max(300, min(2500, (int) ($settings['max_bitrate_kbps'] ?? $stream['max_bitrate_kbps'] ?? $live['max_bitrate_kbps'] ?? 1500)));
+            $stream['video_width'] = max(320, min(1920, (int) ($settings['video_width'] ?? $stream['video_width'] ?? $live['video_width'] ?? 960)));
+            $stream['video_height'] = max(240, min(1080, (int) ($settings['video_height'] ?? $stream['video_height'] ?? $live['video_height'] ?? 540)));
+            $stream['video_fps'] = max(12, min(30, (int) ($settings['video_fps'] ?? $stream['video_fps'] ?? $live['video_fps'] ?? 24)));
+            $updated = true;
+            break;
+        }
+        unset($stream);
+
+        if (! $updated) {
+            $streams[] = [
+                'id' => $this->store->nextId($streams),
+                'live_id' => $liveId,
+                'creator_id' => $creatorId,
+                'status' => 'live',
+                'broadcaster_peer_id' => $peerId,
+                'started_at' => $now,
+                'updated_at' => $now,
+                'max_bitrate_kbps' => max(300, min(2500, (int) ($settings['max_bitrate_kbps'] ?? $live['max_bitrate_kbps'] ?? 1500))),
+                'video_width' => max(320, min(1920, (int) ($settings['video_width'] ?? $live['video_width'] ?? 960))),
+                'video_height' => max(240, min(1080, (int) ($settings['video_height'] ?? $live['video_height'] ?? 540))),
+                'video_fps' => max(12, min(30, (int) ($settings['video_fps'] ?? $live['video_fps'] ?? 24))),
+            ];
+        }
+
+        $this->save('live_streams', $streams);
+        $this->updateLiveRuntimeFields($liveId, [
+            'status' => 'live',
+            'viewer_count' => $this->activeViewerCountForLive($liveId),
+        ]);
+
+        return [
+            'ok' => true,
+            'message' => 'Transmissao iniciada.',
+            'live' => $this->hydrateLiveRuntime($this->decorateLive($this->findLiveById($liveId) ?? $live)),
+            'stream' => $this->publicLiveStreamState($liveId),
+        ];
+    }
+
+    public function stopLiveBroadcast(int $creatorId, int $liveId, string $peerId, string $sessionId): array
+    {
+        $this->cleanupLiveRtcData();
+        $live = $this->findLiveById($liveId);
+
+        if (! $live || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+            return ['ok' => false, 'message' => 'Live nao encontrada para este criador.'];
+        }
+
+        $presence = $this->findLivePresencePeer($liveId, $peerId, $sessionId, $creatorId);
+        if ($presence !== null && (string) ($presence['role'] ?? '') !== 'creator') {
+            return ['ok' => false, 'message' => 'Sessao do criador nao encontrada.'];
+        }
+
+        $streams = $this->liveStreams();
+        $now = date('Y-m-d H:i:s');
+        foreach ($streams as &$stream) {
+            if ((int) ($stream['live_id'] ?? 0) !== $liveId) {
+                continue;
+            }
+
+            $stream['status'] = 'ended';
+            $stream['broadcaster_peer_id'] = '';
+            $stream['updated_at'] = $now;
+            $stream['stopped_at'] = $now;
+        }
+        unset($stream);
+        $this->save('live_streams', $streams);
+        $this->clearLiveSignals($liveId);
+        $presenceRows = array_values(array_filter(
+            $this->livePresence(),
+            static fn (array $row): bool => ! (
+                (int) ($row['live_id'] ?? 0) === $liveId
+                && (string) ($row['role'] ?? '') === 'creator'
+                && (int) ($row['user_id'] ?? 0) === $creatorId
+            )
+        ));
+        $this->save('live_presence', $presenceRows);
+        $this->updateLiveRuntimeFields($liveId, [
+            'status' => 'ended',
+            'viewer_count' => 0,
+        ]);
+
+        return [
+            'ok' => true,
+            'message' => 'Transmissao encerrada.',
+            'live' => $this->hydrateLiveRuntime($this->decorateLive($this->findLiveById($liveId) ?? $live)),
+            'stream' => $this->publicLiveStreamState($liveId),
+        ];
+    }
+
+    public function pollLiveRtc(int $liveId, string $peerId, ?int $userId, string $sessionId, int $afterId = 0): array
+    {
+        $this->cleanupLiveRtcData();
+        $live = $this->findLiveById($liveId);
+
+        if (! $live) {
+            return ['ok' => false, 'message' => 'Live nao encontrada.'];
+        }
+
+        $presence = $this->findLivePresencePeer($liveId, $peerId, $sessionId, $userId);
+        if (! $presence) {
+            return ['ok' => false, 'message' => 'Sessao da live expirada. Entre novamente.'];
+        }
+
+        $access = $this->accessStateForLive($live, $userId);
+        if ((string) ($presence['role'] ?? 'viewer') === 'viewer' && ! (bool) ($access['granted'] ?? false)) {
+            return ['ok' => false, 'message' => 'Seu acesso a esta live nao esta mais ativo.'];
+        }
+
+        $signals = array_values(array_filter(
+            $this->liveSignals(),
+            static fn (array $signal): bool => (int) ($signal['live_id'] ?? 0) === $liveId
+                && (string) ($signal['to_peer_id'] ?? '') === $peerId
+                && (int) ($signal['id'] ?? 0) > $afterId
+        ));
+        usort($signals, static fn (array $left, array $right): int => ((int) ($left['id'] ?? 0)) <=> ((int) ($right['id'] ?? 0)));
+
+        return [
+            'ok' => true,
+            'messages' => array_map(static fn (array $signal): array => [
+                'id' => (int) ($signal['id'] ?? 0),
+                'kind' => (string) ($signal['kind'] ?? ''),
+                'from_peer_id' => (string) ($signal['from_peer_id'] ?? ''),
+                'payload' => is_array($signal['payload'] ?? null) ? $signal['payload'] : [],
+                'created_at' => (string) ($signal['created_at'] ?? ''),
+            ], $signals),
+            'live' => $this->hydrateLiveRuntime($this->decorateLive($live)),
+            'stream' => $this->publicLiveStreamState($liveId),
+            'viewer_count' => $this->activeViewerCountForLive($liveId),
+            'server_time' => date('c'),
+        ];
+    }
+
+    public function sendLiveRtcSignal(int $liveId, string $fromPeerId, string $toPeerId, string $kind, array $payload, ?int $userId, string $sessionId): array
+    {
+        $this->cleanupLiveRtcData();
+        $live = $this->findLiveById($liveId);
+        $allowedKinds = ['offer', 'answer', 'candidate'];
+
+        if (! $live || $fromPeerId === '' || $toPeerId === '' || ! in_array($kind, $allowedKinds, true)) {
+            return ['ok' => false, 'message' => 'Sinal invalido para esta live.'];
+        }
+
+        $presence = $this->findLivePresencePeer($liveId, $fromPeerId, $sessionId, $userId);
+        if (! $presence) {
+            return ['ok' => false, 'message' => 'Peer nao autorizado para esta live.'];
+        }
+
+        $access = $this->accessStateForLive($live, $userId);
+        if ((string) ($presence['role'] ?? 'viewer') === 'viewer' && ! (bool) ($access['granted'] ?? false)) {
+            return ['ok' => false, 'message' => 'Seu acesso a esta live nao esta ativo.'];
+        }
+
+        $signals = $this->liveSignals();
+        $signals[] = [
+            'id' => $this->store->nextId($signals),
+            'live_id' => $liveId,
+            'from_peer_id' => $fromPeerId,
+            'to_peer_id' => $toPeerId,
+            'kind' => $kind,
+            'payload' => $payload,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        $this->save('live_signals', $signals);
+
+        return ['ok' => true];
+    }
+
+    public function heartbeatLiveRtc(int $liveId, string $peerId, ?int $userId, string $sessionId): array
+    {
+        $this->cleanupLiveRtcData();
+        $presence = $this->livePresence();
+        $updated = false;
+
+        foreach ($presence as &$row) {
+            if ((int) ($row['live_id'] ?? 0) === $liveId
+                && (string) ($row['peer_id'] ?? '') === $peerId
+                && (string) ($row['session_id'] ?? '') === $sessionId
+                && ((int) ($row['user_id'] ?? 0) === (int) ($userId ?? 0))
+            ) {
+                $row['last_seen'] = date('Y-m-d H:i:s');
+                $updated = true;
+                break;
+            }
+        }
+        unset($row);
+
+        if (! $updated) {
+            return ['ok' => false, 'message' => 'Heartbeat rejeitado para esta live.'];
+        }
+
+        $this->save('live_presence', $presence);
+
+        return [
+            'ok' => true,
+            'stream' => $this->publicLiveStreamState($liveId),
+            'viewer_count' => $this->activeViewerCountForLive($liveId),
+        ];
+    }
+
+    public function leaveLiveRtc(int $liveId, string $peerId, ?int $userId, string $sessionId): array
+    {
+        $this->cleanupLiveRtcData();
+        $presence = $this->findLivePresencePeer($liveId, $peerId, $sessionId, $userId);
+
+        if ($presence === null) {
+            return ['ok' => true];
+        }
+
+        $this->removeLivePresencePeer($liveId, $peerId, $sessionId, $userId);
+
+        $streams = $this->liveStreams();
+        $changed = false;
+        foreach ($streams as &$stream) {
+            if ((int) ($stream['live_id'] ?? 0) !== $liveId) {
+                continue;
+            }
+
+            if ((string) ($stream['broadcaster_peer_id'] ?? '') === $peerId) {
+                $stream['broadcaster_peer_id'] = '';
+                $stream['status'] = 'idle';
+                $stream['updated_at'] = date('Y-m-d H:i:s');
+                $changed = true;
+            }
+        }
+        unset($stream);
+
+        if ($changed) {
+            $this->save('live_streams', $streams);
+        }
+
+        return ['ok' => true];
     }
 
     public function creatorWalletData(int $creatorId, array $filters = []): array
@@ -1984,6 +2335,21 @@ final class PlatformRepository
         return $this->store->read('live_messages');
     }
 
+    private function liveSignals(): array
+    {
+        return $this->store->read('live_signals');
+    }
+
+    private function livePresence(): array
+    {
+        return $this->store->read('live_presence');
+    }
+
+    private function liveStreams(): array
+    {
+        return $this->store->read('live_streams');
+    }
+
     private function walletTransactions(): array
     {
         return $this->store->read('wallet_transactions');
@@ -2047,7 +2413,7 @@ final class PlatformRepository
             }
         }
 
-        return array_merge($user, $profile, [
+        return array_merge($this->sanitizeUser($user), $profile, [
             'subscriber_count' => $subscriberCount,
             'content_count' => $contentCount,
             'wallet_balance' => $this->walletBalance((int) $user['id']),
@@ -2242,6 +2608,277 @@ final class PlatformRepository
                 'last_message' => $lastMessage,
             ];
         }, $rows);
+    }
+
+    private function cleanupLiveRtcData(): void
+    {
+        $now = time();
+        $presence = $this->livePresence();
+        $freshPresence = array_values(array_filter(
+            $presence,
+            fn (array $row): bool => $this->timestampAgeSeconds((string) ($row['last_seen'] ?? ''), $now) <= self::LIVE_PRESENCE_TIMEOUT_SECONDS
+        ));
+
+        if (count($freshPresence) !== count($presence)) {
+            $this->save('live_presence', $freshPresence);
+        }
+
+        $signals = $this->liveSignals();
+        $freshSignals = array_values(array_filter(
+            $signals,
+            fn (array $row): bool => $this->timestampAgeSeconds((string) ($row['created_at'] ?? ''), $now) <= self::LIVE_SIGNAL_TIMEOUT_SECONDS
+        ));
+
+        if (count($freshSignals) !== count($signals)) {
+            $this->save('live_signals', $freshSignals);
+        }
+
+        $streams = $this->liveStreams();
+        $changed = false;
+        foreach ($streams as &$stream) {
+            if ((string) ($stream['status'] ?? 'idle') !== 'live') {
+                continue;
+            }
+
+            $peerId = (string) ($stream['broadcaster_peer_id'] ?? '');
+            $creatorPresence = $this->activeCreatorPresenceForLive((int) ($stream['live_id'] ?? 0));
+
+            if ($peerId === '' || $creatorPresence === null || (string) ($creatorPresence['peer_id'] ?? '') !== $peerId) {
+                $stream['status'] = 'idle';
+                $stream['broadcaster_peer_id'] = '';
+                $stream['updated_at'] = date('Y-m-d H:i:s');
+                $changed = true;
+            }
+        }
+        unset($stream);
+
+        if ($changed) {
+            $this->save('live_streams', $streams);
+        }
+    }
+
+    private function accessStateForLive(array $live, ?int $userId): array
+    {
+        if ((string) ($live['access_mode'] ?? 'public') === 'public') {
+            return [
+                'granted' => true,
+                'requires_login' => false,
+                'requires_subscription' => false,
+            ];
+        }
+
+        if ($userId === null) {
+            return [
+                'granted' => false,
+                'requires_login' => true,
+                'requires_subscription' => false,
+            ];
+        }
+
+        $user = $this->findUserById($userId);
+        if (! $user || (string) ($user['status'] ?? 'active') !== 'active') {
+            return [
+                'granted' => false,
+                'requires_login' => false,
+                'requires_subscription' => true,
+            ];
+        }
+
+        if ((int) ($live['creator_id'] ?? 0) === $userId || (string) ($user['role'] ?? '') === 'admin') {
+            return [
+                'granted' => true,
+                'requires_login' => false,
+                'requires_subscription' => false,
+            ];
+        }
+
+        if ((string) ($user['role'] ?? '') === 'subscriber' && $this->activeSubscriptionFor($userId, (int) ($live['creator_id'] ?? 0)) !== null) {
+            return [
+                'granted' => true,
+                'requires_login' => false,
+                'requires_subscription' => false,
+            ];
+        }
+
+        return [
+            'granted' => false,
+            'requires_login' => false,
+            'requires_subscription' => true,
+        ];
+    }
+
+    private function hydrateLiveRuntime(array $live): array
+    {
+        $state = $this->publicLiveStreamState((int) ($live['id'] ?? 0));
+
+        return array_merge($live, [
+            'viewer_count' => (int) ($state['viewer_count'] ?? (int) ($live['viewer_count'] ?? 0)),
+            'stream_status' => (string) ($state['status'] ?? 'idle'),
+            'broadcaster_peer_id' => (string) ($state['broadcaster_peer_id'] ?? ''),
+            'broadcaster_online' => (bool) ($state['broadcaster_online'] ?? false),
+            'stream_mode' => (string) ($state['stream_mode'] ?? ($live['stream_mode'] ?? 'p2p_mesh')),
+            'max_bitrate_kbps' => (int) ($state['max_bitrate_kbps'] ?? ($live['max_bitrate_kbps'] ?? 1500)),
+            'video_width' => (int) ($state['video_width'] ?? ($live['video_width'] ?? 960)),
+            'video_height' => (int) ($state['video_height'] ?? ($live['video_height'] ?? 540)),
+            'video_fps' => (int) ($state['video_fps'] ?? ($live['video_fps'] ?? 24)),
+        ]);
+    }
+
+    private function publicLiveStreamState(int $liveId): array
+    {
+        $live = $this->findLiveById($liveId) ?? [];
+        $stream = $this->findLiveStreamRecord($liveId);
+        $broadcaster = $this->activeCreatorPresenceForLive($liveId);
+        $viewerCount = $this->activeViewerCountForLive($liveId);
+        $status = (string) ($stream['status'] ?? ((string) ($live['status'] ?? '') === 'ended' ? 'ended' : 'idle'));
+
+        if ($status === 'live' && $broadcaster === null) {
+            $status = 'idle';
+        }
+
+        $broadcasterPeerId = $status === 'live' && $broadcaster !== null
+            ? (string) ($broadcaster['peer_id'] ?? $stream['broadcaster_peer_id'] ?? '')
+            : '';
+
+        return [
+            'status' => $status,
+            'broadcaster_peer_id' => $broadcasterPeerId,
+            'broadcaster_online' => $status === 'live' && $broadcaster !== null,
+            'viewer_count' => $viewerCount,
+            'stream_mode' => (string) ($live['stream_mode'] ?? $stream['stream_mode'] ?? 'p2p_mesh'),
+            'max_bitrate_kbps' => (int) ($stream['max_bitrate_kbps'] ?? $live['max_bitrate_kbps'] ?? 1500),
+            'video_width' => (int) ($stream['video_width'] ?? $live['video_width'] ?? 960),
+            'video_height' => (int) ($stream['video_height'] ?? $live['video_height'] ?? 540),
+            'video_fps' => (int) ($stream['video_fps'] ?? $live['video_fps'] ?? 24),
+        ];
+    }
+
+    private function activeViewerCountForLive(int $liveId): int
+    {
+        return count(array_filter(
+            $this->livePresence(),
+            fn (array $row): bool => (int) ($row['live_id'] ?? 0) === $liveId
+                && (string) ($row['role'] ?? '') === 'viewer'
+                && $this->timestampAgeSeconds((string) ($row['last_seen'] ?? '')) <= self::LIVE_PRESENCE_TIMEOUT_SECONDS
+        ));
+    }
+
+    private function activeCreatorPresenceForLive(int $liveId): ?array
+    {
+        $presence = array_values(array_filter(
+            $this->livePresence(),
+            fn (array $row): bool => (int) ($row['live_id'] ?? 0) === $liveId
+                && (string) ($row['role'] ?? '') === 'creator'
+                && $this->timestampAgeSeconds((string) ($row['last_seen'] ?? '')) <= self::LIVE_PRESENCE_TIMEOUT_SECONDS
+        ));
+
+        if ($presence === []) {
+            return null;
+        }
+
+        usort($presence, static fn (array $left, array $right): int => strcmp((string) ($right['last_seen'] ?? ''), (string) ($left['last_seen'] ?? '')));
+        $stream = $this->findLiveStreamRecord($liveId);
+        $preferredPeerId = (string) ($stream['broadcaster_peer_id'] ?? '');
+
+        if ($preferredPeerId !== '') {
+            foreach ($presence as $row) {
+                if ((string) ($row['peer_id'] ?? '') === $preferredPeerId) {
+                    return $row;
+                }
+            }
+        }
+
+        return $presence[0] ?? null;
+    }
+
+    private function findLiveStreamRecord(int $liveId): ?array
+    {
+        foreach ($this->liveStreams() as $row) {
+            if ((int) ($row['live_id'] ?? 0) === $liveId) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
+    private function findLivePresencePeer(int $liveId, string $peerId, string $sessionId, ?int $userId): ?array
+    {
+        foreach ($this->livePresence() as $row) {
+            if (
+                (int) ($row['live_id'] ?? 0) === $liveId
+                && (string) ($row['peer_id'] ?? '') === $peerId
+                && (string) ($row['session_id'] ?? '') === $sessionId
+                && (int) ($row['user_id'] ?? 0) === (int) ($userId ?? 0)
+            ) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
+    private function removeLivePresencePeer(int $liveId, string $peerId, string $sessionId, ?int $userId): void
+    {
+        $presence = array_values(array_filter(
+            $this->livePresence(),
+            static fn (array $row): bool => ! (
+                (int) ($row['live_id'] ?? 0) === $liveId
+                && (string) ($row['peer_id'] ?? '') === $peerId
+                && (string) ($row['session_id'] ?? '') === $sessionId
+                && (int) ($row['user_id'] ?? 0) === (int) ($userId ?? 0)
+            )
+        ));
+
+        $this->save('live_presence', $presence);
+    }
+
+    private function clearLiveSignals(int $liveId): void
+    {
+        $signals = array_values(array_filter(
+            $this->liveSignals(),
+            static fn (array $row): bool => (int) ($row['live_id'] ?? 0) !== $liveId
+        ));
+
+        $this->save('live_signals', $signals);
+    }
+
+    private function updateLiveRuntimeFields(int $liveId, array $changes): void
+    {
+        $lives = $this->liveSessions();
+        foreach ($lives as &$live) {
+            if ((int) ($live['id'] ?? 0) !== $liveId) {
+                continue;
+            }
+
+            $live = array_merge($live, $changes);
+            break;
+        }
+        unset($live);
+
+        $this->save('live_sessions', $lives);
+    }
+
+    private function generateLivePeerId(string $role): string
+    {
+        return $role . '-' . bin2hex(random_bytes(8));
+    }
+
+    private function sanitizeUser(array $user): array
+    {
+        unset($user['password']);
+
+        return $user;
+    }
+
+    private function timestampAgeSeconds(string $value, ?int $now = null): int
+    {
+        $timestamp = strtotime($value);
+        if ($timestamp === false) {
+            return PHP_INT_MAX;
+        }
+
+        return max(0, ($now ?? time()) - $timestamp);
     }
 
     private function uniqueSlug(string $name, ?int $ignoreUserId = null): string

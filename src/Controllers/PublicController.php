@@ -91,7 +91,7 @@ final class PublicController extends Controller
             'title' => $data['live']['title'],
             'data' => $data,
             'prototype' => [
-                'page' => 'public.live',
+                'page' => 'public.live-room',
                 'live' => [
                     'id' => (int) $data['live']['id'],
                     'creator_id' => (int) $data['live']['creator_id'],
