@@ -11,6 +11,23 @@ final class PlatformRepository
 {
     private const LIVE_PRESENCE_TIMEOUT_SECONDS = 90;
     private const LIVE_SIGNAL_TIMEOUT_SECONDS = 180;
+    private const SEEDED_COLLECTIONS = [
+        'users',
+        'creator_profiles',
+        'content_items',
+        'plans',
+        'subscriptions',
+        'live_sessions',
+        'favorites',
+        'saved_items',
+        'conversations',
+        'messages',
+        'live_messages',
+        'wallet_transactions',
+        'settings',
+    ];
+
+    private array $collectionCache = [];
 
     public function __construct(
         private readonly StoreInterface $store,
@@ -20,10 +37,24 @@ final class PlatformRepository
 
     public function seedIfMissing(): void
     {
-        foreach (SeedFactory::build() as $collection => $payload) {
+        $missing = [];
+
+        foreach (self::SEEDED_COLLECTIONS as $collection) {
             if (! $this->store->exists($collection)) {
-                $this->store->write($collection, $payload);
+                $missing[] = $collection;
             }
+        }
+
+        if ($missing === []) {
+            return;
+        }
+
+        $seedCollections = SeedFactory::build();
+
+        foreach ($missing as $collection) {
+            $payload = is_array($seedCollections[$collection] ?? null) ? $seedCollections[$collection] : [];
+            $this->store->write($collection, $payload);
+            $this->collectionCache[$collection] = $payload;
         }
     }
 
@@ -2318,87 +2349,99 @@ final class PlatformRepository
 
     private function users(): array
     {
-        return $this->store->read('users');
+        return $this->readCollection('users');
     }
 
     private function creatorProfiles(): array
     {
-        return $this->store->read('creator_profiles');
+        return $this->readCollection('creator_profiles');
     }
 
     private function contentItems(): array
     {
-        return $this->store->read('content_items');
+        return $this->readCollection('content_items');
     }
 
     private function plans(): array
     {
-        return $this->store->read('plans');
+        return $this->readCollection('plans');
     }
 
     private function subscriptions(): array
     {
-        return $this->store->read('subscriptions');
+        return $this->readCollection('subscriptions');
     }
 
     private function liveSessions(): array
     {
-        return $this->store->read('live_sessions');
+        return $this->readCollection('live_sessions');
     }
 
     private function favorites(): array
     {
-        return $this->store->read('favorites');
+        return $this->readCollection('favorites');
     }
 
     private function savedItems(): array
     {
-        return $this->store->read('saved_items');
+        return $this->readCollection('saved_items');
     }
 
     private function conversations(): array
     {
-        return $this->store->read('conversations');
+        return $this->readCollection('conversations');
     }
 
     private function messages(): array
     {
-        return $this->store->read('messages');
+        return $this->readCollection('messages');
     }
 
     private function liveMessages(): array
     {
-        return $this->store->read('live_messages');
+        return $this->readCollection('live_messages');
     }
 
     private function liveSignals(): array
     {
-        return $this->store->read('live_signals');
+        return $this->readCollection('live_signals');
     }
 
     private function livePresence(): array
     {
-        return $this->store->read('live_presence');
+        return $this->readCollection('live_presence');
     }
 
     private function liveStreams(): array
     {
-        return $this->store->read('live_streams');
+        return $this->readCollection('live_streams');
     }
 
     private function walletTransactions(): array
     {
-        return $this->store->read('wallet_transactions');
+        return $this->readCollection('wallet_transactions');
     }
 
     public function settings(): array
     {
-        return $this->store->read('settings');
+        return $this->readCollection('settings');
     }
 
     private function save(string $collection, array $payload): void
     {
         $this->store->write($collection, $payload);
+        $this->collectionCache[$collection] = $payload;
+    }
+
+    private function readCollection(string $collection, array $fallback = []): array
+    {
+        if (! array_key_exists($collection, $this->collectionCache)) {
+            $this->collectionCache[$collection] = $this->store->read($collection, $fallback);
+        }
+
+        $payload = $this->collectionCache[$collection];
+
+        return is_array($payload) ? $payload : $fallback;
     }
 
     private function creators(): array
