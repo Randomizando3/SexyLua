@@ -16,6 +16,7 @@
     const routes = config.routes || {};
     const moderationIds = (config.moderation && config.moderation.contentIds) || [];
     const currentPage = config.page || '';
+    const currentUser = config.currentUser || {};
 
     const navigate = (url) => {
         if (url) {
@@ -49,6 +50,388 @@
         form.submit();
 
         return true;
+    };
+
+    const injectShellStyles = () => {
+        if (document.getElementById('prototype-shell-enhancements')) {
+            return;
+        }
+
+        const style = document.createElement('style');
+        style.id = 'prototype-shell-enhancements';
+        style.textContent = `
+            .prototype-brand-host {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.55rem;
+                vertical-align: middle;
+            }
+            .prototype-brand-icon {
+                font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24;
+                font-size: 1.05em;
+                line-height: 1;
+            }
+            .prototype-account-wrapper {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+            }
+            .prototype-account-menu {
+                position: absolute;
+                right: 0;
+                top: calc(100% + 0.75rem);
+                min-width: 220px;
+                padding: 0.85rem;
+                border-radius: 1rem;
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                background: rgba(255, 255, 255, 0.98);
+                color: #1b1c1d;
+                box-shadow: 0 22px 48px rgba(27, 28, 29, 0.18);
+                backdrop-filter: blur(18px);
+                opacity: 0;
+                pointer-events: none;
+                transform: translateY(-6px);
+                transition: opacity 160ms ease, transform 160ms ease;
+                z-index: 120;
+            }
+            .prototype-account-menu[data-open="1"] {
+                opacity: 1;
+                pointer-events: auto;
+                transform: translateY(0);
+            }
+            .prototype-account-menu__eyebrow {
+                display: block;
+                margin-bottom: 0.2rem;
+                color: #ab1155;
+                font-size: 0.68rem;
+                font-weight: 800;
+                letter-spacing: 0.22em;
+                text-transform: uppercase;
+            }
+            .prototype-account-menu__name {
+                display: block;
+                font-size: 0.98rem;
+                font-weight: 800;
+            }
+            .prototype-account-menu__meta {
+                display: block;
+                margin-top: 0.18rem;
+                color: #7c5e64;
+                font-size: 0.78rem;
+                line-height: 1.45;
+            }
+            .prototype-account-menu__divider {
+                height: 1px;
+                margin: 0.85rem 0;
+                background: rgba(171, 17, 85, 0.12);
+            }
+            .prototype-account-menu__link,
+            .prototype-account-menu__logout {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 999px;
+                padding: 0.75rem 1rem;
+                font-size: 0.82rem;
+                font-weight: 800;
+                text-decoration: none;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                transition: transform 140ms ease, background 140ms ease, color 140ms ease, opacity 140ms ease;
+                cursor: pointer;
+            }
+            .prototype-account-menu__link {
+                margin-bottom: 0.5rem;
+                background: rgba(171, 17, 85, 0.08);
+                color: #ab1155;
+            }
+            .prototype-account-menu__logout {
+                border: 0;
+                background: #ab1155;
+                color: #fff;
+            }
+            .prototype-account-menu__link:hover,
+            .prototype-account-menu__logout:hover {
+                transform: translateY(-1px);
+                opacity: 0.94;
+            }
+            .prototype-account-avatar {
+                display: block;
+                width: 100%;
+                height: 100%;
+                border-radius: 999px;
+                object-fit: cover;
+            }
+        `;
+
+        document.head.appendChild(style);
+    };
+
+    const enhanceBrandMarks = () => {
+        const candidates = Array.from(document.querySelectorAll('a, h1, div, span, strong')).filter((element) => {
+            if (element.dataset.prototypeBrand === '1') {
+                return false;
+            }
+
+            if (element.children.length > 0) {
+                return false;
+            }
+
+            const label = String(element.textContent || '').replace(/\s+/g, ' ').trim();
+            if (!['SexyLua', 'SexyLua Admin'].includes(label)) {
+                return false;
+            }
+
+            return Boolean(element.closest('header, aside, footer, nav, .brand-block, .sidebar-brand'));
+        });
+
+        candidates.forEach((element) => {
+            const label = String(element.textContent || '').replace(/\s+/g, ' ').trim();
+            const previous = element.previousElementSibling;
+            const hasNearbyIcon = Boolean(
+                (previous && (previous.classList.contains('material-symbols-outlined') || previous.querySelector('.material-symbols-outlined')))
+                || element.querySelector('.material-symbols-outlined')
+            );
+
+            if (hasNearbyIcon) {
+                element.dataset.prototypeBrand = '1';
+                return;
+            }
+
+            const icon = document.createElement('span');
+            const text = document.createElement('span');
+
+            element.dataset.prototypeBrand = '1';
+            element.classList.add('prototype-brand-host');
+
+            icon.className = 'material-symbols-outlined prototype-brand-icon';
+            icon.textContent = 'brightness_4';
+            text.textContent = label;
+
+            element.textContent = '';
+            element.append(icon, text);
+        });
+    };
+
+    const accountInitials = () => {
+        const source = String(currentUser.name || '').trim();
+        if (!source) {
+            return 'SL';
+        }
+
+        return source.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'SL';
+    };
+
+    const settingsRouteForRole = () => {
+        if (currentUser.settings_route) {
+            return currentUser.settings_route;
+        }
+
+        if (config.role === 'admin') {
+            return routes.adminSettings;
+        }
+
+        if (config.role === 'creator') {
+            return routes.creatorSettings;
+        }
+
+        if (config.role === 'subscriber') {
+            return routes.subscriberSettings;
+        }
+
+        return routes.home;
+    };
+
+    const roleLabel = () => currentUser.role_label || (config.role === 'admin' ? 'Admin' : config.role === 'creator' ? 'Criador' : config.role === 'subscriber' ? 'Assinante' : 'Conta');
+
+    const syncTriggerAvatar = (trigger) => {
+        if (!trigger) {
+            return;
+        }
+
+        const avatarUrl = currentUser.avatar_url || '';
+        const imageHost = trigger.tagName === 'IMG' ? trigger : trigger.querySelector('img.rounded-full');
+        const target = trigger.tagName === 'BUTTON' ? trigger : trigger;
+
+        if (imageHost && avatarUrl) {
+            imageHost.src = avatarUrl;
+            imageHost.alt = currentUser.name || 'Perfil';
+            return;
+        }
+
+        if (trigger.tagName === 'BUTTON' && imageHost && !avatarUrl) {
+            trigger.innerHTML = '';
+            const initialsNode = document.createElement('span');
+            initialsNode.textContent = accountInitials();
+            trigger.appendChild(initialsNode);
+            return;
+        }
+
+        if (avatarUrl && !imageHost) {
+            target.innerHTML = '';
+            const image = document.createElement('img');
+            image.className = 'prototype-account-avatar';
+            image.src = avatarUrl;
+            image.alt = currentUser.name || 'Perfil';
+            target.appendChild(image);
+            return;
+        }
+
+        if (!avatarUrl && trigger.tagName !== 'IMG') {
+            const text = String(trigger.textContent || '').trim();
+            if (text.length <= 3) {
+                trigger.textContent = accountInitials();
+            }
+        }
+    };
+
+    const findAccountTriggers = () => {
+        if (!config.auth) {
+            return [];
+        }
+
+        const triggers = [];
+
+        document.querySelectorAll('header, aside').forEach((shell) => {
+            const candidates = Array.from(shell.querySelectorAll('button, div, img')).filter((element) => {
+                if (element.closest('.prototype-account-wrapper') || element.dataset.prototypeSkip === '1') {
+                    return false;
+                }
+
+                if (element.tagName === 'BUTTON' && element.querySelector('img.rounded-full')) {
+                    return true;
+                }
+
+                if (element.tagName === 'IMG') {
+                    return element.classList.contains('rounded-full');
+                }
+
+                if (!element.classList.contains('rounded-full')) {
+                    return false;
+                }
+
+                const text = String(element.textContent || '').trim();
+                return text.length > 0 && text.length <= 3;
+            });
+
+            const trigger = candidates[candidates.length - 1];
+
+            if (!trigger) {
+                return;
+            }
+
+            const normalizedTrigger = trigger.tagName === 'IMG' ? trigger.parentElement : trigger;
+
+            if (normalizedTrigger && !triggers.includes(normalizedTrigger)) {
+                triggers.push(normalizedTrigger);
+            }
+        });
+
+        return triggers;
+    };
+
+    const closeAccountMenus = () => {
+        document.querySelectorAll('.prototype-account-menu[data-open="1"]').forEach((panel) => {
+            panel.dataset.open = '0';
+        });
+
+        document.querySelectorAll('.prototype-account-wrapper [aria-expanded="true"]').forEach((trigger) => {
+            trigger.setAttribute('aria-expanded', 'false');
+        });
+    };
+
+    const enhanceAccountMenus = () => {
+        if (!config.auth) {
+            return;
+        }
+
+        findAccountTriggers().forEach((trigger) => {
+            if (!trigger || trigger.dataset.prototypeAccountEnhanced === '1') {
+                return;
+            }
+
+            trigger.dataset.prototypeAccountEnhanced = '1';
+            syncTriggerAvatar(trigger);
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'prototype-account-wrapper';
+            trigger.parentNode.insertBefore(wrapper, trigger);
+            wrapper.appendChild(trigger);
+
+            if (trigger.tagName !== 'BUTTON') {
+                trigger.setAttribute('role', 'button');
+                trigger.tabIndex = 0;
+            }
+
+            trigger.setAttribute('aria-expanded', 'false');
+            trigger.style.cursor = 'pointer';
+
+            const panel = document.createElement('div');
+            panel.className = 'prototype-account-menu';
+            panel.dataset.open = '0';
+            panel.innerHTML = `
+                <span class="prototype-account-menu__eyebrow">${roleLabel()}</span>
+                <span class="prototype-account-menu__name">${currentUser.name || 'Conta SexyLua'}</span>
+                <span class="prototype-account-menu__meta">${currentUser.email || ''}</span>
+                <div class="prototype-account-menu__divider"></div>
+                <a class="prototype-account-menu__link" href="${settingsRouteForRole()}">Meu perfil</a>
+                <button class="prototype-account-menu__logout" type="button">Sair</button>
+            `;
+            wrapper.appendChild(panel);
+
+            const toggleMenu = () => {
+                const willOpen = panel.dataset.open !== '1';
+                closeAccountMenus();
+                panel.dataset.open = willOpen ? '1' : '0';
+                trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+            };
+
+            trigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleMenu();
+            });
+
+            trigger.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggleMenu();
+                }
+
+                if (event.key === 'Escape') {
+                    closeAccountMenus();
+                }
+            });
+
+            panel.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+
+            const logoutButton = panel.querySelector('.prototype-account-menu__logout');
+            if (logoutButton) {
+                logoutButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    submitForm('prototype-logout-form');
+                });
+            }
+        });
+
+        document.addEventListener('click', () => {
+            closeAccountMenus();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeAccountMenus();
+            }
+        });
+    };
+
+    const enhancePrototypeShell = () => {
+        injectShellStyles();
+        enhanceBrandMarks();
+        enhanceAccountMenus();
     };
 
     const setValue = (form, name, value) => {
@@ -194,7 +577,11 @@
                 }
 
                 if (config.auth && config.role === 'creator') {
-                    return routes.creatorLive;
+                    return routes.creatorSettings;
+                }
+
+                if (config.auth && config.role === 'subscriber') {
+                    return routes.subscriberSettings;
                 }
 
                 return routes.home;
@@ -535,4 +922,6 @@
             priceInput.value = priceInput.getAttribute('placeholder') || '';
         }
     }
+
+    enhancePrototypeShell();
 })();

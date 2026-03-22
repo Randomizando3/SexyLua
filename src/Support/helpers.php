@@ -110,6 +110,30 @@ function media_url(?string $value): string
     return '/' . ltrim($value, '/');
 }
 
+function role_label(?string $role): string
+{
+    return match ((string) $role) {
+        'admin' => 'Admin',
+        'creator' => 'Criador',
+        'subscriber' => 'Assinante',
+        default => 'Conta',
+    };
+}
+
+function user_settings_route(?array $user): string
+{
+    if (! is_array($user)) {
+        return '/login';
+    }
+
+    return match ((string) ($user['role'] ?? '')) {
+        'admin' => '/admin/settings#perfil',
+        'creator' => '/creator/settings',
+        'subscriber' => '/subscriber/settings',
+        default => '/login',
+    };
+}
+
 function store_uploaded_file(?array $file, string $folder, array $allowedExtensions = [], int $maxBytes = 52428800): ?string
 {
     if (! is_array($file) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -225,6 +249,29 @@ function prototype_runtime_html(array $payload): string
     }
 
     $user = $app->auth->user();
+    $currentUser = null;
+    if (is_array($user)) {
+        $currentUser = $user;
+
+        if ((string) ($user['role'] ?? '') === 'creator') {
+            $currentUser = array_merge(
+                $currentUser,
+                $app->repository->findCreatorBySlugOrId(null, (int) ($user['id'] ?? 0)) ?? []
+            );
+        }
+
+        if (array_key_exists('avatar_url', $currentUser)) {
+            $currentUser['avatar_url'] = media_url((string) ($currentUser['avatar_url'] ?? ''));
+        }
+
+        if (array_key_exists('cover_url', $currentUser)) {
+            $currentUser['cover_url'] = media_url((string) ($currentUser['cover_url'] ?? ''));
+        }
+
+        $currentUser['settings_route'] = user_settings_route($user);
+        $currentUser['role_label'] = role_label((string) ($user['role'] ?? ''));
+    }
+
     $favoriteCreatorId = $prototype['favorite_creator_id']
         ?? $prototype['profile']['creator_id']
         ?? $prototype['live']['creator_id']
@@ -241,8 +288,9 @@ function prototype_runtime_html(array $payload): string
         'page' => $prototype['page'] ?? '',
         'auth' => $user !== null,
         'role' => $user['role'] ?? null,
-        'currentUserName' => $user['name'] ?? null,
+        'currentUserName' => $currentUser['name'] ?? null,
         'currentUrl' => $_SERVER['REQUEST_URI'] ?? current_path(),
+        'currentUser' => prototype_sanitize_runtime_data($currentUser),
         'settings' => is_array($settings) ? $settings : [],
         'data' => prototype_sanitize_runtime_data($payload['data'] ?? null),
         'routes' => [
@@ -255,6 +303,7 @@ function prototype_runtime_html(array $payload): string
             'subscriberFavorites' => '/subscriber/favorites',
             'subscriberMessages' => '/subscriber/messages',
             'subscriberWallet' => '/subscriber/wallet',
+            'subscriberSettings' => '/subscriber/settings',
             'creator' => '/creator',
             'creatorMetrics' => '/creator',
             'creatorContent' => '/creator/content',

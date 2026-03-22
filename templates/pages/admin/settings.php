@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 $settings = $data ?? [];
 $admin = $app->auth->user() ?? [];
+$adminAvatarUrl = media_url((string) ($admin['avatar_url'] ?? ''));
+$adminCoverUrl = media_url((string) ($admin['cover_url'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -80,6 +82,104 @@ $admin = $app->auth->user() ?? [];
         <p class="text-xs font-bold uppercase tracking-[0.3em] text-primary">Regras da plataforma</p>
         <h2 class="mt-2 text-5xl font-extrabold tracking-tight">Configuracoes <span class="italic text-primary">Centrais</span></h2>
         <p class="mt-4 max-w-2xl text-on-surface-variant">Ajuste comissao, limites de saque, moderacao automatica, chat e comunicados globais sem sair do painel.</p>
+    </section>
+
+    <section class="mb-8 rounded-3xl bg-surface-container-lowest p-8 shadow-sm" id="perfil">
+        <div class="mb-6 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Conta administrativa</p>
+                <h3 class="mt-3 text-3xl font-extrabold">Perfil do Admin</h3>
+                <p class="mt-3 max-w-2xl text-sm text-on-surface-variant">Atualize nome, bio, imagem, capa e senha da conta que opera o painel central.</p>
+            </div>
+            <div class="rounded-3xl bg-surface-container-low p-5 text-sm">
+                <p class="font-bold"><?= e((string) ($admin['name'] ?? 'Admin')) ?></p>
+                <p class="mt-1 text-on-surface-variant"><?= e((string) ($admin['email'] ?? '')) ?></p>
+                <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-primary"><?= e((string) role_label((string) ($admin['role'] ?? 'admin'))) ?></p>
+            </div>
+        </div>
+
+        <form action="/admin/profile/update" class="grid grid-cols-1 gap-8 xl:grid-cols-[1.1fr_0.9fr]" method="post" enctype="multipart/form-data">
+            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+
+            <div class="space-y-6">
+                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nome</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="name" type="text" value="<?= e((string) ($admin['name'] ?? '')) ?>">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Cidade</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="city" type="text" value="<?= e((string) ($admin['city'] ?? '')) ?>">
+                    </label>
+                    <label class="block space-y-2 md:col-span-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">E-mail</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface-variant shadow-sm" readonly type="email" value="<?= e((string) ($admin['email'] ?? '')) ?>">
+                    </label>
+                    <label class="block space-y-2 md:col-span-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Headline</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="headline" type="text" value="<?= e((string) ($admin['headline'] ?? '')) ?>">
+                    </label>
+                </div>
+
+                <label class="block space-y-2">
+                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Bio</span>
+                    <textarea class="min-h-36 w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="bio"><?= e((string) ($admin['bio'] ?? '')) ?></textarea>
+                </label>
+
+                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">URL do avatar</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_url" type="text" value="<?= e((string) ($admin['avatar_url'] ?? '')) ?>">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload do avatar</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_file" type="file" accept=".jpg,.jpeg,.png,.webp,.gif">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">URL da capa</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_url" type="text" value="<?= e((string) ($admin['cover_url'] ?? '')) ?>">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload da capa</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp,.gif">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nova senha</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password" type="password">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Confirmar senha</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password_confirmation" type="password">
+                    </label>
+                </div>
+
+                <button class="rounded-full bg-slate-900 px-8 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Salvar perfil do admin</button>
+            </div>
+
+            <div class="space-y-6">
+                <div class="overflow-hidden rounded-3xl bg-surface-container-low">
+                    <?php if ($adminCoverUrl !== ''): ?>
+                        <img alt="Capa do admin" class="h-44 w-full object-cover" src="<?= e($adminCoverUrl) ?>">
+                    <?php else: ?>
+                        <div class="flex h-44 w-full items-center justify-center bg-gradient-to-br from-[#ab1155] via-[#D81B60] to-[#f57c91] text-lg font-bold text-white">Control Room</div>
+                    <?php endif; ?>
+                </div>
+                <div class="rounded-3xl bg-surface-container-low p-6 shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <?php if ($adminAvatarUrl !== ''): ?>
+                            <img alt="Avatar do admin" class="h-20 w-20 rounded-full object-cover" src="<?= e($adminAvatarUrl) ?>">
+                        <?php else: ?>
+                            <div class="flex h-20 w-20 items-center justify-center rounded-full bg-white text-2xl font-bold text-primary"><?= e(avatar_initials((string) ($admin['name'] ?? 'Admin'))) ?></div>
+                        <?php endif; ?>
+                        <div>
+                            <p class="text-lg font-bold"><?= e((string) ($admin['name'] ?? 'Admin')) ?></p>
+                            <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($admin['headline'] ?? '')) ?></p>
+                        </div>
+                    </div>
+                    <p class="mt-5 text-sm leading-relaxed text-on-surface-variant"><?= e(excerpt((string) ($admin['bio'] ?? 'Perfil administrativo da plataforma.'), 180)) ?></p>
+                </div>
+            </div>
+        </form>
     </section>
 
     <form action="/admin/settings/update" class="space-y-8" method="post">

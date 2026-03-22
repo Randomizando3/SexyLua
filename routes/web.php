@@ -37,12 +37,14 @@ $router->get('/subscriber/subscriptions', [SubscriberController::class, 'subscri
 $router->get('/subscriber/favorites', [SubscriberController::class, 'favorites']);
 $router->get('/subscriber/messages', [SubscriberController::class, 'messages']);
 $router->get('/subscriber/wallet', [SubscriberController::class, 'wallet']);
+$router->get('/subscriber/settings', [SubscriberController::class, 'settings']);
 $router->post('/subscriber/subscriptions/subscribe', [SubscriberController::class, 'subscribe']);
 $router->post('/subscriber/subscriptions/cancel', [SubscriberController::class, 'cancelSubscription']);
 $router->post('/subscriber/favorites/toggle', [SubscriberController::class, 'toggleFavorite']);
 $router->post('/subscriber/saved/toggle', [SubscriberController::class, 'toggleSaved']);
 $router->post('/subscriber/messages/send', [SubscriberController::class, 'sendMessage']);
 $router->post('/subscriber/wallet/add-funds', [SubscriberController::class, 'addFunds']);
+$router->post('/subscriber/settings/update', [SubscriberController::class, 'updateSettings']);
 
 $router->get('/creator', [CreatorController::class, 'dashboard']);
 $router->get('/creator/content', [CreatorController::class, 'content']);
@@ -75,3 +77,4 @@ $router->post('/admin/users/update', [AdminController::class, 'updateUser']);
 $router->post('/admin/moderation/review', [AdminController::class, 'reviewContent']);
 $router->post('/admin/finance/review-payout', [AdminController::class, 'reviewPayout']);
 $router->post('/admin/settings/update', [AdminController::class, 'updateSettings']);
+$router->post('/admin/profile/update', [AdminController::class, 'updateProfile']);

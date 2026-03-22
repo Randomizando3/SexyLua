@@ -282,6 +282,15 @@ final class CreatorController extends Controller
         $this->validateCsrf($request, '/creator/settings');
         $payload = $request->all();
 
+        foreach (['avatar_url', 'cover_url'] as $field) {
+            if (array_key_exists($field, $payload)) {
+                $payload[$field] = trim((string) ($payload[$field] ?? ''));
+                if ($payload[$field] !== '') {
+                    $payload[$field] = media_url((string) $payload[$field]);
+                }
+            }
+        }
+
         if ((string) ($payload['new_password'] ?? '') !== '' && (string) ($payload['new_password'] ?? '') !== (string) ($payload['new_password_confirmation'] ?? '')) {
             $this->redirect('/creator/settings', 'Confirme a nova senha corretamente.', 'error');
         }

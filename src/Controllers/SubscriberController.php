@@ -102,6 +102,20 @@ final class SubscriberController extends Controller
         ], null);
     }
 
+    public function settings(Request $request): void
+    {
+        $this->app->auth->requireRole('subscriber');
+
+        $this->render('pages/subscriber/settings', [
+            'title' => 'Configuracoes do Assinante',
+            'data' => $this->app->repository->subscriberSettingsData((int) $this->user()['id']),
+            'sidebar_role' => 'subscriber',
+            'prototype' => [
+                'page' => 'subscriber.settings',
+            ],
+        ], null);
+    }
+
     public function subscribe(Request $request): void
     {
         $this->app->auth->requireRole('subscriber');
@@ -158,5 +172,43 @@ final class SubscriberController extends Controller
         $ok = $this->app->repository->addFunds((int) $this->user()['id'], (int) $request->input('tokens', 0));
 
         $this->redirect('/subscriber/wallet', $ok ? 'Recarga concluida.' : 'Informe um valor valido para a recarga.', $ok ? 'success' : 'error');
+    }
+
+    public function updateSettings(Request $request): void
+    {
+        $this->app->auth->requireRole('subscriber');
+        $this->validateCsrf($request, '/subscriber/settings');
+        $payload = $request->all();
+
+        foreach (['avatar_url', 'cover_url'] as $field) {
+            if (array_key_exists($field, $payload)) {
+                $payload[$field] = trim((string) ($payload[$field] ?? ''));
+                if ($payload[$field] !== '') {
+                    $payload[$field] = media_url((string) $payload[$field]);
+                }
+            }
+        }
+
+        if ((string) ($payload['new_password'] ?? '') !== '' && (string) ($payload['new_password'] ?? '') !== (string) ($payload['new_password_confirmation'] ?? '')) {
+            $this->redirect('/subscriber/settings', 'Confirme a nova senha corretamente.', 'error');
+        }
+
+        if ($request->hasFile('avatar_file')) {
+            $avatarPath = store_uploaded_file($request->file('avatar_file'), 'subscriber/profile/avatar', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
+            if ($avatarPath !== null) {
+                $payload['avatar_url'] = $avatarPath;
+            }
+        }
+
+        if ($request->hasFile('cover_file')) {
+            $coverPath = store_uploaded_file($request->file('cover_file'), 'subscriber/profile/cover', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
+            if ($coverPath !== null) {
+                $payload['cover_url'] = $coverPath;
+            }
+        }
+
+        $ok = $this->app->repository->updateSubscriberSettings((int) $this->user()['id'], $payload);
+
+        $this->redirect('/subscriber/settings', $ok ? 'Perfil atualizado com sucesso.' : 'Nao foi possivel salvar seu perfil.', $ok ? 'success' : 'error');
     }
 }

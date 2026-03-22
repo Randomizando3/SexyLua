@@ -385,6 +385,26 @@ final class PlatformRepository
         ];
     }
 
+    public function subscriberSettingsData(int $subscriberId): array
+    {
+        $subscriber = $this->findUserById($subscriberId) ?? [];
+        $wallet = $this->walletData($subscriberId);
+        $favorites = $this->favoritesData($subscriberId);
+        $subscriptions = $this->activeSubscriptionsForSubscriber($subscriberId);
+
+        return [
+            'subscriber' => $subscriber,
+            'wallet' => $wallet,
+            'stats' => [
+                'subscriptions' => count(array_filter($subscriptions, static fn (array $subscription): bool => (string) ($subscription['status'] ?? '') === 'active')),
+                'favorites' => count($favorites['favorite_creators'] ?? []),
+                'saved' => count($favorites['saved_content'] ?? []),
+                'balance' => (int) ($wallet['balance'] ?? 0),
+            ],
+            'recent_transactions' => array_slice($wallet['transactions'] ?? [], 0, 4),
+        ];
+    }
+
     public function subscriberSubscriptionsData(int $subscriberId, array $filters = []): array
     {
         $subscriber = $this->findUserById($subscriberId) ?? [];
@@ -1885,17 +1905,17 @@ final class PlatformRepository
                 $changedUsers = true;
             }
 
-            if ($headline !== '' && $headline !== (string) ($user['headline'] ?? '')) {
+            if (array_key_exists('headline', $data) && $headline !== (string) ($user['headline'] ?? '')) {
                 $user['headline'] = $headline;
                 $changedUsers = true;
             }
 
-            if ($bio !== '' && $bio !== (string) ($user['bio'] ?? '')) {
+            if (array_key_exists('bio', $data) && $bio !== (string) ($user['bio'] ?? '')) {
                 $user['bio'] = $bio;
                 $changedUsers = true;
             }
 
-            if ($city !== '' && $city !== (string) ($user['city'] ?? '')) {
+            if (array_key_exists('city', $data) && $city !== (string) ($user['city'] ?? '')) {
                 $user['city'] = $city;
                 $changedUsers = true;
             }
@@ -1932,37 +1952,37 @@ final class PlatformRepository
                 }
             }
 
-            if ($avatarUrl !== '' && $avatarUrl !== (string) ($profile['avatar_url'] ?? '')) {
+            if (array_key_exists('avatar_url', $data) && $avatarUrl !== (string) ($profile['avatar_url'] ?? '')) {
                 $profile['avatar_url'] = $avatarUrl;
                 $changedProfiles = true;
             }
 
-            if ($coverUrl !== '' && $coverUrl !== (string) ($profile['cover_url'] ?? '')) {
+            if (array_key_exists('cover_url', $data) && $coverUrl !== (string) ($profile['cover_url'] ?? '')) {
                 $profile['cover_url'] = $coverUrl;
                 $changedProfiles = true;
             }
 
-            if ($payoutMethod !== '' && $payoutMethod !== (string) ($profile['payout_method'] ?? '')) {
+            if (array_key_exists('payout_method', $data) && $payoutMethod !== '' && $payoutMethod !== (string) ($profile['payout_method'] ?? '')) {
                 $profile['payout_method'] = $payoutMethod;
                 $changedProfiles = true;
             }
 
-            if ($payoutKey !== '' && $payoutKey !== (string) ($profile['payout_key'] ?? '')) {
+            if (array_key_exists('payout_key', $data) && $payoutKey !== (string) ($profile['payout_key'] ?? '')) {
                 $profile['payout_key'] = $payoutKey;
                 $changedProfiles = true;
             }
 
-            if ($instagram !== '' && $instagram !== (string) ($profile['instagram'] ?? '')) {
+            if (array_key_exists('instagram', $data) && $instagram !== (string) ($profile['instagram'] ?? '')) {
                 $profile['instagram'] = $instagram;
                 $changedProfiles = true;
             }
 
-            if ($telegram !== '' && $telegram !== (string) ($profile['telegram'] ?? '')) {
+            if (array_key_exists('telegram', $data) && $telegram !== (string) ($profile['telegram'] ?? '')) {
                 $profile['telegram'] = $telegram;
                 $changedProfiles = true;
             }
 
-            if ($streamKey !== '' && $streamKey !== (string) ($profile['stream_key'] ?? '')) {
+            if (array_key_exists('stream_key', $data) && $streamKey !== (string) ($profile['stream_key'] ?? '')) {
                 $profile['stream_key'] = $streamKey;
                 $changedProfiles = true;
             }
@@ -2002,6 +2022,16 @@ final class PlatformRepository
         }
 
         return true;
+    }
+
+    public function updateSubscriberSettings(int $subscriberId, array $data): bool
+    {
+        return $this->updateBasicUserProfile($subscriberId, 'subscriber', $data);
+    }
+
+    public function updateAdminProfile(int $adminId, array $data): bool
+    {
+        return $this->updateBasicUserProfile($adminId, 'admin', $data);
     }
 
     public function requestPayout(int $creatorId, array $data): array
@@ -2138,6 +2168,58 @@ final class PlatformRepository
         }
 
         return $changed;
+    }
+
+    private function updateBasicUserProfile(int $userId, string $role, array $data): bool
+    {
+        $users = $this->users();
+        $changed = false;
+        $found = false;
+        $name = trim((string) ($data['name'] ?? ''));
+        $newPassword = (string) ($data['new_password'] ?? '');
+
+        foreach ($users as &$user) {
+            if ((int) ($user['id'] ?? 0) !== $userId || (string) ($user['role'] ?? '') !== $role) {
+                continue;
+            }
+
+            $found = true;
+
+            if ($name !== '' && $name !== (string) ($user['name'] ?? '')) {
+                $user['name'] = $name;
+                $changed = true;
+            }
+
+            foreach (['headline', 'bio', 'city', 'avatar_url', 'cover_url'] as $field) {
+                if (! array_key_exists($field, $data)) {
+                    continue;
+                }
+
+                $value = trim((string) ($data[$field] ?? ''));
+                if ($value !== (string) ($user[$field] ?? '')) {
+                    $user[$field] = $value;
+                    $changed = true;
+                }
+            }
+
+            if ($newPassword !== '' && ! password_verify($newPassword, (string) ($user['password'] ?? ''))) {
+                $user['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
+                $changed = true;
+            }
+
+            break;
+        }
+        unset($user);
+
+        if (! $found) {
+            return false;
+        }
+
+        if ($changed) {
+            $this->save('users', $users);
+        }
+
+        return true;
     }
 
     public function moderationData(array $filters = []): array

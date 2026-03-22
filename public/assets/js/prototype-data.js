@@ -405,9 +405,21 @@
         const contents = (data.content || []).slice(0, 3)
         const metricsCard = q('div.bg-surface-container-low.p-8.rounded-lg')
         const moodCard = q('div.bg-primary.p-8.rounded-lg.text-on-primary.relative.overflow-hidden')
+        const coverImage = q('main > div.relative.w-full.h-\\[460px\\].bg-surface-container-high.overflow-hidden img')
+        const avatarImage = q('main .p-1.bg-background.rounded-full img')
 
         if (!creator) {
             return
+        }
+
+        if (coverImage && creator.cover_url) {
+            coverImage.src = creator.cover_url
+            coverImage.alt = creator.name ? `Capa de ${creator.name}` : 'Capa do perfil'
+        }
+
+        if (avatarImage && creator.avatar_url) {
+            avatarImage.src = creator.avatar_url
+            avatarImage.alt = creator.name ? `Avatar de ${creator.name}` : 'Avatar do perfil'
         }
 
         setText(q('h1.font-headline.text-5xl', document), creator.name)
@@ -881,6 +893,7 @@
         'subscriber.favorites': () => {},
         'subscriber.messages': () => {},
         'subscriber.wallet': () => {},
+        'subscriber.settings': () => {},
         'creator.dashboard': patchCreatorDashboard,
         'creator.content': () => {},
         'creator.favorites': () => {},

@@ -127,6 +127,44 @@ final class AdminController extends Controller
         $this->redirect('/admin/settings', 'Configuracoes salvas.');
     }
 
+    public function updateProfile(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/settings');
+        $payload = $request->all();
+
+        foreach (['avatar_url', 'cover_url'] as $field) {
+            if (array_key_exists($field, $payload)) {
+                $payload[$field] = trim((string) ($payload[$field] ?? ''));
+                if ($payload[$field] !== '') {
+                    $payload[$field] = media_url((string) $payload[$field]);
+                }
+            }
+        }
+
+        if ((string) ($payload['new_password'] ?? '') !== '' && (string) ($payload['new_password'] ?? '') !== (string) ($payload['new_password_confirmation'] ?? '')) {
+            $this->redirect('/admin/settings#perfil', 'Confirme a nova senha corretamente.', 'error');
+        }
+
+        if ($request->hasFile('avatar_file')) {
+            $avatarPath = store_uploaded_file($request->file('avatar_file'), 'admin/profile/avatar', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
+            if ($avatarPath !== null) {
+                $payload['avatar_url'] = $avatarPath;
+            }
+        }
+
+        if ($request->hasFile('cover_file')) {
+            $coverPath = store_uploaded_file($request->file('cover_file'), 'admin/profile/cover', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
+            if ($coverPath !== null) {
+                $payload['cover_url'] = $coverPath;
+            }
+        }
+
+        $ok = $this->app->repository->updateAdminProfile((int) $this->user()['id'], $payload);
+
+        $this->redirect('/admin/settings#perfil', $ok ? 'Perfil do admin atualizado.' : 'Nao foi possivel salvar o perfil do admin.', $ok ? 'success' : 'error');
+    }
+
     public function reviewPayout(Request $request): void
     {
         $this->app->auth->requireRole('admin');
