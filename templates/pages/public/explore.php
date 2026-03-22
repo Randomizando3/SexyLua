@@ -389,9 +389,9 @@
 <footer class="w-full flex flex-col items-center gap-6 px-10 bg-[#D81B60] py-16">
 <div class="text-3xl font-black text-white italic tracking-tighter">SexyLua</div>
 <div class="flex flex-wrap justify-center gap-10 font-['Manrope'] text-xs tracking-widest uppercase text-white/70">
-<a class="hover:text-white underline-offset-8 hover:underline transition-all duration-300" href="#">Termos</a>
-<a class="hover:text-white underline-offset-8 hover:underline transition-all duration-300" href="#">Privacidade</a>
-<a class="hover:text-white underline-offset-8 hover:underline transition-all duration-300 text-white font-bold" href="#">Ajuda</a>
+<a class="hover:text-white underline-offset-8 hover:underline transition-all duration-300" href="/terms">Termos</a>
+<a class="hover:text-white underline-offset-8 hover:underline transition-all duration-300" href="/privacy">Privacidade</a>
+<a class="hover:text-white underline-offset-8 hover:underline transition-all duration-300 text-white font-bold" href="/help">Ajuda</a>
 <a class="hover:text-white underline-offset-8 hover:underline transition-all duration-300" href="#">Carreiras</a>
 </div>
 <div class="mt-4 text-white/50 font-['Manrope'] text-[10px] tracking-[0.3em] uppercase text-center">

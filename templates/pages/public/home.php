@@ -385,9 +385,9 @@
 <footer class="w-full flex flex-col items-center gap-6 px-10 bg-[#D81B60] py-12 relative z-20">
 <span class="text-lg font-bold text-white">SexyLua</span>
 <div class="flex gap-8">
-<a class="text-white/70 hover:text-white underline-offset-4 hover:underline font-['Manrope'] text-xs tracking-widest uppercase transition-all duration-300" href="#">Termos</a>
-<a class="text-white/70 hover:text-white underline-offset-4 hover:underline font-['Manrope'] text-xs tracking-widest uppercase transition-all duration-300" href="#">Privacidade</a>
-<a class="text-white/70 hover:text-white underline-offset-4 hover:underline font-['Manrope'] text-xs tracking-widest uppercase transition-all duration-300" href="#">Ajuda</a>
+<a class="text-white/70 hover:text-white underline-offset-4 hover:underline font-['Manrope'] text-xs tracking-widest uppercase transition-all duration-300" href="/terms">Termos</a>
+<a class="text-white/70 hover:text-white underline-offset-4 hover:underline font-['Manrope'] text-xs tracking-widest uppercase transition-all duration-300" href="/privacy">Privacidade</a>
+<a class="text-white/70 hover:text-white underline-offset-4 hover:underline font-['Manrope'] text-xs tracking-widest uppercase transition-all duration-300" href="/help">Ajuda</a>
 <a class="text-white/70 hover:text-white underline-offset-4 hover:underline font-['Manrope'] text-xs tracking-widest uppercase transition-all duration-300" href="#">Carreiras</a>
 </div>
 <p class="text-white font-['Manrope'] text-[10px] tracking-[0.2em] uppercase opacity-80">© 2024 SexyLua. The Lunar Metamorphosis.</p>

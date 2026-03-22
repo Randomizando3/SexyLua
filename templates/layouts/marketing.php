@@ -16,17 +16,6 @@
     <?php include base_path('templates/partials/flash.php'); ?>
     <?= $content ?>
 </main>
-<footer class="marketing-footer">
-    <div>
-        <strong>SexyLua</strong>
-        <p>PHP puro, dados locais e visual inspirado no prototipo aprovado.</p>
-    </div>
-    <div class="footer-meta">
-        <span>Publico</span>
-        <span>Criador</span>
-        <span>Assinante</span>
-        <span>Admin</span>
-    </div>
-</footer>
+<?php include base_path('templates/partials/marketing_footer.php'); ?>
 </body>
 </html>

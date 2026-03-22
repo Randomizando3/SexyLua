@@ -6,6 +6,8 @@ $settings = $data ?? [];
 $admin = $app->auth->user() ?? [];
 $adminAvatarUrl = media_url((string) ($admin['avatar_url'] ?? ''));
 $adminCoverUrl = media_url((string) ($admin['cover_url'] ?? ''));
+$siteBaseUrl = (string) ($settings['site_base_url'] ?? app_base_url($app->config, $settings));
+$mercadoPagoWebhookUrl = (string) ($settings['mercadopago_webhook_url'] ?? webhook_url($app->config, $settings));
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -71,9 +73,9 @@ $adminCoverUrl = media_url((string) ($admin['cover_url'] ?? ''));
         <a class="flex items-center gap-4 rounded-full bg-white px-4 py-3 font-bold text-primary" href="/admin/settings"><span class="material-symbols-outlined">settings</span><span>Configuracoes</span></a>
     </nav>
     <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
-        <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Token hoje</p>
-        <h3 class="mt-3 text-3xl font-extrabold"><?= e(brl_amount((float) ($settings['token_price_brl'] ?? 0.35))) ?></h3>
-        <p class="mt-2 text-sm text-on-surface-variant">Valor de referencia por token utilizado na plataforma.</p>
+        <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">LuaCoin hoje</p>
+        <h3 class="mt-3 text-3xl font-extrabold"><?= e(brl_amount((float) ($settings['luacoin_price_brl'] ?? 0.07))) ?></h3>
+        <p class="mt-2 text-sm text-on-surface-variant">Valor sugerido por LuaCoin com base no comportamento de microtransacoes estilo Bits.</p>
     </div>
 </aside>
 
@@ -190,7 +192,7 @@ $adminCoverUrl = media_url((string) ($admin['cover_url'] ?? ''));
                 <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                     <div class="mb-6">
                         <h3 class="text-2xl font-extrabold">Financeiro base</h3>
-                        <p class="mt-2 text-sm text-on-surface-variant">Controle o fee da plataforma, valor do token e os limites de retirada.</p>
+                        <p class="mt-2 text-sm text-on-surface-variant">Controle o fee da plataforma, o valor unitario da LuaCoin e os limites de retirada.</p>
                     </div>
                     <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
                         <label class="block space-y-2">
@@ -198,16 +200,49 @@ $adminCoverUrl = media_url((string) ($admin['cover_url'] ?? ''));
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" max="95" min="0" name="platform_fee_percent" step="1" type="number" value="<?= e((string) ($settings['platform_fee_percent'] ?? 20)) ?>">
                         </label>
                         <label class="block space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Valor do token (BRL)</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="0.01" name="token_price_brl" step="0.01" type="number" value="<?= e(number_format((float) ($settings['token_price_brl'] ?? 0.35), 2, '.', '')) ?>">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Valor da LuaCoin (BRL)</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="0.01" name="luacoin_price_brl" step="0.01" type="number" value="<?= e(number_format((float) ($settings['luacoin_price_brl'] ?? 0.07), 2, '.', '')) ?>">
                         </label>
                         <label class="block space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Saque minimo (tokens)</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="withdraw_min_tokens" step="1" type="number" value="<?= e((string) ($settings['withdraw_min_tokens'] ?? 50)) ?>">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Saque minimo (LuaCoins)</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="withdraw_min_luacoins" step="1" type="number" value="<?= e((string) ($settings['withdraw_min_luacoins'] ?? 50)) ?>">
                         </label>
                         <label class="block space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Saque maximo (tokens)</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="withdraw_max_tokens" step="1" type="number" value="<?= e((string) ($settings['withdraw_max_tokens'] ?? 25000)) ?>">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Saque maximo (LuaCoins)</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="withdraw_max_luacoins" step="1" type="number" value="<?= e((string) ($settings['withdraw_max_luacoins'] ?? 25000)) ?>">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
+                    <div class="mb-6">
+                        <h3 class="text-2xl font-extrabold">Mercado Pago</h3>
+                        <p class="mt-2 text-sm text-on-surface-variant">Configure as chaves do checkout real e mantenha o webhook padrao em <code>/webhook/mp</code>.</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-5">
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Site URL</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="site_base_url" placeholder="https://seusite.com" type="url" value="<?= e($siteBaseUrl) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Webhook Mercado Pago</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface-variant shadow-sm" readonly type="text" value="<?= e($mercadoPagoWebhookUrl) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Access Token</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="mercadopago_access_token" type="text" value="<?= e((string) ($settings['mercadopago_access_token'] ?? '')) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Public Key</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="mercadopago_public_key" type="text" value="<?= e((string) ($settings['mercadopago_public_key'] ?? '')) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Webhook Secret</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="mercadopago_webhook_secret" type="text" value="<?= e((string) ($settings['mercadopago_webhook_secret'] ?? '')) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Descricao da fatura</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" maxlength="13" name="mercadopago_statement_descriptor" type="text" value="<?= e((string) ($settings['mercadopago_statement_descriptor'] ?? 'SEXYLUA')) ?>">
                         </label>
                     </div>
                 </div>
@@ -289,7 +324,11 @@ $adminCoverUrl = media_url((string) ($admin['cover_url'] ?? ''));
                         </div>
                         <div class="rounded-3xl bg-surface-container-low p-5">
                             <p class="text-sm text-on-surface-variant">Faixa de saque</p>
-                            <p class="mt-2 text-2xl font-extrabold text-primary"><?= e(token_amount((int) ($settings['withdraw_min_tokens'] ?? 50))) ?> a <?= e(token_amount((int) ($settings['withdraw_max_tokens'] ?? 25000))) ?></p>
+                            <p class="mt-2 text-2xl font-extrabold text-primary"><?= e(luacoins_amount((int) ($settings['withdraw_min_luacoins'] ?? 50))) ?> a <?= e(luacoins_amount((int) ($settings['withdraw_max_luacoins'] ?? 25000))) ?></p>
+                        </div>
+                        <div class="rounded-3xl bg-surface-container-low p-5">
+                            <p class="text-sm text-on-surface-variant">Webhook pronto</p>
+                            <p class="mt-2 break-all text-sm font-bold text-primary"><?= e($mercadoPagoWebhookUrl) ?></p>
                         </div>
                         <div class="rounded-3xl bg-surface-container-low p-5">
                             <p class="text-sm text-on-surface-variant">Slow mode</p>

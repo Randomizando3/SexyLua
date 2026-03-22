@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Request;
+use App\Services\MercadoPagoGateway;
 
 final class SubscriberController extends Controller
 {
@@ -20,6 +21,7 @@ final class SubscriberController extends Controller
             'prototype' => [
                 'page' => 'subscriber.dashboard',
                 'wallet_topup' => true,
+                'wallet_topup_luacoins' => 100,
                 'wallet_topup_tokens' => 100,
             ],
         ], null);
@@ -91,12 +93,13 @@ final class SubscriberController extends Controller
         ]);
 
         $this->render('pages/subscriber/wallet', [
-            'title' => 'Carteira e Tokens',
+            'title' => 'Carteira e LuaCoins',
             'data' => $wallet,
             'sidebar_role' => 'subscriber',
             'prototype' => [
                 'page' => 'subscriber.wallet',
                 'wallet_topup' => true,
+                'wallet_topup_luacoins' => 100,
                 'wallet_topup_tokens' => 100,
             ],
         ], null);
@@ -169,9 +172,69 @@ final class SubscriberController extends Controller
     {
         $this->app->auth->requireRole('subscriber');
         $this->validateCsrf($request, '/subscriber/wallet');
-        $ok = $this->app->repository->addFunds((int) $this->user()['id'], (int) $request->input('tokens', 0));
+        $luacoins = (int) $request->input('luacoins', (int) $request->input('tokens', 0));
+        $settings = $this->app->repository->settings();
+        $gateway = new MercadoPagoGateway($settings);
 
-        $this->redirect('/subscriber/wallet', $ok ? 'Recarga concluida.' : 'Informe um valor valido para a recarga.', $ok ? 'success' : 'error');
+        if ($gateway->configured()) {
+            $baseUrl = app_base_url($this->app->config, $settings);
+
+            if (! str_starts_with($baseUrl, 'https://')) {
+                $this->redirect('/subscriber/wallet', 'Configure uma Site URL com HTTPS no admin para liberar o checkout do Mercado Pago.', 'error');
+            }
+
+            $topUp = $this->app->repository->createWalletTopUpRequest((int) $this->user()['id'], $luacoins);
+
+            if (! is_array($topUp)) {
+                $this->redirect('/subscriber/wallet', 'Informe uma quantidade valida de LuaCoins.', 'error');
+            }
+
+            try {
+                $statementDescriptor = mb_strtoupper(preg_replace('/[^a-z0-9 ]+/i', '', (string) ($settings['mercadopago_statement_descriptor'] ?? 'SEXYLUA')) ?: 'SEXYLUA');
+                $statementDescriptor = trim(mb_substr($statementDescriptor, 0, 13));
+                $reference = (string) ($topUp['external_reference'] ?? '');
+                $checkout = $gateway->createWalletTopUpPreference([
+                    'external_reference' => $reference,
+                    'notification_url' => webhook_url($this->app->config, $settings),
+                    'back_urls' => [
+                        'success' => path_with_query($baseUrl . '/subscriber/wallet', ['payment_status' => 'success', 'reference' => $reference]),
+                        'failure' => path_with_query($baseUrl . '/subscriber/wallet', ['payment_status' => 'failure', 'reference' => $reference]),
+                        'pending' => path_with_query($baseUrl . '/subscriber/wallet', ['payment_status' => 'pending', 'reference' => $reference]),
+                    ],
+                    'auto_return' => 'approved',
+                    'binary_mode' => false,
+                    'statement_descriptor' => $statementDescriptor !== '' ? $statementDescriptor : 'SEXYLUA',
+                    'items' => [[
+                        'id' => 'luacoins-' . (string) $luacoins,
+                        'title' => $luacoins . ' LuaCoins - SexyLua',
+                        'description' => 'Recarga de LuaCoins para assinaturas, gorjetas e desbloqueios.',
+                        'quantity' => 1,
+                        'currency_id' => 'BRL',
+                        'unit_price' => (float) ($topUp['amount_brl_expected'] ?? 0),
+                    ]],
+                    'metadata' => [
+                        'topup_transaction_id' => (int) ($topUp['id'] ?? 0),
+                        'user_id' => (int) $this->user()['id'],
+                        'luacoins' => $luacoins,
+                    ],
+                ]);
+
+                $this->app->repository->attachWalletTopUpCheckout((int) ($topUp['id'] ?? 0), $checkout);
+                $checkoutUrl = (string) ($checkout['init_point'] ?? '');
+
+                if ($checkoutUrl === '') {
+                    $this->redirect('/subscriber/wallet', 'O Mercado Pago nao retornou a URL de checkout.', 'error');
+                }
+
+                redirect_to($checkoutUrl);
+            } catch (\Throwable $exception) {
+                $this->redirect('/subscriber/wallet', 'Nao foi possivel iniciar o checkout do Mercado Pago: ' . $exception->getMessage(), 'error');
+            }
+        }
+
+        $ok = $this->app->repository->addFunds((int) $this->user()['id'], $luacoins);
+
+        $this->redirect('/subscriber/wallet', $ok ? 'Recarga de LuaCoins concluida.' : 'Informe um valor valido para a recarga.', $ok ? 'success' : 'error');
     }
 
     public function updateSettings(Request $request): void

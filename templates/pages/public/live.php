@@ -142,7 +142,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                     <input name="creator_id" type="hidden" value="<?= e((string) ((int) ($creator['id'] ?? 0))) ?>">
                                     <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
-                                    <input class="rounded-full border-none bg-surface-container-high px-5 py-3 text-sm text-on-surface shadow-sm focus:ring-2 focus:ring-[#ab1155]/20" min="1" name="amount" placeholder="Tokens" required type="number" value="25">
+                                    <input class="rounded-full border-none bg-surface-container-high px-5 py-3 text-sm text-on-surface shadow-sm focus:ring-2 focus:ring-[#ab1155]/20" min="1" name="amount" placeholder="LuaCoins" required type="number" value="25">
                                     <button class="signature-glow rounded-full px-8 py-3 text-sm font-bold text-white shadow-lg" data-prototype-skip="1" type="submit">Enviar gorjeta</button>
                                 </form>
                             <?php elseif ($requiresLogin): ?>

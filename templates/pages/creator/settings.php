@@ -69,85 +69,16 @@ $coverUrl = media_url((string) ($creator['cover_url'] ?? ''));
     </style>
 </head>
 <body class="min-h-screen bg-background text-on-surface">
-<aside class="fixed left-0 top-0 hidden h-full w-64 flex-col bg-zinc-50 py-8 font-['Plus_Jakarta_Sans'] font-medium shadow-xl lg:flex">
-    <div class="mb-12 px-8">
-        <h1 class="text-2xl font-bold tracking-tighter text-pink-700">SexyLua</h1>
-        <p class="mt-1 text-xs uppercase tracking-widest text-zinc-500">Hub Celestial</p>
-    </div>
-    <nav class="flex-1 space-y-1">
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator/content">
-            <span class="material-symbols-outlined">brightness_4</span>
-            <span>Meu Conteudo</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator">
-            <span class="material-symbols-outlined">insights</span>
-            <span>Metricas Lunares</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator/live">
-            <span class="material-symbols-outlined">settings_input_antenna</span>
-            <span>Configurar Live</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator/memberships">
-            <span class="material-symbols-outlined">star</span>
-            <span>Minhas Assinaturas</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator/favorites">
-            <span class="material-symbols-outlined">favorite</span>
-            <span>Favoritos</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator/wallet">
-            <span class="material-symbols-outlined">account_balance_wallet</span>
-            <span>Carteira</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full bg-pink-50 px-4 py-3 text-pink-700" href="/creator/settings">
-            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
-            <span>Configuracoes</span>
-        </a>
-        <div class="px-8 pb-4 pt-8">
-            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Administracao</p>
-        </div>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/admin/users">
-            <span class="material-symbols-outlined">group</span>
-            <span>Gestao de Usuarios</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/admin/finance">
-            <span class="material-symbols-outlined">payments</span>
-            <span>Financeiro</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/admin/moderation">
-            <span class="material-symbols-outlined">gavel</span>
-            <span>Moderacao de Conteudo</span>
-        </a>
-    </nav>
-    <div class="mt-auto px-6 py-4">
-        <div class="flex items-center gap-3 rounded-xl bg-surface-container-low p-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
-            <div class="overflow-hidden">
-                <p class="truncate text-sm font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
-                <p class="text-xs text-pink-600">Configuracao ativa</p>
-            </div>
-        </div>
-    </div>
-</aside>
+<?php
+$creatorShellCreator = $creator;
+$creatorShellCurrent = 'settings';
+$creatorTopbarLabel = 'Configuracoes do Criador';
+$creatorTopbarAction = ['href' => '/creator/wallet', 'label' => 'Carteira'];
+include base_path('templates/partials/creator_sidebar.php');
+include base_path('templates/partials/creator_topbar.php');
+?>
 
-<header class="sticky top-0 z-40 flex h-16 items-center bg-[#D81B60] shadow-lg shadow-[#D81B60]/20 lg:pl-64">
-    <div class="mx-auto flex w-full max-w-screen-2xl items-center justify-between px-8 font-['Plus_Jakarta_Sans'] text-sm font-bold tracking-wide text-white">
-        <div class="flex items-center gap-8">
-            <h1 class="text-2xl font-black lg:hidden">SexyLua</h1>
-            <nav class="hidden items-center gap-6 md:flex">
-                <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator">Metricas Lunares</a>
-                <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator/live">Configurar Live</a>
-                <a class="border-b-2 border-white py-1 text-white" href="/creator/settings">Configuracoes</a>
-            </nav>
-        </div>
-        <div class="flex items-center gap-4">
-            <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator/wallet">Carteira</a>
-            <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator/favorites">Favoritos</a>
-        </div>
-    </div>
-</header>
-
-<main class="min-h-screen lg:pl-64">
+<main class="min-h-screen pt-20 lg:pl-64">
     <div class="mx-auto max-w-7xl px-8 py-12">
         <header class="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
@@ -333,11 +264,11 @@ $coverUrl = media_url((string) ($creator['cover_url'] ?? ''));
                     <div class="mt-6 grid grid-cols-2 gap-4 text-sm">
                         <div class="rounded-2xl bg-white/10 p-4">
                             <p class="text-white/60">Saldo</p>
-                            <p class="mt-1 text-xl font-bold"><?= e(token_amount((int) ($wallet['balance'] ?? 0))) ?></p>
+                            <p class="mt-1 text-xl font-bold"><?= e(luacoins_amount((int) ($wallet['balance'] ?? 0))) ?></p>
                         </div>
                         <div class="rounded-2xl bg-white/10 p-4">
-                            <p class="text-white/60">Token em BRL</p>
-                            <p class="mt-1 text-xl font-bold"><?= e(brl_amount((float) ($platform['token_price_brl'] ?? 0.35))) ?></p>
+                            <p class="text-white/60">LuaCoin em BRL</p>
+                            <p class="mt-1 text-xl font-bold"><?= e(brl_amount((float) ($platform['luacoin_price_brl'] ?? 0.07))) ?></p>
                         </div>
                     </div>
                 </div>
@@ -347,11 +278,11 @@ $coverUrl = media_url((string) ($creator['cover_url'] ?? ''));
                     <div class="mt-5 space-y-4 text-sm">
                         <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
                             <span class="text-on-surface-variant">Saque minimo</span>
-                            <strong><?= e(token_amount((int) ($platform['withdraw_min_tokens'] ?? 50))) ?></strong>
+                            <strong><?= e(luacoins_amount((int) ($platform['withdraw_min_luacoins'] ?? 50))) ?></strong>
                         </div>
                         <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
                             <span class="text-on-surface-variant">Saque maximo</span>
-                            <strong><?= e(token_amount((int) ($platform['withdraw_max_tokens'] ?? 25000))) ?></strong>
+                            <strong><?= e(luacoins_amount((int) ($platform['withdraw_max_luacoins'] ?? 25000))) ?></strong>
                         </div>
                         <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
                             <span class="text-on-surface-variant">Proxima live</span>

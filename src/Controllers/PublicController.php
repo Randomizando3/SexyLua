@@ -101,6 +101,27 @@ final class PublicController extends Controller
         ], null);
     }
 
+    public function help(Request $request): void
+    {
+        $this->render('pages/public/help', [
+            'title' => 'Ajuda',
+        ], 'layouts/marketing');
+    }
+
+    public function terms(Request $request): void
+    {
+        $this->render('pages/public/terms', [
+            'title' => 'Termos de Uso',
+        ], 'layouts/marketing');
+    }
+
+    public function privacy(Request $request): void
+    {
+        $this->render('pages/public/privacy', [
+            'title' => 'Politica de Privacidade',
+        ], 'layouts/marketing');
+    }
+
     public function postLiveMessage(Request $request): void
     {
         $liveId = (int) $request->input('live_id', 0);

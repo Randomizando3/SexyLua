@@ -111,7 +111,7 @@ $recentMessagesCount = (int) ($data['recent_messages_count'] ?? 0);
     <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
         <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Saldo atual</p>
         <h3 class="mt-3 text-3xl font-extrabold"><?= e(token_amount($walletBalance)) ?></h3>
-        <p class="mt-2 text-sm text-on-surface-variant">Use seus tokens para renovar planos, enviar gorjetas e entrar em experiencias especiais.</p>
+        <p class="mt-2 text-sm text-on-surface-variant">Use suas LuaCoins para renovar planos, enviar gorjetas e entrar em experiencias especiais.</p>
     </div>
 </aside>
 

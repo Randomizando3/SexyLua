@@ -20,7 +20,7 @@ $menu = match ($role) {
         ['/subscriber/subscriptions', 'Minhas Assinaturas'],
         ['/subscriber/favorites', 'Favoritos e Salvos'],
         ['/subscriber/messages', 'Mensagens e Chat'],
-        ['/subscriber/wallet', 'Carteira e Tokens'],
+        ['/subscriber/wallet', 'Carteira e LuaCoins'],
     ],
 };
 ?>

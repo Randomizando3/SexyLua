@@ -262,9 +262,9 @@
 <footer class="w-full flex flex-col items-center gap-6 px-10 py-12 bg-[#D81B60] text-white">
 <div class="text-lg font-bold text-white">SexyLua</div>
 <div class="flex gap-8">
-<a class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70 hover:text-white transition-all duration-300" href="#">Termos</a>
-<a class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70 hover:text-white transition-all duration-300" href="#">Privacidade</a>
-<a class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70 hover:text-white transition-all duration-300" href="#">Ajuda</a>
+<a class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70 hover:text-white transition-all duration-300" href="/terms">Termos</a>
+<a class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70 hover:text-white transition-all duration-300" href="/privacy">Privacidade</a>
+<a class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70 hover:text-white transition-all duration-300" href="/help">Ajuda</a>
 <a class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70 hover:text-white transition-all duration-300" href="#">Carreiras</a>
 </div>
 <div class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70">

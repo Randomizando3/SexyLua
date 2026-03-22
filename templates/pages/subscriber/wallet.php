@@ -9,6 +9,11 @@ $outflow = (int) ($data['outflow'] ?? 0);
 $transactions = $data['filtered_transactions'] ?? $data['transactions'] ?? [];
 $summary = $data['summary'] ?? [];
 $filters = $data['filters'] ?? [];
+$platformSettings = $app->repository->settings();
+$luacoinPrice = (float) ($platformSettings['luacoin_price_brl'] ?? 0.07);
+$mercadoPagoEnabled = trim((string) ($platformSettings['mercadopago_access_token'] ?? '')) !== '';
+$siteBaseUrl = (string) ($platformSettings['site_base_url'] ?? app_base_url($app->config, $platformSettings));
+$paymentStatus = (string) ($_GET['payment_status'] ?? '');
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -78,9 +83,9 @@ $filters = $data['filters'] ?? [];
 <main class="min-h-screen px-6 pb-10 pt-24 lg:ml-64 lg:px-10">
     <section class="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div>
-            <p class="text-xs font-bold uppercase tracking-[0.3em] text-primary">Tokens e historico</p>
+            <p class="text-xs font-bold uppercase tracking-[0.3em] text-primary">LuaCoins e historico</p>
             <h2 class="mt-2 text-5xl font-extrabold tracking-tight">Carteira do <span class="italic text-primary">Assinante</span></h2>
-            <p class="mt-4 max-w-2xl text-on-surface-variant">Recargue saldo, acompanhe gastos com assinaturas e tenha visibilidade completa da sua movimentacao.</p>
+            <p class="mt-4 max-w-2xl text-on-surface-variant">Recarregue LuaCoins, acompanhe gastos com assinaturas e tenha visibilidade completa da sua movimentacao.</p>
         </div>
         <div class="signature-glow rounded-3xl px-6 py-5 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.2)]">
             <p class="text-xs font-bold uppercase tracking-[0.25em] text-white/70">Saldo disponivel</p>
@@ -95,14 +100,26 @@ $filters = $data['filters'] ?? [];
         <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Assinaturas</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e(token_amount((int) ($summary['subscription_spend'] ?? 0))) ?></p></article>
     </section>
 
+    <?php if ($paymentStatus !== ''): ?>
+        <section class="mb-8 rounded-3xl <?= $paymentStatus === 'success' ? 'bg-emerald-50 text-emerald-900' : ($paymentStatus === 'pending' ? 'bg-amber-50 text-amber-900' : 'bg-rose-50 text-rose-900') ?> p-5 shadow-sm">
+            <p class="text-sm font-bold">
+                <?= e($paymentStatus === 'success' ? 'Retorno do checkout recebido. Aguarde a confirmacao final do Mercado Pago para liberar as LuaCoins.' : ($paymentStatus === 'pending' ? 'Pagamento pendente. Assim que o Mercado Pago confirmar, as LuaCoins entram na carteira.' : 'Pagamento nao concluido. Confira o checkout e tente novamente.')) ?>
+            </p>
+        </section>
+    <?php endif; ?>
+
     <div class="grid grid-cols-1 gap-8 2xl:grid-cols-[0.8fr_1.2fr]">
         <section class="space-y-6">
             <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
-                <h3 class="text-2xl font-extrabold">Recarregar tokens</h3>
+                <h3 class="text-2xl font-extrabold">Recarregar LuaCoins</h3>
                 <form action="/subscriber/wallet/add-funds" class="mt-6 space-y-4" method="post">
                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                    <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="tokens" placeholder="Quantidade em tokens" required type="number" value="100">
-                    <button class="signature-glow w-full rounded-full px-5 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Adicionar saldo</button>
+                    <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="luacoins" placeholder="Quantidade em LuaCoins" required type="number" value="100">
+                    <p class="text-sm text-on-surface-variant">Valor estimado: <?= e(brl_amount(100 * $luacoinPrice)) ?>. <?= $mercadoPagoEnabled ? 'O checkout sera aberto no Mercado Pago.' : 'Sem chave configurada, a recarga segue em modo local para demo.' ?></p>
+                    <?php if ($mercadoPagoEnabled && ! str_starts_with($siteBaseUrl, 'https://')): ?>
+                        <p class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">Configure uma Site URL HTTPS no admin para ativar o retorno automatico do Mercado Pago.</p>
+                    <?php endif; ?>
+                    <button class="signature-glow w-full rounded-full px-5 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit"><?= $mercadoPagoEnabled ? 'Comprar com Mercado Pago' : 'Adicionar saldo demo' ?></button>
                 </form>
             </div>
             <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">

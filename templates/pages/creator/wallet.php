@@ -21,22 +21,17 @@ $payoutProfile = $data['payout_profile'] ?? [];
     </style>
 </head>
 <body>
-<header class="fixed top-0 z-40 flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 text-white shadow-lg">
-    <div class="flex items-center gap-4"><h1 class="headline text-2xl font-extrabold">SexyLua</h1><span class="hidden text-xs uppercase tracking-[0.3em] md:block">Carteira Lunar</span></div>
-    <div class="flex items-center gap-3"><a class="rounded-full border border-white/20 px-4 py-2 text-xs font-bold uppercase tracking-widest" href="/creator/live">Go Live</a><div class="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 font-bold"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div></div>
-</header>
-<aside class="fixed left-0 top-0 h-full w-64 bg-[#f5f3f5] px-6 pt-24 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-    <nav class="space-y-2 text-sm font-semibold text-slate-500">
-        <a class="block rounded-full px-4 py-3 hover:bg-white/50" href="/creator/content">Conteudo</a>
-        <a class="block rounded-full px-4 py-3 hover:bg-white/50" href="/creator/live">Lives</a>
-        <a class="block rounded-full px-4 py-3 hover:bg-white/50" href="/creator/memberships">Assinaturas</a>
-        <a class="block rounded-full bg-white px-4 py-3 text-[#D81B60]" href="/creator/wallet">Carteira</a>
-        <a class="block rounded-full px-4 py-3 hover:bg-white/50" href="/creator/settings">Configuracoes</a>
-    </nav>
-</aside>
-<main class="ml-64 px-10 pb-12 pt-24">
+<?php
+$creatorShellCreator = $creator;
+$creatorShellCurrent = 'wallet';
+$creatorTopbarLabel = 'Carteira Lunar';
+$creatorTopbarAction = ['href' => '/creator/live', 'label' => 'Go Live'];
+include base_path('templates/partials/creator_sidebar.php');
+include base_path('templates/partials/creator_topbar.php');
+?>
+<main class="px-6 pb-12 pt-24 lg:ml-64 lg:px-10">
     <div class="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div><p class="text-xs font-bold uppercase tracking-[0.3em] text-[#D81B60]">Financeiro do criador</p><h2 class="headline mt-2 text-4xl font-extrabold">Carteira e saques</h2><p class="mt-3 max-w-3xl text-slate-500">Saldo, receita por assinatura, gorjetas e solicitacoes de saque com chave de pagamento real do criador.</p></div>
+        <div><p class="text-xs font-bold uppercase tracking-[0.3em] text-[#D81B60]">Financeiro do criador</p><h2 class="headline mt-2 text-4xl font-extrabold">Carteira e saques</h2><p class="mt-3 max-w-3xl text-slate-500">Saldo em LuaCoins, receita por assinatura, gorjetas e solicitacoes de saque com chave de pagamento real do criador.</p></div>
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Saldo</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= e(token_amount($balance)) ?></p></div>
             <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Assinaturas</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= e(token_amount((int) ($summary['subscription_income'] ?? 0))) ?></p></div>
@@ -50,13 +45,13 @@ $payoutProfile = $data['payout_profile'] ?? [];
             <div class="signature-glow rounded-3xl p-8 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)]">
                 <p class="text-xs font-bold uppercase tracking-[0.25em] text-white/70">Disponivel para saque</p>
                 <h3 class="headline mt-4 text-5xl font-extrabold"><?= e(token_amount($balance)) ?></h3>
-                <p class="mt-3 text-sm text-white/80">Aproximadamente <?= e(brl_amount((float) ($summary['available_brl'] ?? 0))) ?>, respeitando saque minimo de <?= e(token_amount($minWithdrawal)) ?>.</p>
+                <p class="mt-3 text-sm text-white/80">Aproximadamente <?= e(brl_amount((float) ($summary['available_brl'] ?? 0))) ?>, respeitando saque minimo de <?= e(luacoins_amount($minWithdrawal)) ?>.</p>
             </div>
             <form action="/creator/wallet/payout" class="rounded-3xl bg-white p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]" method="post">
                 <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                 <h3 class="headline text-2xl font-extrabold">Solicitar saque</h3>
                 <div class="mt-6 space-y-4">
-                    <input class="w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="<?= e((string) $minWithdrawal) ?>" name="tokens" placeholder="Quantidade em tokens" required type="number" value="<?= e((string) $minWithdrawal) ?>">
+                    <input class="w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="<?= e((string) $minWithdrawal) ?>" name="luacoins" placeholder="Quantidade em LuaCoins" required type="number" value="<?= e((string) $minWithdrawal) ?>">
                     <select class="w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="payout_method">
                         <option value="pix" <?= (string) ($payoutProfile['method'] ?? 'pix') === 'pix' ? 'selected' : '' ?>>PIX</option>
                         <option value="bank" <?= (string) ($payoutProfile['method'] ?? '') === 'bank' ? 'selected' : '' ?>>Conta bancaria</option>

@@ -689,8 +689,8 @@
                     const toggles = document.querySelectorAll('input[type="checkbox"]');
 
                     setValue(form, 'platform_fee_percent', numberInput && numberInput.value ? numberInput.value : '20');
-                    setValue(form, 'withdraw_min_tokens', rangeInputs[0] ? rangeInputs[0].value : '50');
-                    setValue(form, 'withdraw_max_tokens', rangeInputs[1] ? rangeInputs[1].value : '25000');
+                    setValue(form, 'withdraw_min_luacoins', rangeInputs[0] ? rangeInputs[0].value : '50');
+                    setValue(form, 'withdraw_max_luacoins', rangeInputs[1] ? rangeInputs[1].value : '25000');
                     setValue(form, 'slow_mode_seconds', slowInput ? String(parseInt(slowInput.value, 10) || 0) : '0');
                     setValue(form, 'maintenance_mode', toggles[0] && toggles[0].checked ? '1' : '0');
                     setValue(form, 'auto_moderation', toggles[2] && toggles[2].checked ? '1' : '0');
@@ -717,7 +717,7 @@
 
                     setValue(form, 'title', titleInput && titleInput.value ? titleInput.value : 'Live criada do painel');
                     setValue(form, 'description', 'Live criada a partir do dashboard do criador.');
-                    setValue(form, 'price_tokens', priceInput && priceInput.value ? priceInput.value : '0');
+                    setValue(form, 'price_luacoins', priceInput && priceInput.value ? priceInput.value : '0');
                     setValue(form, 'scheduled_for', toMysqlDatetime(new Date(Date.now() + 86400000)));
                     setValue(form, 'status', 'scheduled');
                 });
@@ -761,7 +761,7 @@
 
                     setValue(form, 'title', titleInput && titleInput.value ? titleInput.value : 'Nova live SexyLua');
                     setValue(form, 'description', `Live criada pelo Creator Studio em ${category}${privateMode ? ' para inscritos' : ' com acesso publico'}.`);
-                    setValue(form, 'price_tokens', priceInput && priceInput.value ? priceInput.value : '0');
+                    setValue(form, 'price_luacoins', priceInput && priceInput.value ? priceInput.value : '0');
                     setValue(form, 'scheduled_for', toMysqlDatetime(new Date()));
                     setValue(form, 'status', 'live');
                     setValue(form, 'chat_enabled', '1');

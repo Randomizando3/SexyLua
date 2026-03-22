@@ -640,12 +640,122 @@ final class PlatformRepository
             'type' => 'top_up',
             'direction' => 'in',
             'amount' => $tokens,
-            'note' => 'Recarga manual de tokens',
+            'note' => 'Recarga manual de LuaCoins',
+            'status' => 'approved',
             'created_at' => date('Y-m-d H:i:s'),
         ];
         $this->save('wallet_transactions', $transactions);
 
         return true;
+    }
+
+    public function createWalletTopUpRequest(int $userId, int $luacoins, string $provider = 'mercadopago'): ?array
+    {
+        if ($luacoins <= 0 || ! $this->findUserById($userId)) {
+            return null;
+        }
+
+        $settings = $this->settings();
+        $price = (float) ($settings['luacoin_price_brl'] ?? 0.07);
+        $transactions = $this->walletTransactions();
+        $transactionId = $this->store->nextId($transactions);
+        $externalReference = sprintf('topup-%d-%s', $transactionId, bin2hex(random_bytes(4)));
+
+        $transaction = [
+            'id' => $transactionId,
+            'user_id' => $userId,
+            'type' => 'top_up_pending',
+            'direction' => 'in',
+            'amount' => $luacoins,
+            'amount_brl_expected' => round($luacoins * $price, 2),
+            'note' => 'Recarga de LuaCoins aguardando pagamento',
+            'provider' => $provider,
+            'external_reference' => $externalReference,
+            'status' => 'pending',
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+
+        $transactions[] = $transaction;
+        $this->save('wallet_transactions', $transactions);
+
+        return $transaction;
+    }
+
+    public function attachWalletTopUpCheckout(int $transactionId, array $checkout): bool
+    {
+        $transactions = $this->walletTransactions();
+        $changed = false;
+
+        foreach ($transactions as &$transaction) {
+            if ((int) ($transaction['id'] ?? 0) !== $transactionId || (string) ($transaction['type'] ?? '') !== 'top_up_pending') {
+                continue;
+            }
+
+            $transaction['checkout_url'] = (string) ($checkout['init_point'] ?? $transaction['checkout_url'] ?? '');
+            $transaction['sandbox_checkout_url'] = (string) ($checkout['sandbox_init_point'] ?? $transaction['sandbox_checkout_url'] ?? '');
+            $transaction['provider_checkout_id'] = (string) ($checkout['id'] ?? $transaction['provider_checkout_id'] ?? '');
+            $changed = true;
+            break;
+        }
+        unset($transaction);
+
+        if ($changed) {
+            $this->save('wallet_transactions', $transactions);
+        }
+
+        return $changed;
+    }
+
+    public function syncMercadoPagoWalletTopUp(int $transactionId, array $payment): bool
+    {
+        $transactions = $this->walletTransactions();
+        $changed = false;
+        $status = strtolower(trim((string) ($payment['status'] ?? 'pending')));
+        $detail = trim((string) ($payment['status_detail'] ?? ''));
+
+        foreach ($transactions as &$transaction) {
+            if ((int) ($transaction['id'] ?? 0) !== $transactionId) {
+                continue;
+            }
+
+            if ((string) ($transaction['type'] ?? '') === 'top_up' && in_array((string) ($transaction['status'] ?? ''), ['approved', 'completed', 'paid'], true)) {
+                return true;
+            }
+
+            $transaction['provider'] = 'mercadopago';
+            $transaction['provider_payment_id'] = (string) ($payment['id'] ?? '');
+            $transaction['provider_status'] = $status;
+            $transaction['provider_status_detail'] = $detail;
+            $transaction['provider_payload'] = [
+                'status' => $status,
+                'status_detail' => $detail,
+                'external_reference' => (string) ($payment['external_reference'] ?? ''),
+                'date_approved' => (string) ($payment['date_approved'] ?? ''),
+                'transaction_amount' => (float) ($payment['transaction_amount'] ?? 0),
+            ];
+
+            if (in_array($status, ['approved', 'authorized'], true)) {
+                $transaction['type'] = 'top_up';
+                $transaction['status'] = 'approved';
+                $transaction['note'] = 'Recarga Mercado Pago aprovada';
+                $transaction['approved_at'] = (string) ($payment['date_approved'] ?? date('Y-m-d H:i:s'));
+            } elseif (in_array($status, ['rejected', 'cancelled', 'refunded', 'charged_back'], true)) {
+                $transaction['status'] = $status;
+                $transaction['note'] = 'Recarga Mercado Pago nao aprovada';
+            } else {
+                $transaction['status'] = $status !== '' ? $status : 'pending';
+            }
+
+            $changed = true;
+            break;
+        }
+        unset($transaction);
+
+        if ($changed) {
+            $this->save('wallet_transactions', $transactions);
+        }
+
+        return $changed;
     }
 
     public function subscribeToPlan(int $subscriberId, int $planId): array
@@ -813,7 +923,7 @@ final class PlatformRepository
     public function tipCreator(int $subscriberId, int $creatorId, int $amount, string $note = 'Gorjeta enviada'): array
     {
         if ($amount <= 0) {
-            return ['ok' => false, 'message' => 'Informe uma quantidade valida de tokens.'];
+            return ['ok' => false, 'message' => 'Informe uma quantidade valida de LuaCoins.'];
         }
 
         if ($this->walletBalance($subscriberId) < $amount) {
@@ -1097,7 +1207,7 @@ final class PlatformRepository
                 if ((int) $plan['id'] === $planId && (int) $plan['creator_id'] === $creatorId) {
                     $plan['name'] = trim((string) ($data['name'] ?? $plan['name']));
                     $plan['description'] = trim((string) ($data['description'] ?? $plan['description']));
-                    $plan['price_tokens'] = max(1, (int) ($data['price_tokens'] ?? $plan['price_tokens']));
+                    $plan['price_tokens'] = max(1, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? $plan['price_tokens']));
                     $plan['active'] = ($data['active'] ?? '1') === '1';
                     $plan['label'] = trim((string) ($data['label'] ?? ($plan['label'] ?? '')));
                     $plan['perks'] = $perks !== [] ? $perks : $plan['perks'];
@@ -1114,7 +1224,7 @@ final class PlatformRepository
             'creator_id' => $creatorId,
             'name' => trim((string) ($data['name'] ?? 'Novo plano')),
             'description' => trim((string) ($data['description'] ?? 'Beneficios exclusivos para assinantes.')),
-            'price_tokens' => max(1, (int) ($data['price_tokens'] ?? 49)),
+            'price_tokens' => max(1, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? 49)),
             'active' => ($data['active'] ?? '1') === '1',
             'label' => trim((string) ($data['label'] ?? '')),
             'perks' => $perks !== [] ? $perks : ['Conteudo exclusivo', 'Mensagens prioritarias'],
@@ -1288,11 +1398,11 @@ final class PlatformRepository
             'status' => $status,
             'scheduled_for' => trim((string) ($data['scheduled_for'] ?? date('Y-m-d H:i:s', strtotime('+1 day')))),
             'viewer_count' => max(0, (int) ($data['viewer_count'] ?? 0)),
-            'price_tokens' => max(0, (int) ($data['price_tokens'] ?? 0)),
+            'price_tokens' => max(0, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? 0)),
             'chat_enabled' => ($data['chat_enabled'] ?? '1') === '1',
             'category' => trim((string) ($data['category'] ?? 'Chatting & Chill')),
             'access_mode' => in_array(($data['access_mode'] ?? 'public'), ['public', 'subscriber'], true) ? (string) $data['access_mode'] : 'public',
-            'goal_tokens' => max(0, (int) ($data['goal_tokens'] ?? 0)),
+            'goal_tokens' => max(0, (int) ($data['goal_luacoins'] ?? $data['goal_tokens'] ?? 0)),
             'cover_url' => trim((string) ($data['cover_url'] ?? '')),
             'pinned_notice' => trim((string) ($data['pinned_notice'] ?? '')),
             'recording_enabled' => ($data['recording_enabled'] ?? '0') === '1',
@@ -1738,7 +1848,7 @@ final class PlatformRepository
     public function creatorWalletData(int $creatorId, array $filters = []): array
     {
         $wallet = $this->walletData($creatorId);
-        $minWithdrawal = (int) ($this->settings()['withdraw_min_tokens'] ?? 50);
+        $minWithdrawal = (int) ($this->settings()['withdraw_min_luacoins'] ?? 50);
         $creator = $this->findCreatorBySlugOrId(null, $creatorId);
         $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
         $type = trim((string) ($filters['type'] ?? ''));
@@ -1784,7 +1894,7 @@ final class PlatformRepository
                 'subscription_income' => $subscriptionIncome,
                 'tips_income' => $tipsIncome,
                 'pending_payouts' => $pendingPayouts,
-                'available_brl' => round((float) $wallet['balance'] * (float) ($this->settings()['token_price_brl'] ?? 0.35), 2),
+                'available_brl' => round((float) $wallet['balance'] * (float) ($this->settings()['luacoin_price_brl'] ?? 0.07), 2),
             ],
             'payout_profile' => [
                 'method' => (string) ($creator['payout_method'] ?? 'pix'),
@@ -1858,9 +1968,9 @@ final class PlatformRepository
             'active_live' => $lives['active_live'],
             'next_live' => $lives['lives'][0] ?? null,
             'platform' => [
-                'token_price_brl' => (float) ($settings['token_price_brl'] ?? 0.35),
-                'withdraw_min_tokens' => (int) ($settings['withdraw_min_tokens'] ?? 50),
-                'withdraw_max_tokens' => (int) ($settings['withdraw_max_tokens'] ?? 25000),
+                'luacoin_price_brl' => (float) ($settings['luacoin_price_brl'] ?? 0.07),
+                'withdraw_min_luacoins' => (int) ($settings['withdraw_min_luacoins'] ?? 50),
+                'withdraw_max_luacoins' => (int) ($settings['withdraw_max_luacoins'] ?? 25000),
             ],
             'security' => [
                 'has_stream_key' => trim((string) ($creator['stream_key'] ?? '')) !== '',
@@ -2036,15 +2146,15 @@ final class PlatformRepository
 
     public function requestPayout(int $creatorId, array $data): array
     {
-        $tokens = (int) ($data['tokens'] ?? 0);
-        $minWithdrawal = (int) ($this->settings()['withdraw_min_tokens'] ?? 50);
+        $tokens = (int) ($data['luacoins'] ?? $data['tokens'] ?? 0);
+        $minWithdrawal = (int) ($this->settings()['withdraw_min_luacoins'] ?? 50);
         $creator = $this->findCreatorBySlugOrId(null, $creatorId) ?? [];
         $payoutMethod = trim((string) ($data['payout_method'] ?? ($creator['payout_method'] ?? 'pix')));
         $payoutKey = trim((string) ($data['payout_key'] ?? ($creator['payout_key'] ?? '')));
         $note = trim((string) ($data['note'] ?? ''));
 
         if ($tokens < $minWithdrawal) {
-            return ['ok' => false, 'message' => 'O valor minimo para saque nao foi atingido.'];
+            return ['ok' => false, 'message' => 'O valor minimo para saque em LuaCoins nao foi atingido.'];
         }
 
         if ($payoutKey === '') {
@@ -2414,15 +2524,24 @@ final class PlatformRepository
     {
         $settings = $this->settings();
         $settings['platform_fee_percent'] = max(0, min(95, (int) ($data['platform_fee_percent'] ?? $settings['platform_fee_percent'])));
-        $settings['token_price_brl'] = max(0.01, (float) ($data['token_price_brl'] ?? $settings['token_price_brl']));
-        $settings['withdraw_min_tokens'] = max(1, (int) ($data['withdraw_min_tokens'] ?? $settings['withdraw_min_tokens']));
-        $settings['withdraw_max_tokens'] = max($settings['withdraw_min_tokens'], (int) ($data['withdraw_max_tokens'] ?? $settings['withdraw_max_tokens']));
+        $settings['luacoin_price_brl'] = max(0.01, (float) ($data['luacoin_price_brl'] ?? $data['token_price_brl'] ?? $settings['luacoin_price_brl']));
+        $settings['withdraw_min_luacoins'] = max(1, (int) ($data['withdraw_min_luacoins'] ?? $data['withdraw_min_tokens'] ?? $settings['withdraw_min_luacoins']));
+        $settings['withdraw_max_luacoins'] = max($settings['withdraw_min_luacoins'], (int) ($data['withdraw_max_luacoins'] ?? $data['withdraw_max_tokens'] ?? $settings['withdraw_max_luacoins']));
         $settings['maintenance_mode'] = ($data['maintenance_mode'] ?? '0') === '1';
         $settings['slow_mode_seconds'] = max(0, (int) ($data['slow_mode_seconds'] ?? $settings['slow_mode_seconds']));
         $settings['auto_moderation'] = ($data['auto_moderation'] ?? '0') === '1';
         $settings['blur_sensitive_thumbs'] = ($data['blur_sensitive_thumbs'] ?? '0') === '1';
         $settings['live_chat_enabled'] = ($data['live_chat_enabled'] ?? '0') === '1';
         $settings['announcement'] = trim((string) ($data['announcement'] ?? $settings['announcement']));
+        $settings['site_base_url'] = rtrim(trim((string) ($data['site_base_url'] ?? $settings['site_base_url'] ?? '')), '/');
+        $settings['mercadopago_access_token'] = trim((string) ($data['mercadopago_access_token'] ?? $settings['mercadopago_access_token'] ?? ''));
+        $settings['mercadopago_public_key'] = trim((string) ($data['mercadopago_public_key'] ?? $settings['mercadopago_public_key'] ?? ''));
+        $settings['mercadopago_webhook_secret'] = trim((string) ($data['mercadopago_webhook_secret'] ?? $settings['mercadopago_webhook_secret'] ?? ''));
+        $settings['mercadopago_statement_descriptor'] = trim((string) ($data['mercadopago_statement_descriptor'] ?? $settings['mercadopago_statement_descriptor'] ?? ''));
+        $settings['mercadopago_webhook_url'] = webhook_url($this->config, $settings);
+        $settings['token_price_brl'] = $settings['luacoin_price_brl'];
+        $settings['withdraw_min_tokens'] = $settings['withdraw_min_luacoins'];
+        $settings['withdraw_max_tokens'] = $settings['withdraw_max_luacoins'];
 
         $this->save('settings', $settings);
 
@@ -2506,7 +2625,7 @@ final class PlatformRepository
 
     public function settings(): array
     {
-        return $this->readCollection('settings');
+        return $this->normalizeSettings($this->readCollection('settings'));
     }
 
     private function save(string $collection, array $payload): void
@@ -2706,6 +2825,10 @@ final class PlatformRepository
                 continue;
             }
 
+            if (! $this->transactionCountsForBalance($transaction)) {
+                continue;
+            }
+
             $balance += $transaction['direction'] === 'in' ? (int) $transaction['amount'] : -1 * (int) $transaction['amount'];
         }
 
@@ -2751,6 +2874,77 @@ final class PlatformRepository
         ];
 
         $this->save('wallet_transactions', $transactions);
+    }
+
+    private function transactionCountsForBalance(array $transaction): bool
+    {
+        $type = (string) ($transaction['type'] ?? '');
+        $status = strtolower((string) ($transaction['status'] ?? 'completed'));
+
+        if ($type === 'top_up_pending') {
+            return false;
+        }
+
+        if ($type === 'top_up' && ! in_array($status, ['approved', 'completed', 'paid'], true)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function normalizeSettings(array $settings): array
+    {
+        $defaults = $this->settingsDefaults();
+        $normalized = array_merge($defaults, $settings);
+
+        if (array_key_exists('token_price_brl', $settings) && ! array_key_exists('luacoin_price_brl', $settings)) {
+            $normalized['luacoin_price_brl'] = (float) $settings['token_price_brl'];
+        }
+
+        if (array_key_exists('withdraw_min_tokens', $settings) && ! array_key_exists('withdraw_min_luacoins', $settings)) {
+            $normalized['withdraw_min_luacoins'] = (int) $settings['withdraw_min_tokens'];
+        }
+
+        if (array_key_exists('withdraw_max_tokens', $settings) && ! array_key_exists('withdraw_max_luacoins', $settings)) {
+            $normalized['withdraw_max_luacoins'] = (int) $settings['withdraw_max_tokens'];
+        }
+
+        $normalized['luacoin_price_brl'] = max(0.01, (float) ($normalized['luacoin_price_brl'] ?? 0.07));
+        $normalized['withdraw_min_luacoins'] = max(1, (int) ($normalized['withdraw_min_luacoins'] ?? 50));
+        $normalized['withdraw_max_luacoins'] = max($normalized['withdraw_min_luacoins'], (int) ($normalized['withdraw_max_luacoins'] ?? 25000));
+        $normalized['site_base_url'] = rtrim(trim((string) ($normalized['site_base_url'] ?? '')), '/');
+        $normalized['mercadopago_access_token'] = trim((string) ($normalized['mercadopago_access_token'] ?? ''));
+        $normalized['mercadopago_public_key'] = trim((string) ($normalized['mercadopago_public_key'] ?? ''));
+        $normalized['mercadopago_webhook_secret'] = trim((string) ($normalized['mercadopago_webhook_secret'] ?? ''));
+        $normalized['mercadopago_statement_descriptor'] = trim((string) ($normalized['mercadopago_statement_descriptor'] ?? ''));
+        $normalized['mercadopago_webhook_url'] = webhook_url($this->config, $normalized);
+        $normalized['token_price_brl'] = $normalized['luacoin_price_brl'];
+        $normalized['withdraw_min_tokens'] = $normalized['withdraw_min_luacoins'];
+        $normalized['withdraw_max_tokens'] = $normalized['withdraw_max_luacoins'];
+
+        return $normalized;
+    }
+
+    private function settingsDefaults(): array
+    {
+        return [
+            'platform_fee_percent' => 20,
+            'luacoin_price_brl' => 0.07,
+            'withdraw_min_luacoins' => 50,
+            'withdraw_max_luacoins' => 25000,
+            'maintenance_mode' => false,
+            'slow_mode_seconds' => 3,
+            'auto_moderation' => true,
+            'blur_sensitive_thumbs' => true,
+            'live_chat_enabled' => true,
+            'theme' => 'lunar-metamorphosis',
+            'announcement' => 'Noite especial com criadores em destaque e novas colecoes em aprovacao.',
+            'site_base_url' => trim((string) ($this->config['app']['base_url'] ?? '')),
+            'mercadopago_access_token' => '',
+            'mercadopago_public_key' => '',
+            'mercadopago_webhook_secret' => '',
+            'mercadopago_statement_descriptor' => 'SEXYLUA',
+        ];
     }
 
     private function conversationList(int $subscriberId): array

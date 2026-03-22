@@ -72,58 +72,30 @@ $redirectBase = path_with_query('/creator/memberships', [
     </style>
 </head>
 <body class="min-h-screen">
-<header class="fixed top-0 z-[60] flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 font-['Plus_Jakarta_Sans'] font-bold tracking-wide text-white shadow-lg shadow-[#D81B60]/20">
-    <div class="flex items-center gap-4">
-        <h1 class="text-2xl font-black">SexyLua</h1>
-        <span class="hidden border-l border-white/20 pl-4 text-xs uppercase tracking-widest opacity-80 md:block">Creator Studio</span>
+<?php
+ob_start();
+?>
+<form action="/creator/memberships" class="hidden items-center gap-4 lg:flex" method="get">
+    <div class="relative">
+        <input class="w-72 rounded-full border-none bg-white/10 py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/60 focus:ring-1 focus:ring-white/30" name="q" placeholder="Buscar assinantes..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
+        <span class="material-symbols-outlined absolute left-3 top-2 text-lg text-white/60">search</span>
     </div>
-    <form action="/creator/memberships" class="hidden items-center gap-4 md:flex" method="get">
-        <div class="relative">
-            <input class="w-64 rounded-full border-none bg-white/10 py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/60 focus:ring-1 focus:ring-white/30" name="q" placeholder="Buscar assinantes..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
-            <span class="material-symbols-outlined absolute left-3 top-2 text-lg text-white/60">search</span>
-        </div>
-        <?php if (($filters['subscriber_status'] ?? '') !== ''): ?>
-            <input name="subscriber_status" type="hidden" value="<?= e((string) $filters['subscriber_status']) ?>">
-        <?php endif; ?>
-    </form>
-    <div class="flex items-center gap-3">
-        <a class="rounded-full border border-white/20 px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-white/10" href="/creator/live">Entrar ao vivo</a>
-        <div class="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 font-bold"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
-    </div>
-</header>
+    <?php if (($filters['subscriber_status'] ?? '') !== ''): ?>
+        <input name="subscriber_status" type="hidden" value="<?= e((string) $filters['subscriber_status']) ?>">
+    <?php endif; ?>
+</form>
+<?php
+$creatorTopbarSearch = (string) ob_get_clean();
+$creatorShellCreator = $creator;
+$creatorShellCurrent = 'memberships';
+$creatorShellCta = ['href' => '#plan-editor', 'label' => $selectedPlan ? 'Editar plano' : 'Novo plano', 'icon' => 'add_circle'];
+$creatorTopbarLabel = 'Gestao de Assinaturas';
+$creatorTopbarAction = ['href' => '/creator/live', 'label' => 'Entrar ao vivo'];
+include base_path('templates/partials/creator_sidebar.php');
+include base_path('templates/partials/creator_topbar.php');
+?>
 
-<aside class="fixed left-0 top-0 z-50 flex h-full w-64 flex-col rounded-r-[3rem] bg-[#f5f3f5] p-6 pt-20 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-    <nav class="flex-1 space-y-2">
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-all duration-300 hover:bg-[#ffffff]/50" href="/creator/content">
-            <span class="material-symbols-outlined">movie</span>
-            <span class="text-sm font-medium">Conteudo</span>
-        </a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-all duration-300 hover:bg-[#ffffff]/50" href="/creator/live">
-            <span class="material-symbols-outlined">live_tv</span>
-            <span class="text-sm font-medium">Ao vivo</span>
-        </a>
-        <a class="relative flex items-center gap-4 rounded-full bg-[#ffffff]/50 px-4 py-3 font-bold text-[#ab1155]" href="/creator/memberships">
-            <span class="material-symbols-outlined">group</span>
-            <span class="text-sm">Assinantes</span>
-        </a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-all duration-300 hover:bg-[#ffffff]/50" href="/creator/wallet">
-            <span class="material-symbols-outlined">account_balance_wallet</span>
-            <span class="text-sm font-medium">Carteira</span>
-        </a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-all duration-300 hover:bg-[#ffffff]/50" href="/creator/settings">
-            <span class="material-symbols-outlined">settings</span>
-            <span class="text-sm font-medium">Configuracoes</span>
-        </a>
-    </nav>
-    <div class="mt-auto">
-        <a class="signature-glow flex w-full items-center justify-center gap-2 rounded-full py-4 text-sm font-bold text-white shadow-lg" href="#plan-editor">
-            <span class="material-symbols-outlined">add_circle</span>
-            <?= $selectedPlan ? 'Editar plano' : 'Novo plano' ?>
-        </a>
-    </div>
-</aside>
-
-<main class="ml-64 min-h-screen pt-16">
+<main class="min-h-screen pt-16 lg:ml-64">
     <div class="space-y-10 px-12 py-8">
         <section class="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
@@ -136,7 +108,7 @@ $redirectBase = path_with_query('/creator/memberships', [
                     <span class="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Assinantes ativos</span>
                 </div>
                 <div class="flex flex-col items-center rounded-xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-                    <span class="text-2xl font-bold text-primary"><?= e(token_amount((int) ($summary['monthly_tokens'] ?? 0))) ?></span>
+                    <span class="text-2xl font-bold text-primary"><?= e(luacoins_amount((int) ($summary['monthly_tokens'] ?? 0))) ?></span>
                     <span class="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Recorrencia</span>
                 </div>
             </div>
@@ -163,8 +135,8 @@ $redirectBase = path_with_query('/creator/memberships', [
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="label" placeholder="Ex: VIP" type="text" value="<?= e((string) ($selectedPlan['label'] ?? '')) ?>">
                         </label>
                         <label class="block space-y-2">
-                            <span class="text-sm font-semibold text-on-surface-variant">Preco em tokens</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="price_tokens" required type="number" value="<?= e((string) ($selectedPlan['price_tokens'] ?? 49)) ?>">
+                            <span class="text-sm font-semibold text-on-surface-variant">Preco em LuaCoins</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="price_luacoins" required type="number" value="<?= e((string) ($selectedPlan['price_tokens'] ?? 49)) ?>">
                         </label>
                         <label class="block space-y-2 md:col-span-2">
                             <span class="text-sm font-semibold text-on-surface-variant">Descricao</span>

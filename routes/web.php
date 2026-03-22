@@ -8,11 +8,15 @@ use App\Controllers\CreatorController;
 use App\Controllers\LiveRtcController;
 use App\Controllers\PublicController;
 use App\Controllers\SubscriberController;
+use App\Controllers\WebhookController;
 
 $router->get('/', [PublicController::class, 'home']);
 $router->get('/explore', [PublicController::class, 'explore']);
 $router->get('/profile', [PublicController::class, 'profile']);
 $router->get('/live', [PublicController::class, 'live']);
+$router->get('/help', [PublicController::class, 'help']);
+$router->get('/terms', [PublicController::class, 'terms']);
+$router->get('/privacy', [PublicController::class, 'privacy']);
 $router->post('/live/chat', [PublicController::class, 'postLiveMessage']);
 $router->get('/live/rtc/poll', [LiveRtcController::class, 'poll']);
 $router->post('/live/rtc/join', [LiveRtcController::class, 'join']);
@@ -31,6 +35,7 @@ $router->post('/login', [AuthController::class, 'login']);
 $router->get('/register', [AuthController::class, 'showRegister']);
 $router->post('/register', [AuthController::class, 'register']);
 $router->post('/logout', [AuthController::class, 'logout']);
+$router->post('/webhook/mp', [WebhookController::class, 'mercadoPago']);
 
 $router->get('/subscriber', [SubscriberController::class, 'dashboard']);
 $router->get('/subscriber/subscriptions', [SubscriberController::class, 'subscriptions']);

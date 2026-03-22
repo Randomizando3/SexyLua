@@ -41,29 +41,29 @@ $iceTransportPolicy = (string) ($app->config['app']['rtc_ice_transport_policy'] 
     </style>
 </head>
 <body>
-<header class="fixed top-0 z-40 flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 text-white shadow-lg">
-    <div class="flex items-center gap-4">
-        <h1 class="headline text-2xl font-extrabold">SexyLua</h1>
-        <span class="hidden text-xs uppercase tracking-[0.3em] md:block">Live Studio</span>
+<?php
+ob_start();
+?>
+<form action="/creator/live" class="hidden items-center gap-4 lg:flex" method="get">
+    <div class="relative">
+        <input class="w-72 rounded-full border-none bg-white/10 px-5 py-2 pr-12 text-sm text-white outline-none placeholder:text-white/70 focus:ring-1 focus:ring-white/40" name="q" placeholder="Buscar lives..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
+        <span class="material-symbols-outlined absolute right-4 top-2 text-white/70">search</span>
     </div>
-    <div class="flex items-center gap-3">
-        <a class="rounded-full border border-white/20 px-4 py-2 text-xs font-bold uppercase tracking-widest" href="/creator/content">Conteudo</a>
-        <div class="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 font-bold"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
-    </div>
-</header>
+    <?php if (($filters['status'] ?? '') !== ''): ?>
+        <input name="status" type="hidden" value="<?= e((string) $filters['status']) ?>">
+    <?php endif; ?>
+</form>
+<?php
+$creatorTopbarSearch = (string) ob_get_clean();
+$creatorShellCreator = $creator;
+$creatorShellCurrent = 'live';
+$creatorTopbarLabel = 'Live Studio';
+$creatorTopbarAction = ['href' => '/creator/content', 'label' => 'Conteudo'];
+include base_path('templates/partials/creator_sidebar.php');
+include base_path('templates/partials/creator_topbar.php');
+?>
 
-<aside class="fixed left-0 top-0 h-full w-64 bg-[#f5f3f5] px-6 pt-24 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-    <nav class="space-y-2 text-sm font-semibold text-slate-500">
-        <a class="block rounded-full px-4 py-3 hover:bg-white/50" href="/creator">Painel</a>
-        <a class="block rounded-full px-4 py-3 hover:bg-white/50" href="/creator/content">Conteudo</a>
-        <a class="block rounded-full bg-white px-4 py-3 text-[#ab1155]" href="/creator/live">Lives</a>
-        <a class="block rounded-full px-4 py-3 hover:bg-white/50" href="/creator/memberships">Assinaturas</a>
-        <a class="block rounded-full px-4 py-3 hover:bg-white/50" href="/creator/wallet">Carteira</a>
-        <a class="block rounded-full px-4 py-3 hover:bg-white/50" href="/creator/settings">Configuracoes</a>
-    </nav>
-</aside>
-
-<main class="ml-64 px-10 pb-12 pt-24">
+<main class="px-6 pb-12 pt-24 lg:ml-64 lg:px-10">
     <div class="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
             <p class="text-xs font-bold uppercase tracking-[0.3em] text-[#D81B60]">Creator Studio</p>
@@ -202,8 +202,8 @@ $iceTransportPolicy = (string) ($app->config['app']['rtc_ice_transport_policy'] 
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="scheduled_for" type="datetime-local" value="<?= e($schedule) ?>">
                     <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="category"><?php foreach ($categories as $category): ?><option value="<?= e($category) ?>" <?= (string) ($selected['category'] ?? 'Chatting & Chill') === $category ? 'selected' : '' ?>><?= e($category) ?></option><?php endforeach; ?></select>
-                    <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="price_tokens" placeholder="Preco em tokens" type="number" value="<?= e((string) ($selected['price_tokens'] ?? 0)) ?>">
-                    <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="goal_tokens" placeholder="Meta em tokens" type="number" value="<?= e((string) ($selected['goal_tokens'] ?? 0)) ?>">
+                    <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="price_luacoins" placeholder="Preco em LuaCoins" type="number" value="<?= e((string) ($selected['price_tokens'] ?? 0)) ?>">
+                    <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="goal_luacoins" placeholder="Meta em LuaCoins" type="number" value="<?= e((string) ($selected['goal_tokens'] ?? 0)) ?>">
                 </div>
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="cover_url" placeholder="Cover URL" type="url" value="<?= e((string) ($selected['cover_url'] ?? '')) ?>">

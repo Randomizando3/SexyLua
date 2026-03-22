@@ -9,7 +9,7 @@
     const settings = config.settings || {}
     const page = config.page || ''
     const now = new Date()
-    const tokenPrice = Number(settings.token_price_brl || settings.tokenPriceBrl || 0.35)
+    const tokenPrice = Number(settings.luacoin_price_brl || settings.token_price_brl || settings.luacoinPriceBrl || settings.tokenPriceBrl || 0.07)
 
     const q = (selector, root = document) => {
         if (!root || typeof root.querySelector !== 'function') {
@@ -501,7 +501,7 @@
 
     const patchSubscriberDashboard = () => {
         setText(q('section.mb-12 h1'), `Olá, ${config.currentUserName || 'Explorador Lunar'}`)
-        setText(q('section.mb-12 h3.text-2xl.font-bold.text-primary'), `${integer((data.wallet_balance || 0))} Tokens`)
+        setText(q('section.mb-12 h3.text-2xl.font-bold.text-primary'), `${integer((data.wallet_balance || 0))} LuaCoins`)
 
         const subscriptionCards = qa('section.md\\:col-span-8 .grid.grid-cols-1.sm\\:grid-cols-2.gap-6 > div')
         for (let index = 0; index < count(subscriptionCards, data.subscriptions || []); index += 1) {
@@ -612,7 +612,7 @@
 
         for (let index = 0; index < count(packageCards, packages); index += 1) {
             setText(q('.text-3xl.font-black.text-primary, .text-4xl.font-black.text-primary', packageCards[index]), money(packages[index] * tokenPrice))
-            setText(q('.bg-surface-container-high.w-full.py-3, .bg-primary-container\\/10.text-primary.w-full.py-3', packageCards[index]), `${integer(packages[index])} Tokens`)
+            setText(q('.bg-surface-container-high.w-full.py-3, .bg-primary-container\\/10.text-primary.w-full.py-3', packageCards[index]), `${integer(packages[index])} LuaCoins`)
         }
 
         const historyRows = qa('section:last-of-type .space-y-4 > div')
@@ -853,21 +853,21 @@
 
         const ranges = qa('input[type="range"]')
         if (ranges[0]) {
-            ranges[0].value = settings.withdraw_min_tokens || 50
+            ranges[0].value = settings.withdraw_min_luacoins || settings.withdraw_min_tokens || 50
         }
         if (ranges[1]) {
-            ranges[1].value = settings.withdraw_max_tokens || 25000
+            ranges[1].value = settings.withdraw_max_luacoins || settings.withdraw_max_tokens || 25000
         }
 
         const rangeLabels = qa('div.flex.justify-between.items-end.px-1 span.font-bold.text-primary')
-        setText(rangeLabels[0], money(Number(settings.withdraw_min_tokens || 50) * tokenPrice))
-        setText(rangeLabels[1], money(Number(settings.withdraw_max_tokens || 25000) * tokenPrice))
+        setText(rangeLabels[0], money(Number(settings.withdraw_min_luacoins || settings.withdraw_min_tokens || 50) * tokenPrice))
+        setText(rangeLabels[1], money(Number(settings.withdraw_max_luacoins || settings.withdraw_max_tokens || 25000) * tokenPrice))
 
         setValue(q('input[value$="s"]'), `${settings.slow_mode_seconds || 0}s`)
 
         const toggles = qa('input[type="checkbox"]')
         if (toggles[0]) {
-            toggles[0].checked = Boolean(settings.withdraw_max_tokens)
+            toggles[0].checked = Boolean(settings.withdraw_max_luacoins || settings.withdraw_max_tokens)
         }
         if (toggles[1]) {
             toggles[1].checked = Boolean(settings.slow_mode_seconds)

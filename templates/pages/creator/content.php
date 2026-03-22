@@ -95,71 +95,32 @@ $selectedVisibility = (string) ($selectedItem['visibility'] ?? 'subscriber');
     </style>
 </head>
 <body class="bg-surface text-on-surface">
-<header class="fixed top-0 z-[60] flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 font-['Plus_Jakarta_Sans'] font-bold tracking-wide text-white shadow-lg shadow-[#D81B60]/20">
-    <div class="flex items-center gap-3">
-        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#D81B60]">
-            <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">bedtime</span>
-        </div>
-        <h1 class="text-2xl font-black">SexyLua</h1>
+<?php
+ob_start();
+?>
+<form action="/creator/content" class="hidden items-center gap-4 lg:flex" method="get">
+    <div class="relative">
+        <input class="w-72 rounded-full border-none bg-white/10 px-5 py-2 pr-12 text-sm text-white outline-none placeholder:text-white/70 focus:ring-1 focus:ring-white/40" name="q" placeholder="Buscar posts..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
+        <span class="material-symbols-outlined absolute right-4 top-2 text-white/70">search</span>
     </div>
-    <form action="/creator/content" class="hidden items-center gap-4 lg:flex" method="get">
-        <div class="relative">
-            <input class="w-72 rounded-full border-none bg-white/10 px-5 py-2 pr-12 text-sm text-white outline-none placeholder:text-white/70 focus:ring-1 focus:ring-white/40" name="q" placeholder="Buscar posts..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
-            <span class="material-symbols-outlined absolute right-4 top-2 text-white/70">search</span>
-        </div>
-        <?php if (($filters['status'] ?? '') !== ''): ?>
-            <input name="status" type="hidden" value="<?= e((string) $filters['status']) ?>">
-        <?php endif; ?>
-        <?php if (($filters['kind'] ?? '') !== ''): ?>
-            <input name="kind" type="hidden" value="<?= e((string) $filters['kind']) ?>">
-        <?php endif; ?>
-    </form>
-    <div class="flex items-center gap-3">
-        <a class="rounded-full border border-white/20 px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-white/10" href="/creator/live">Go Live</a>
-        <div class="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 font-bold">
-            <?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?>
-        </div>
-    </div>
-</header>
-
-<aside class="fixed left-0 top-0 z-50 flex h-full w-64 flex-col bg-slate-50 px-4 pb-6 pt-24 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-    <div class="mb-8 px-2">
-        <p class="text-xs font-bold uppercase tracking-widest text-[#D81B60]">Central do Criador</p>
-        <p class="text-[10px] font-medium text-slate-500">Status: Studio ativo</p>
-    </div>
-    <nav class="flex-1 space-y-2">
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-slate-600 transition-all hover:bg-slate-200" href="/creator">
-            <span class="material-symbols-outlined">dashboard</span>
-            <span class="text-sm font-medium">Painel</span>
-        </a>
-        <a class="mx-2 flex translate-x-1 items-center gap-3 rounded-full bg-[#D81B60] px-4 py-3 text-white shadow-md shadow-[#D81B60]/30" href="/creator/content">
-            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">movie</span>
-            <span class="text-sm font-medium">Conteudo</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-slate-600 transition-all hover:bg-slate-200" href="/creator/memberships">
-            <span class="material-symbols-outlined">group</span>
-            <span class="text-sm font-medium">Assinaturas</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-slate-600 transition-all hover:bg-slate-200" href="/creator/live">
-            <span class="material-symbols-outlined">live_tv</span>
-            <span class="text-sm font-medium">Lives</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-slate-600 transition-all hover:bg-slate-200" href="/creator/wallet">
-            <span class="material-symbols-outlined">account_balance_wallet</span>
-            <span class="text-sm font-medium">Carteira</span>
-        </a>
-        <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-slate-600 transition-all hover:bg-slate-200" href="/creator/settings">
-            <span class="material-symbols-outlined">settings</span>
-            <span class="text-sm font-medium">Configuracoes</span>
-        </a>
-    </nav>
-    <a class="signature-glow mt-auto flex items-center justify-center gap-2 rounded-full px-4 py-4 text-sm font-bold text-white shadow-lg" href="#content-editor">
-        <span class="material-symbols-outlined">edit_square</span>
-        <?= $selectedItem ? 'Editar Conteudo' : 'Novo Conteudo' ?>
-    </a>
-</aside>
-
-<main class="ml-64 min-h-screen pt-16">
+    <?php if (($filters['status'] ?? '') !== ''): ?>
+        <input name="status" type="hidden" value="<?= e((string) $filters['status']) ?>">
+    <?php endif; ?>
+    <?php if (($filters['kind'] ?? '') !== ''): ?>
+        <input name="kind" type="hidden" value="<?= e((string) $filters['kind']) ?>">
+    <?php endif; ?>
+</form>
+<?php
+$creatorTopbarSearch = (string) ob_get_clean();
+$creatorShellCreator = $creator;
+$creatorShellCurrent = 'content';
+$creatorShellCta = ['href' => '#content-editor', 'label' => $selectedItem ? 'Editar Conteudo' : 'Novo Conteudo', 'icon' => 'edit_square'];
+$creatorTopbarLabel = 'Gestao de Conteudo';
+$creatorTopbarAction = ['href' => '/creator/live', 'label' => 'Go Live'];
+include base_path('templates/partials/creator_sidebar.php');
+include base_path('templates/partials/creator_topbar.php');
+?>
+<main class="min-h-screen pt-16 lg:ml-64">
     <section class="px-12 py-8">
         <header class="mb-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>

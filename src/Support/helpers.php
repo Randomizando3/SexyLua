@@ -48,9 +48,14 @@ function format_datetime(?string $value, string $format = 'd/m/Y H:i'): string
     }
 }
 
+function luacoins_amount(int|float $amount): string
+{
+    return number_format((float) $amount, 0, ',', '.') . ' LuaCoins';
+}
+
 function token_amount(int|float $amount): string
 {
-    return number_format((float) $amount, 0, ',', '.') . ' LUA';
+    return luacoins_amount($amount);
 }
 
 function brl_amount(int|float $amount): string
@@ -108,6 +113,41 @@ function media_url(?string $value): string
     }
 
     return '/' . ltrim($value, '/');
+}
+
+function app_base_url(array $config = [], array $settings = []): string
+{
+    $baseUrl = trim((string) ($settings['site_base_url'] ?? $config['app']['base_url'] ?? ''));
+
+    if ($baseUrl !== '') {
+        return rtrim($baseUrl, '/');
+    }
+
+    $https = false;
+    $httpsValue = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
+    if ($httpsValue !== '' && $httpsValue !== 'off') {
+        $https = true;
+    }
+
+    $forwardedProto = strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+    if ($forwardedProto !== '') {
+        $https = $forwardedProto === 'https';
+    }
+
+    $scheme = $https ? 'https' : 'http';
+    $host = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+
+    if ($host === '') {
+        $port = (int) ($config['app']['demo_port'] ?? 8088);
+        $host = '127.0.0.1' . ($port > 0 ? ':' . $port : '');
+    }
+
+    return $scheme . '://' . $host;
+}
+
+function webhook_url(array $config = [], array $settings = [], string $path = '/webhook/mp'): string
+{
+    return rtrim(app_base_url($config, $settings), '/') . '/' . ltrim($path, '/');
 }
 
 function role_label(?string $role): string
@@ -344,8 +384,10 @@ function prototype_runtime_html(array $payload): string
         'subscriberMessage' => [
             'conversationId' => $conversationId !== null ? (int) $conversationId : null,
         ],
-        'walletTopupTokens' => $prototype['wallet_topup_tokens'] ?? 100,
-        'payoutTokens' => $prototype['payout_tokens'] ?? 100,
+        'walletTopupLuaCoins' => $prototype['wallet_topup_luacoins'] ?? $prototype['wallet_topup_tokens'] ?? 100,
+        'walletTopupTokens' => $prototype['wallet_topup_luacoins'] ?? $prototype['wallet_topup_tokens'] ?? 100,
+        'payoutLuaCoins' => $prototype['payout_luacoins'] ?? $prototype['payout_tokens'] ?? 100,
+        'payoutTokens' => $prototype['payout_luacoins'] ?? $prototype['payout_tokens'] ?? 100,
         'flashMessages' => is_array($flashMessages) ? $flashMessages : [],
         'csrf' => $app->csrf->token(),
     ];
@@ -378,11 +420,11 @@ function prototype_runtime_html(array $payload): string
     }
 
     if (! empty($prototype['wallet_topup'])) {
-        $forms[] = '<form id="prototype-topup-form" method="post" action="/subscriber/wallet/add-funds" style="display:none"><input type="hidden" name="_token" value="' . e($runtime['csrf']) . '"><input type="hidden" name="tokens" value="' . e((string) ($prototype['wallet_topup_tokens'] ?? 100)) . '"></form>';
+        $forms[] = '<form id="prototype-topup-form" method="post" action="/subscriber/wallet/add-funds" style="display:none"><input type="hidden" name="_token" value="' . e($runtime['csrf']) . '"><input type="hidden" name="luacoins" value="' . e((string) ($prototype['wallet_topup_luacoins'] ?? $prototype['wallet_topup_tokens'] ?? 100)) . '"></form>';
     }
 
     if (! empty($prototype['wallet_payout'])) {
-        $forms[] = '<form id="prototype-payout-form" method="post" action="/creator/wallet/payout" style="display:none"><input type="hidden" name="_token" value="' . e($runtime['csrf']) . '"><input type="hidden" name="tokens" value="' . e((string) ($prototype['payout_tokens'] ?? 100)) . '"></form>';
+        $forms[] = '<form id="prototype-payout-form" method="post" action="/creator/wallet/payout" style="display:none"><input type="hidden" name="_token" value="' . e($runtime['csrf']) . '"><input type="hidden" name="luacoins" value="' . e((string) ($prototype['payout_luacoins'] ?? $prototype['payout_tokens'] ?? 100)) . '"></form>';
     }
 
     if (! empty($prototype['creator_content_create'])) {
@@ -390,11 +432,11 @@ function prototype_runtime_html(array $payload): string
     }
 
     if (! empty($prototype['creator_live_quick'])) {
-        $forms[] = '<form id="prototype-creator-live-form" method="post" action="/creator/live/save" style="display:none"><input type="hidden" name="_token" value="' . e($runtime['csrf']) . '"><input type="hidden" name="title" value=""><input type="hidden" name="description" value="Live criada a partir do layout original"><input type="hidden" name="scheduled_for" value=""><input type="hidden" name="price_tokens" value="0"><input type="hidden" name="status" value="scheduled"><input type="hidden" name="chat_enabled" value="1"></form>';
+        $forms[] = '<form id="prototype-creator-live-form" method="post" action="/creator/live/save" style="display:none"><input type="hidden" name="_token" value="' . e($runtime['csrf']) . '"><input type="hidden" name="title" value=""><input type="hidden" name="description" value="Live criada a partir do layout original"><input type="hidden" name="scheduled_for" value=""><input type="hidden" name="price_luacoins" value="0"><input type="hidden" name="status" value="scheduled"><input type="hidden" name="chat_enabled" value="1"></form>';
     }
 
     if (! empty($prototype['admin_settings'])) {
-        $forms[] = '<form id="prototype-admin-settings-form" method="post" action="/admin/settings/update" style="display:none"><input type="hidden" name="_token" value="' . e($runtime['csrf']) . '"><input type="hidden" name="platform_fee_percent" value=""><input type="hidden" name="withdraw_min_tokens" value=""><input type="hidden" name="withdraw_max_tokens" value=""><input type="hidden" name="slow_mode_seconds" value=""><input type="hidden" name="maintenance_mode" value=""><input type="hidden" name="auto_moderation" value=""><input type="hidden" name="live_chat_enabled" value=""></form>';
+        $forms[] = '<form id="prototype-admin-settings-form" method="post" action="/admin/settings/update" style="display:none"><input type="hidden" name="_token" value="' . e($runtime['csrf']) . '"><input type="hidden" name="platform_fee_percent" value=""><input type="hidden" name="withdraw_min_luacoins" value=""><input type="hidden" name="withdraw_max_luacoins" value=""><input type="hidden" name="slow_mode_seconds" value=""><input type="hidden" name="maintenance_mode" value=""><input type="hidden" name="auto_moderation" value=""><input type="hidden" name="live_chat_enabled" value=""></form>';
     }
 
     if ($moderationIds !== []) {

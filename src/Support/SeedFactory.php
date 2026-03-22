@@ -173,11 +173,11 @@ final class SeedFactory
             ['id' => 1, 'conversation_id' => 1, 'sender_id' => 7, 'body' => 'Maria, a Colecao Eclipse ficou linda. Vai ter continuacao?', 'created_at' => '2026-03-21 17:42:00'],
             ['id' => 2, 'conversation_id' => 1, 'sender_id' => 2, 'body' => 'Vai sim. Estou finalizando a parte 2 para liberar aos assinantes esta semana.', 'created_at' => '2026-03-21 18:20:00'],
             ['id' => 3, 'conversation_id' => 2, 'sender_id' => 3, 'body' => 'A live de hoje vai abrir com enquete. Chega cedo.', 'created_at' => '2026-03-21 19:05:00'],
-            ['id' => 4, 'conversation_id' => 2, 'sender_id' => 7, 'body' => 'Perfeito. Ja deixei meus tokens separados.', 'created_at' => '2026-03-21 19:15:00'],
+            ['id' => 4, 'conversation_id' => 2, 'sender_id' => 7, 'body' => 'Perfeito. Ja deixei minhas LuaCoins separadas.', 'created_at' => '2026-03-21 19:15:00'],
             ['id' => 5, 'conversation_id' => 3, 'sender_id' => 4, 'body' => 'Subi agora a selecao Velvet Rooftop. Quero saber sua favorita.', 'created_at' => '2026-03-21 20:20:00'],
             ['id' => 6, 'conversation_id' => 3, 'sender_id' => 7, 'body' => 'Abri assim que recebi. A direcao de arte ficou impecavel.', 'created_at' => '2026-03-21 20:35:00'],
             ['id' => 7, 'conversation_id' => 4, 'sender_id' => 10, 'body' => 'Hoje vou abrir a Suite Aurora com um bonus para quem chegar cedo.', 'created_at' => '2026-03-21 21:02:00'],
-            ['id' => 8, 'conversation_id' => 4, 'sender_id' => 7, 'body' => 'Ja garanti meus tokens. Me avisa quando liberar o backstage.', 'created_at' => '2026-03-21 21:18:00'],
+            ['id' => 8, 'conversation_id' => 4, 'sender_id' => 7, 'body' => 'Ja garanti minhas LuaCoins. Me avisa quando liberar o backstage.', 'created_at' => '2026-03-21 21:18:00'],
             ['id' => 9, 'conversation_id' => 5, 'sender_id' => 11, 'body' => 'Minha estreia vai ser amanha. Quer participar do chat fechado?', 'created_at' => '2026-03-21 21:23:00'],
             ['id' => 10, 'conversation_id' => 5, 'sender_id' => 7, 'body' => 'Quero sim. O teaser Noir Session me ganhou.', 'created_at' => '2026-03-21 21:30:00'],
         ];
@@ -242,9 +242,9 @@ final class SeedFactory
     {
         return [
             'platform_fee_percent' => 20,
-            'token_price_brl' => 0.35,
-            'withdraw_min_tokens' => 50,
-            'withdraw_max_tokens' => 25000,
+            'luacoin_price_brl' => 0.07,
+            'withdraw_min_luacoins' => 50,
+            'withdraw_max_luacoins' => 25000,
             'maintenance_mode' => false,
             'slow_mode_seconds' => 3,
             'auto_moderation' => true,
@@ -252,6 +252,11 @@ final class SeedFactory
             'live_chat_enabled' => true,
             'theme' => 'lunar-metamorphosis',
             'announcement' => 'Noite especial com criadores em destaque e novas colecoes em aprovacao.',
+            'site_base_url' => '',
+            'mercadopago_access_token' => '',
+            'mercadopago_public_key' => '',
+            'mercadopago_webhook_secret' => '',
+            'mercadopago_statement_descriptor' => 'SEXYLUA',
         ];
     }
 }
