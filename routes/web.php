@@ -21,6 +21,7 @@ $router->post('/live/rtc/stop', [LiveRtcController::class, 'stop']);
 $router->post('/live/rtc/signal', [LiveRtcController::class, 'signal']);
 $router->post('/live/rtc/heartbeat', [LiveRtcController::class, 'heartbeat']);
 $router->post('/live/rtc/leave', [LiveRtcController::class, 'leave']);
+$router->post('/live/rtc/recording', [LiveRtcController::class, 'recording']);
 $router->post('/profile/subscribe', [PublicController::class, 'postSubscribe']);
 $router->post('/profile/message', [PublicController::class, 'postStartConversation']);
 $router->post('/tip', [PublicController::class, 'postTip']);

@@ -1504,6 +1504,42 @@ final class PlatformRepository
         ];
     }
 
+    public function saveLiveRecording(int $creatorId, int $liveId, array $data): array
+    {
+        $lives = $this->liveSessions();
+        $recordingUrl = trim((string) ($data['recording_url'] ?? ''));
+
+        if ($recordingUrl === '') {
+            return ['ok' => false, 'message' => 'Arquivo de replay invalido.'];
+        }
+
+        foreach ($lives as &$live) {
+            if ((int) ($live['id'] ?? 0) !== $liveId || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+                continue;
+            }
+
+            $live['recording_enabled'] = true;
+            $live['recording_url'] = $recordingUrl;
+            $live['recording_status'] = 'ready';
+            $live['recording_mime_type'] = trim((string) ($data['recording_mime_type'] ?? 'video/webm'));
+            $live['recording_bytes'] = max(0, (int) ($data['recording_bytes'] ?? 0));
+            $live['recording_duration_seconds'] = max(0, (int) ($data['recording_duration_seconds'] ?? 0));
+            $live['recording_label'] = trim((string) ($data['recording_label'] ?? 'Replay local'));
+            $live['recorded_at'] = date('Y-m-d H:i:s');
+            $this->save('live_sessions', $lives);
+
+            return [
+                'ok' => true,
+                'message' => 'Replay enviado com sucesso.',
+                'live' => $this->hydrateLiveRuntime($this->decorateLive($live)),
+                'stream' => $this->publicLiveStreamState($liveId),
+            ];
+        }
+        unset($live);
+
+        return ['ok' => false, 'message' => 'Live nao encontrada para anexar o replay.'];
+    }
+
     public function pollLiveRtc(int $liveId, string $peerId, ?int $userId, string $sessionId, int $afterId = 0): array
     {
         $this->cleanupLiveRtcData();

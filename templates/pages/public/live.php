@@ -16,6 +16,11 @@ $requiresSubscription = (bool) ($data['requires_subscription'] ?? false);
 $canChat = (bool) ($data['can_chat'] ?? false);
 $canTip = (bool) ($data['can_tip'] ?? false);
 $cover = media_url((string) ($live['cover_url'] ?? ''));
+$replayUrl = media_url((string) ($live['recording_url'] ?? ''));
+$replayDuration = (int) ($live['recording_duration_seconds'] ?? 0);
+$hasReplay = $replayUrl !== '' && (bool) ($live['recording_enabled'] ?? false);
+$iceServers = base64_encode((string) json_encode($app->config['app']['rtc_ice_servers'] ?? [], JSON_UNESCAPED_SLASHES));
+$iceTransportPolicy = (string) ($app->config['app']['rtc_ice_transport_policy'] ?? 'all');
 $profileUrl = path_with_query('/profile', ['id' => (int) ($creator['id'] ?? 0)]);
 $messagesUrl = '/login';
 $subscriptionsUrl = '/login';
@@ -31,6 +36,10 @@ $accessMessage = $canWatch
     : ($requiresLogin
         ? 'Entre para assistir esta live exclusiva.'
         : ($requiresSubscription ? 'Esta live e exclusiva para assinantes ativos.' : 'A live ainda nao esta disponivel.'));
+
+if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live') {
+    $accessMessage = 'Replay pronto para assistir enquanto a live estiver offline.';
+}
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -87,6 +96,10 @@ $accessMessage = $canWatch
                 data-poll-url="/live/rtc/poll"
                 data-heartbeat-url="/live/rtc/heartbeat"
                 data-leave-url="/live/rtc/leave"
+                data-replay-url="<?= e($replayUrl) ?>"
+                data-replay-enabled="<?= $hasReplay ? '1' : '0' ?>"
+                data-ice-servers="<?= e($iceServers) ?>"
+                data-ice-transport-policy="<?= e($iceTransportPolicy) ?>"
             >
                 <div class="relative aspect-video bg-slate-950">
                     <video autoplay class="h-full w-full bg-slate-950 object-cover" controls data-live-remote-video playsinline></video>
@@ -157,6 +170,17 @@ $accessMessage = $canWatch
                             <p class="mt-2 text-sm font-bold text-slate-700"><?= e(token_amount((int) ($live['goal_tokens'] ?? 0))) ?></p>
                         </div>
                     </div>
+                    <?php if ($hasReplay): ?>
+                        <div class="rounded-2xl bg-surface-container-low p-4">
+                            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Replay disponivel</p>
+                                    <p class="mt-2 text-sm font-bold text-slate-700"><?= e($replayDuration > 0 ? gmdate('H:i:s', $replayDuration) : 'Duracao em processamento') ?></p>
+                                </div>
+                                <a class="rounded-full bg-[#D81B60]/10 px-5 py-3 text-center text-sm font-bold text-[#ab1155]" href="<?= e($replayUrl) ?>" target="_blank">Abrir replay</a>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
 

@@ -128,4 +128,39 @@ final class LiveRtcController extends Controller
 
         $this->json($result, 200);
     }
+
+    public function recording(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+
+        if (! $this->app->csrf->validate((string) $request->input('_token'))) {
+            $this->json(['ok' => false, 'message' => 'Sessao expirada para enviar o replay.'], 419);
+        }
+
+        if (! $request->hasFile('recording_file')) {
+            $this->json(['ok' => false, 'message' => 'Nenhum arquivo de replay foi enviado.'], 422);
+        }
+
+        $recordingPath = store_uploaded_file(
+            $request->file('recording_file'),
+            'creator/live/recordings',
+            ['webm', 'mp4', 'ogg', 'mov'],
+            1024 * 1024 * 700
+        );
+
+        if ($recordingPath === null) {
+            $this->json(['ok' => false, 'message' => 'Nao foi possivel salvar o arquivo da gravacao.'], 422);
+        }
+
+        $file = $request->file('recording_file') ?? [];
+        $result = $this->app->repository->saveLiveRecording((int) $this->user()['id'], (int) $request->input('live_id', 0), [
+            'recording_url' => $recordingPath,
+            'recording_mime_type' => (string) ($file['type'] ?? 'video/webm'),
+            'recording_bytes' => (int) ($file['size'] ?? 0),
+            'recording_duration_seconds' => max(0, (int) $request->input('recording_duration_seconds', 0)),
+            'recording_label' => trim((string) $request->input('recording_label', 'Replay local')),
+        ]);
+
+        $this->json($result, (bool) ($result['ok'] ?? false) ? 200 : 422);
+    }
 }

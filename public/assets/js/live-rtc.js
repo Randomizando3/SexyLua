@@ -5,6 +5,30 @@
         return
     }
 
+    const defaultIceServers = [
+        { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+    ]
+
+    const parseIceServers = () => {
+        const encoded = root.dataset.iceServers || ''
+
+        if (!encoded) {
+            return defaultIceServers
+        }
+
+        try {
+            const parsed = JSON.parse(window.atob(encoded))
+
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed
+            }
+        } catch (error) {
+            console.warn('Falha ao ler servidores ICE configurados', error)
+        }
+
+        return defaultIceServers
+    }
+
     const mode = root.dataset.liveRtcMode || 'viewer'
     const liveId = Number(root.dataset.liveId || 0)
     const csrf = root.dataset.csrf || ''
@@ -17,17 +41,23 @@
     const pollUrl = root.dataset.pollUrl || '/live/rtc/poll'
     const heartbeatUrl = root.dataset.heartbeatUrl || '/live/rtc/heartbeat'
     const leaveUrl = root.dataset.leaveUrl || '/live/rtc/leave'
+    const recordingUploadUrl = root.dataset.recordingUploadUrl || '/live/rtc/recording'
     const bitrateKbps = Number(root.dataset.maxBitrateKbps || 1500)
     const videoWidth = Number(root.dataset.videoWidth || 960)
     const videoHeight = Number(root.dataset.videoHeight || 540)
     const videoFps = Number(root.dataset.videoFps || 24)
     const accessMessage = root.dataset.accessMessage || ''
+    const replayUrl = root.dataset.replayUrl || ''
+    const replayEnabled = root.dataset.replayEnabled === '1' || replayUrl !== ''
+    const recordingEnabled = root.dataset.recordingEnabled === '1'
+    const iceTransportPolicy = root.dataset.iceTransportPolicy === 'relay' ? 'relay' : 'all'
 
     const state = {
         peerId: '',
         joined: false,
         broadcasting: false,
         joinInFlight: null,
+        rejoinInFlight: null,
         pollAfterId: 0,
         viewerPeerConnection: null,
         viewerTargetPeerId: '',
@@ -37,6 +67,18 @@
         remoteStream: null,
         pollTimer: null,
         heartbeatTimer: null,
+        replayActive: false,
+        previewAudio: false,
+        previewMirrored: true,
+        lastStreamStatus: 'idle',
+        recorder: null,
+        recordingMimeType: 'video/webm',
+        recordingChunks: [],
+        recordingStartedAt: 0,
+        recordingTimer: null,
+        recordingShouldUpload: true,
+        recordingStopResolver: null,
+        recordingUploadInFlight: false,
     }
 
     const elements = {
@@ -52,12 +94,18 @@
         localVideo: document.querySelector('[data-live-local-video]'),
         remoteVideo: document.querySelector('[data-live-remote-video]'),
         roomLink: document.querySelector('[data-live-room-link]'),
+        previewAudioButton: document.querySelector('[data-live-preview-audio]'),
+        previewMirrorButton: document.querySelector('[data-live-preview-mirror]'),
+        recordStartButton: document.querySelector('[data-live-record-start]'),
+        recordStopButton: document.querySelector('[data-live-record-stop]'),
+        recordStatus: document.querySelector('[data-live-record-status]'),
+        recordDuration: document.querySelector('[data-live-record-duration]'),
+        recordLink: document.querySelector('[data-live-record-link]'),
     }
 
     const rtcConfig = {
-        iceServers: [
-            { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-        ],
+        iceServers: parseIceServers(),
+        iceTransportPolicy,
     }
 
     const setText = (element, value) => {
@@ -102,10 +150,136 @@
         })
     }
 
+    const setRecordLink = (url, label) => {
+        if (!elements.recordLink) {
+            return
+        }
+
+        if (!url) {
+            elements.recordLink.classList.add('hidden')
+            elements.recordLink.removeAttribute('href')
+            elements.recordLink.textContent = ''
+            return
+        }
+
+        elements.recordLink.href = url
+        elements.recordLink.textContent = label || url
+        elements.recordLink.classList.remove('hidden')
+    }
+
+    const formatDuration = (totalSeconds) => {
+        const safe = Math.max(0, Number(totalSeconds || 0))
+        const hours = String(Math.floor(safe / 3600)).padStart(2, '0')
+        const minutes = String(Math.floor((safe % 3600) / 60)).padStart(2, '0')
+        const seconds = String(Math.floor(safe % 60)).padStart(2, '0')
+
+        return `${hours}:${minutes}:${seconds}`
+    }
+
+    const updateRecordingDuration = () => {
+        if (!elements.recordDuration) {
+            return
+        }
+
+        if (!state.recordingStartedAt) {
+            if (!elements.recordDuration.textContent) {
+                elements.recordDuration.textContent = '00:00:00'
+            }
+            return
+        }
+
+        const elapsedSeconds = Math.max(0, Math.floor((Date.now() - state.recordingStartedAt) / 1000))
+        elements.recordDuration.textContent = formatDuration(elapsedSeconds)
+    }
+
+    const startRecordingTimer = () => {
+        updateRecordingDuration()
+
+        if (state.recordingTimer) {
+            window.clearInterval(state.recordingTimer)
+        }
+
+        state.recordingTimer = window.setInterval(updateRecordingDuration, 1000)
+    }
+
+    const stopRecordingTimer = () => {
+        if (state.recordingTimer) {
+            window.clearInterval(state.recordingTimer)
+            state.recordingTimer = null
+        }
+    }
+
+    const updatePreviewControls = () => {
+        if (elements.localVideo) {
+            elements.localVideo.muted = !state.previewAudio
+            elements.localVideo.style.transform = state.previewMirrored ? 'scaleX(-1)' : 'none'
+        }
+
+        if (elements.previewAudioButton) {
+            elements.previewAudioButton.textContent = state.previewAudio ? 'Mutar preview' : 'Ouvir preview'
+        }
+
+        if (elements.previewMirrorButton) {
+            elements.previewMirrorButton.textContent = state.previewMirrored ? 'Desespelhar camera' : 'Espelhar camera'
+        }
+    }
+
+    const updateRecordingControls = () => {
+        if (elements.recordStartButton) {
+            elements.recordStartButton.disabled = !canBroadcast || liveId <= 0 || state.recordingUploadInFlight || state.recorder !== null
+        }
+
+        if (elements.recordStopButton) {
+            elements.recordStopButton.disabled = state.recorder === null
+        }
+    }
+
+    const clearReplayPlayback = () => {
+        if (!elements.remoteVideo || !state.replayActive) {
+            return
+        }
+
+        state.replayActive = false
+
+        try {
+            elements.remoteVideo.pause()
+        } catch (error) {
+            console.warn('Falha ao pausar replay', error)
+        }
+
+        elements.remoteVideo.removeAttribute('src')
+        elements.remoteVideo.load()
+    }
+
+    const applyReplayPlayback = () => {
+        if (!elements.remoteVideo || !replayEnabled || !replayUrl || state.replayActive) {
+            return
+        }
+
+        state.replayActive = true
+        elements.remoteVideo.srcObject = null
+        elements.remoteVideo.src = replayUrl
+        elements.remoteVideo.load()
+        elements.remoteVideo.play().then(() => {
+            hideWaiting()
+            if (elements.playbackButton) {
+                elements.playbackButton.classList.add('hidden')
+            }
+        }).catch(() => {
+            hideWaiting()
+            if (elements.playbackButton) {
+                elements.playbackButton.classList.remove('hidden')
+            }
+        })
+    }
+
     const updateStatus = (stream) => {
         const status = stream && stream.status ? String(stream.status) : 'idle'
-        setText(elements.statusText, status === 'live' ? 'ao vivo' : status === 'ended' ? 'encerrada' : 'aguardando')
-        setText(elements.streamState, status)
+        state.lastStreamStatus = status
+
+        const replayMode = mode === 'viewer' && replayEnabled && replayUrl && status !== 'live'
+        setText(elements.statusText, replayMode ? 'replay' : status === 'live' ? 'ao vivo' : status === 'ended' ? 'encerrada' : 'aguardando')
+        setText(elements.streamState, replayMode ? 'replay' : status)
         updateViewerCount(stream && Number.isFinite(Number(stream.viewer_count)) ? Number(stream.viewer_count) : 0)
 
         if (elements.startButton) {
@@ -116,11 +290,27 @@
             elements.stopButton.disabled = mode !== 'creator' || !canBroadcast || status !== 'live'
         }
 
+        updateRecordingControls()
+
         if (mode === 'viewer') {
             if (status === 'live' && stream && stream.broadcaster_online) {
+                clearReplayPlayback()
                 hideWaiting()
+            } else if (replayMode) {
+                applyReplayPlayback()
             } else if (canWatch) {
                 setWaiting('A live ainda nao esta transmitindo. Deixe esta pagina aberta que ela conecta sozinha.')
+            }
+        }
+    }
+
+    const responseJson = async (response) => {
+        try {
+            return await response.json()
+        } catch (error) {
+            return {
+                ok: false,
+                message: 'Resposta invalida da live.',
             }
         }
     }
@@ -147,7 +337,20 @@
             credentials: 'same-origin',
         })
 
-        return response.json()
+        return responseJson(response)
+    }
+
+    const postMultipart = async (url, formData) => {
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+
+        return responseJson(response)
     }
 
     const getJson = async (url, params) => {
@@ -168,7 +371,13 @@
             },
         })
 
-        return response.json()
+        return responseJson(response)
+    }
+
+    const shouldRejoin = (data) => {
+        const message = String(data && data.message ? data.message : '').toLowerCase()
+
+        return message.includes('sessao') || message.includes('entre novamente')
     }
 
     const ensureJoined = async () => {
@@ -194,6 +403,7 @@
 
             state.peerId = data.peer_id || ''
             state.joined = state.peerId !== ''
+            state.pollAfterId = 0
             updateStatus(data.stream || {})
             showError('')
 
@@ -226,6 +436,11 @@
         })
 
         if (!response.ok) {
+            if (shouldRejoin(response)) {
+                await rejoinSession('signal')
+                return
+            }
+
             showError(response.message || 'Falha ao enviar sinal da live.')
         }
     }
@@ -295,6 +510,22 @@
         })
     }
 
+    const closePeerConnection = (peerConnection) => {
+        if (!peerConnection) {
+            return
+        }
+
+        try {
+            peerConnection.onicecandidate = null
+            peerConnection.ontrack = null
+            peerConnection.onconnectionstatechange = null
+            peerConnection.oniceconnectionstatechange = null
+            peerConnection.close()
+        } catch (error) {
+            console.warn('Falha ao fechar peer connection', error)
+        }
+    }
+
     const createPeerConnection = (remotePeerId, asCreator) => {
         const peerConnection = new RTCPeerConnection(rtcConfig)
 
@@ -316,15 +547,34 @@
             })
         }
 
+        peerConnection.oniceconnectionstatechange = () => {
+            if (peerConnection.iceConnectionState === 'failed' && typeof peerConnection.restartIce === 'function') {
+                try {
+                    peerConnection.restartIce()
+                } catch (error) {
+                    console.warn('Falha ao reiniciar ICE', error)
+                }
+            }
+        }
+
         peerConnection.onconnectionstatechange = () => {
             const connectionState = peerConnection.connectionState
 
-            if (connectionState === 'failed' || connectionState === 'closed') {
+            if (connectionState === 'failed' || connectionState === 'disconnected' || connectionState === 'closed') {
                 if (asCreator) {
                     state.creatorPeerConnections.delete(remotePeerId)
+                    closePeerConnection(peerConnection)
                 } else if (state.viewerPeerConnection === peerConnection) {
-                    state.viewerPeerConnection = null
-                    state.viewerTargetPeerId = ''
+                    closeViewerPeer()
+
+                    if (state.lastStreamStatus === 'live') {
+                        setWaiting('Conexao oscilou. Reconectando a transmissao...')
+                        window.setTimeout(() => {
+                            poll().catch((error) => {
+                                console.warn('Reconexao da live falhou', error)
+                            })
+                        }, 500)
+                    }
                 }
             }
         }
@@ -345,6 +595,7 @@
                 })
 
                 if (elements.remoteVideo) {
+                    clearReplayPlayback()
                     elements.remoteVideo.srcObject = state.remoteStream
                     elements.remoteVideo.play().catch(() => {
                         if (elements.playbackButton) {
@@ -375,7 +626,7 @@
         }
 
         if (state.viewerPeerConnection) {
-            state.viewerPeerConnection.close()
+            closePeerConnection(state.viewerPeerConnection)
         }
 
         state.viewerPeerConnection = createPeerConnection(remotePeerId, false)
@@ -427,8 +678,11 @@
         }
 
         const peerConnection = viewerPeerConnectionFor(broadcasterPeerId)
-        peerConnection.addTransceiver('video', { direction: 'recvonly' })
-        peerConnection.addTransceiver('audio', { direction: 'recvonly' })
+
+        if (peerConnection.getTransceivers().length === 0) {
+            peerConnection.addTransceiver('video', { direction: 'recvonly' })
+            peerConnection.addTransceiver('audio', { direction: 'recvonly' })
+        }
 
         const offer = await peerConnection.createOffer()
         await peerConnection.setLocalDescription(offer)
@@ -453,14 +707,14 @@
 
     const closeAllCreatorPeers = () => {
         state.creatorPeerConnections.forEach((peerConnection) => {
-            peerConnection.close()
+            closePeerConnection(peerConnection)
         })
         state.creatorPeerConnections.clear()
     }
 
     const closeViewerPeer = () => {
         if (state.viewerPeerConnection) {
-            state.viewerPeerConnection.close()
+            closePeerConnection(state.viewerPeerConnection)
             state.viewerPeerConnection = null
         }
 
@@ -468,8 +722,274 @@
         state.remoteStream = null
 
         if (elements.remoteVideo) {
-            elements.remoteVideo.srcObject = null
+            if (!state.replayActive) {
+                elements.remoteVideo.srcObject = null
+            }
         }
+    }
+
+    const ensureLocalStream = async () => {
+        const hasActiveLocalStream = state.localStream && state.localStream.getTracks().some((track) => track.readyState === 'live')
+
+        if (hasActiveLocalStream) {
+            return state.localStream
+        }
+
+        stopLocalStream()
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { ideal: videoWidth, max: videoWidth },
+                height: { ideal: videoHeight, max: videoHeight },
+                frameRate: { ideal: videoFps, max: videoFps },
+            },
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+            },
+        })
+
+        const videoTrack = stream.getVideoTracks()[0]
+        if (videoTrack && typeof videoTrack.applyConstraints === 'function') {
+            videoTrack.applyConstraints({
+                width: videoWidth,
+                height: videoHeight,
+                frameRate: videoFps,
+            }).catch(() => {})
+        }
+
+        state.localStream = stream
+
+        if (elements.localVideo) {
+            elements.localVideo.srcObject = stream
+            updatePreviewControls()
+            elements.localVideo.play().catch(() => {})
+        }
+
+        return stream
+    }
+
+    const chooseRecorderMimeType = () => {
+        if (typeof window.MediaRecorder === 'undefined') {
+            return ''
+        }
+
+        const candidates = [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm',
+            'video/mp4',
+        ]
+
+        for (const mimeType of candidates) {
+            if (typeof window.MediaRecorder.isTypeSupported !== 'function' || window.MediaRecorder.isTypeSupported(mimeType)) {
+                return mimeType
+            }
+        }
+
+        return ''
+    }
+
+    const uploadRecording = async (blob, durationSeconds) => {
+        if (!recordingUploadUrl || liveId <= 0) {
+            return { ok: false, message: 'Live invalida para salvar replay.' }
+        }
+
+        state.recordingUploadInFlight = true
+        updateRecordingControls()
+
+        const extension = state.recordingMimeType.includes('mp4') ? 'mp4' : 'webm'
+        const formData = new FormData()
+        formData.append('_token', csrf)
+        formData.append('live_id', String(liveId))
+        formData.append('recording_duration_seconds', String(durationSeconds))
+        formData.append('recording_label', `Replay local ${new Date().toLocaleString('pt-BR')}`)
+        formData.append('recording_file', blob, `live-${liveId}-${Date.now()}.${extension}`)
+
+        const data = await postMultipart(recordingUploadUrl, formData)
+        state.recordingUploadInFlight = false
+        updateRecordingControls()
+
+        if (data.ok && data.live) {
+            const uploadedReplayUrl = data.live.recording_url || replayUrl
+            setRecordLink(uploadedReplayUrl || '', uploadedReplayUrl || '')
+            if (data.live.recording_duration_seconds) {
+                setText(elements.recordDuration, formatDuration(data.live.recording_duration_seconds))
+            }
+        }
+
+        return data
+    }
+
+    const setRecordingStatus = (label) => {
+        setText(elements.recordStatus, label)
+    }
+
+    const startLocalRecording = async (autoMode = false) => {
+        if (mode !== 'creator' || liveId <= 0) {
+            return false
+        }
+
+        if (state.recorder !== null) {
+            return true
+        }
+
+        if (typeof window.MediaRecorder === 'undefined') {
+            showError('Seu navegador nao suporta gravacao local da live.')
+            return false
+        }
+
+        const joined = await ensureJoined()
+        if (!joined) {
+            return false
+        }
+
+        await ensureLocalStream()
+
+        const mimeType = chooseRecorderMimeType()
+        const options = {}
+
+        if (mimeType) {
+            options.mimeType = mimeType
+        }
+
+        options.videoBitsPerSecond = Math.max(350000, bitrateKbps * 1000)
+
+        try {
+            state.recordingMimeType = mimeType || 'video/webm'
+            state.recordingChunks = []
+            state.recordingStartedAt = Date.now()
+            state.recorder = new MediaRecorder(state.localStream, options)
+            state.recorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    state.recordingChunks.push(event.data)
+                }
+            }
+
+            state.recorder.onstop = async () => {
+                const chunks = [...state.recordingChunks]
+                const durationSeconds = Math.max(1, Math.floor((Date.now() - state.recordingStartedAt) / 1000))
+                state.recordingChunks = []
+                state.recordingStartedAt = 0
+                state.recorder = null
+                stopRecordingTimer()
+                updateRecordingControls()
+
+                let success = true
+
+                if (chunks.length > 0 && state.recordingShouldUpload) {
+                    setRecordingStatus('Enviando replay para o servidor...')
+                    const blob = new Blob(chunks, { type: state.recordingMimeType || 'video/webm' })
+                    const uploadResult = await uploadRecording(blob, durationSeconds)
+
+                    if (uploadResult.ok) {
+                        setRecordingStatus('Replay salvo com sucesso.')
+                    } else {
+                        success = false
+                        setRecordingStatus('Falha ao salvar replay.')
+                        showError(uploadResult.message || 'Nao foi possivel salvar o replay local.')
+                    }
+                } else if (chunks.length > 0) {
+                    setRecordingStatus('Gravacao encerrada localmente.')
+                    setText(elements.recordDuration, formatDuration(durationSeconds))
+                } else {
+                    setRecordingStatus('Gravacao encerrada sem dados suficientes.')
+                    success = false
+                }
+
+                const resolve = state.recordingStopResolver
+                state.recordingStopResolver = null
+
+                if (typeof resolve === 'function') {
+                    resolve(success)
+                }
+            }
+
+            state.recorder.start(1000)
+            startRecordingTimer()
+            setRecordingStatus(autoMode ? 'Replay automatico em gravacao...' : 'Gravacao local em andamento...')
+            setRecordLink(replayUrl || '', replayUrl || '')
+            showError('')
+            updateRecordingControls()
+            return true
+        } catch (error) {
+            state.recorder = null
+            state.recordingChunks = []
+            state.recordingStartedAt = 0
+            stopRecordingTimer()
+            updateRecordingControls()
+            showError(error instanceof Error ? error.message : 'Nao foi possivel iniciar a gravacao local.')
+            return false
+        }
+    }
+
+    const stopLocalRecording = async (shouldUpload = true) => {
+        if (!state.recorder) {
+            return true
+        }
+
+        state.recordingShouldUpload = shouldUpload
+
+        return new Promise((resolve) => {
+            state.recordingStopResolver = resolve
+
+            try {
+                state.recorder.stop()
+            } catch (error) {
+                state.recordingStopResolver = null
+                resolve(false)
+            }
+        })
+    }
+
+    const rejoinSession = async (reason) => {
+        if (state.rejoinInFlight) {
+            return state.rejoinInFlight
+        }
+
+        state.rejoinInFlight = (async () => {
+            state.joined = false
+            state.peerId = ''
+            state.pollAfterId = 0
+
+            if (mode === 'viewer') {
+                closeViewerPeer()
+            }
+
+            const joined = await ensureJoined()
+            if (!joined) {
+                return false
+            }
+
+            if (mode === 'creator' && state.broadcasting && state.localStream) {
+                const restart = await postForm(startUrl, {
+                    live_id: liveId,
+                    peer_id: state.peerId,
+                    max_bitrate_kbps: bitrateKbps,
+                    video_width: videoWidth,
+                    video_height: videoHeight,
+                    video_fps: videoFps,
+                })
+
+                if (!restart.ok) {
+                    showError(restart.message || `Nao foi possivel restaurar a live apos ${reason}.`)
+                    return false
+                }
+
+                updateStatus(restart.stream || {})
+            }
+
+            if (mode === 'viewer') {
+                await poll()
+            }
+
+            return true
+        })().finally(() => {
+            state.rejoinInFlight = null
+        })
+
+        return state.rejoinInFlight
     }
 
     const heartbeat = async () => {
@@ -484,7 +1004,15 @@
 
         if (data.ok) {
             updateStatus(data.stream || {})
+            return
         }
+
+        if (shouldRejoin(data)) {
+            await rejoinSession('heartbeat')
+            return
+        }
+
+        showError(data.message || 'Nao foi possivel manter a live conectada.')
     }
 
     const poll = async () => {
@@ -499,6 +1027,11 @@
         })
 
         if (!data.ok) {
+            if (shouldRejoin(data)) {
+                await rejoinSession('poll')
+                return
+            }
+
             showError(data.message || 'Nao foi possivel acompanhar a live.')
             return
         }
@@ -538,6 +1071,11 @@
 
             if (!shouldConnect) {
                 closeViewerPeer()
+
+                if (replayEnabled && replayUrl) {
+                    applyReplayPlayback()
+                }
+
                 return
             }
 
@@ -588,35 +1126,7 @@
         }
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: videoWidth, max: videoWidth },
-                    height: { ideal: videoHeight, max: videoHeight },
-                    frameRate: { ideal: videoFps, max: videoFps },
-                },
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
-                },
-            })
-
-            const videoTrack = stream.getVideoTracks()[0]
-            if (videoTrack && typeof videoTrack.applyConstraints === 'function') {
-                videoTrack.applyConstraints({
-                    width: videoWidth,
-                    height: videoHeight,
-                    frameRate: videoFps,
-                }).catch(() => {})
-            }
-
-            state.localStream = stream
-
-            if (elements.localVideo) {
-                elements.localVideo.srcObject = stream
-                elements.localVideo.muted = true
-                elements.localVideo.play().catch(() => {})
-            }
+            await ensureLocalStream()
 
             const data = await postForm(startUrl, {
                 live_id: liveId,
@@ -637,6 +1147,11 @@
             updateStatus(data.stream || {})
             hideWaiting()
             startLoops()
+
+            if (recordingEnabled) {
+                await startLocalRecording(true)
+            }
+
             await poll()
         } catch (error) {
             showError(error instanceof Error ? error.message : 'Nao foi possivel abrir camera e microfone.')
@@ -648,6 +1163,8 @@
             return
         }
 
+        const recordingPromise = state.recorder ? stopLocalRecording(true) : Promise.resolve(true)
+
         const data = await postForm(stopUrl, {
             live_id: liveId,
             peer_id: state.peerId,
@@ -657,6 +1174,8 @@
             showError(data.message || 'Nao foi possivel encerrar a transmissao.')
             return
         }
+
+        await recordingPromise
 
         state.broadcasting = false
         stopLocalStream()
@@ -695,6 +1214,50 @@
         })
     }
 
+    if (elements.previewAudioButton) {
+        elements.previewAudioButton.addEventListener('click', async (event) => {
+            event.preventDefault()
+            state.previewAudio = !state.previewAudio
+
+            if (state.previewAudio && !state.localStream) {
+                try {
+                    await ensureLocalStream()
+                } catch (error) {
+                    state.previewAudio = false
+                    showError(error instanceof Error ? error.message : 'Nao foi possivel abrir o preview local.')
+                }
+            }
+
+            updatePreviewControls()
+        })
+    }
+
+    if (elements.previewMirrorButton) {
+        elements.previewMirrorButton.addEventListener('click', (event) => {
+            event.preventDefault()
+            state.previewMirrored = !state.previewMirrored
+            updatePreviewControls()
+        })
+    }
+
+    if (elements.recordStartButton) {
+        elements.recordStartButton.addEventListener('click', (event) => {
+            event.preventDefault()
+            startLocalRecording(false).catch((error) => {
+                showError(error instanceof Error ? error.message : 'Falha ao iniciar a gravacao local.')
+            })
+        })
+    }
+
+    if (elements.recordStopButton) {
+        elements.recordStopButton.addEventListener('click', (event) => {
+            event.preventDefault()
+            stopLocalRecording(true).catch((error) => {
+                showError(error instanceof Error ? error.message : 'Falha ao encerrar a gravacao local.')
+            })
+        })
+    }
+
     if (elements.playbackButton && elements.remoteVideo) {
         elements.playbackButton.addEventListener('click', () => {
             elements.remoteVideo.muted = false
@@ -707,12 +1270,51 @@
     }
 
     window.addEventListener('beforeunload', () => {
+        if (state.recorder) {
+            try {
+                state.recordingShouldUpload = false
+                state.recorder.stop()
+            } catch (error) {
+                console.warn('Falha ao encerrar a gravacao local', error)
+            }
+        }
+
         sendLeaveBeacon()
+        stopLoops()
+    })
+
+    window.addEventListener('online', () => {
+        if (!state.joined) {
+            return
+        }
+
+        heartbeat().catch((error) => {
+            console.warn('Falha ao retomar a live ao voltar a rede', error)
+        })
+
+        poll().catch((error) => {
+            console.warn('Falha ao repoll da live ao voltar a rede', error)
+        })
+    })
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden || !state.joined) {
+            return
+        }
+
+        heartbeat().catch((error) => {
+            console.warn('Falha ao sincronizar a live depois de voltar para a aba', error)
+        })
     })
 
     if (elements.roomLink) {
         elements.roomLink.textContent = elements.roomLink.getAttribute('href') || ''
     }
+
+    setRecordLink(replayUrl || '', replayUrl || '')
+    updatePreviewControls()
+    updateRecordingControls()
+    updateRecordingDuration()
 
     if (mode === 'creator') {
         if (!canBroadcast || liveId <= 0) {
@@ -725,6 +1327,7 @@
                 return
             }
 
+            startLoops()
             setWaiting('Preview local pronto. Clique em iniciar transmissao para abrir a live.')
         }).catch((error) => {
             showError(error instanceof Error ? error.message : 'Nao foi possivel preparar o studio.')

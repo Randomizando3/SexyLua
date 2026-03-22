@@ -20,6 +20,11 @@ $bitrate = (int) ($selected['max_bitrate_kbps'] ?? 1500);
 $videoWidth = (int) ($selected['video_width'] ?? 960);
 $videoHeight = (int) ($selected['video_height'] ?? 540);
 $videoFps = (int) ($selected['video_fps'] ?? 24);
+$replayUrl = media_url((string) ($selected['recording_url'] ?? ''));
+$replayDuration = (int) ($selected['recording_duration_seconds'] ?? 0);
+$hasReplay = $replayUrl !== '';
+$iceServers = base64_encode((string) json_encode($app->config['app']['rtc_ice_servers'] ?? [], JSON_UNESCAPED_SLASHES));
+$iceTransportPolicy = (string) ($app->config['app']['rtc_ice_transport_policy'] ?? 'all');
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -87,6 +92,11 @@ $videoFps = (int) ($selected['video_fps'] ?? 24);
                 data-poll-url="/live/rtc/poll"
                 data-heartbeat-url="/live/rtc/heartbeat"
                 data-leave-url="/live/rtc/leave"
+                data-recording-upload-url="/live/rtc/recording"
+                data-recording-enabled="<?= (bool) ($selected['recording_enabled'] ?? false) ? '1' : '0' ?>"
+                data-replay-url="<?= e($replayUrl) ?>"
+                data-ice-servers="<?= e($iceServers) ?>"
+                data-ice-transport-policy="<?= e($iceTransportPolicy) ?>"
                 data-max-bitrate-kbps="<?= e((string) $bitrate) ?>"
                 data-video-width="<?= e((string) $videoWidth) ?>"
                 data-video-height="<?= e((string) $videoHeight) ?>"
@@ -135,6 +145,26 @@ $videoFps = (int) ($selected['video_fps'] ?? 24);
                     <div class="flex flex-col gap-3 sm:flex-row">
                         <button class="signature-glow flex-1 rounded-full px-6 py-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" data-live-start data-prototype-skip="1" type="button">Iniciar transmissao local</button>
                         <button class="flex-1 rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" data-live-stop data-prototype-skip="1" type="button">Encerrar transmissao local</button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Preview local</p>
+                            <p class="mt-2 text-sm text-slate-600">Controle o espelho da camera e escute o retorno local quando precisar validar enquadramento e audio.</p>
+                            <div class="mt-4 flex flex-col gap-3 sm:flex-row">
+                                <button class="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-700" data-live-preview-audio data-prototype-skip="1" type="button">Ouvir preview</button>
+                                <button class="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-700" data-live-preview-mirror data-prototype-skip="1" type="button">Desespelhar camera</button>
+                            </div>
+                        </div>
+                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Replay local</p>
+                            <p class="mt-2 text-sm font-bold text-slate-800" data-live-record-status><?= $hasReplay ? 'Replay pronto para uso' : 'Sem replay salvo ainda' ?></p>
+                            <p class="mt-1 text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Duracao <span data-live-record-duration><?= e($replayDuration > 0 ? gmdate('H:i:s', $replayDuration) : '00:00:00') ?></span></p>
+                            <a class="<?= $hasReplay ? '' : 'hidden ' ?>mt-3 block break-all text-sm font-bold text-[#D81B60] underline" data-live-record-link href="<?= e($replayUrl) ?>" target="_blank"><?= e($replayUrl !== '' ? $replayUrl : '') ?></a>
+                            <div class="mt-4 flex flex-col gap-3 sm:flex-row">
+                                <button class="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50" data-live-record-start data-prototype-skip="1" type="button">Gravar local</button>
+                                <button class="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50" data-live-record-stop data-prototype-skip="1" type="button">Parar gravacao</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="rounded-2xl bg-[#f5f3f5] p-4 text-sm text-slate-600">
                         <p class="font-bold text-slate-800">Sala publica da live</p>
@@ -228,6 +258,9 @@ $videoFps = (int) ($selected['video_fps'] ?? 24);
                     <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-500">
                         stream <?= e((string) ($live['stream_status'] ?? 'idle')) ?> • <?= e((string) ($live['max_bitrate_kbps'] ?? 1500)) ?> kbps
                     </div>
+                    <?php if ((string) ($live['recording_url'] ?? '') !== ''): ?>
+                        <a class="block rounded-2xl bg-[#D81B60]/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]" href="<?= e(media_url((string) ($live['recording_url'] ?? ''))) ?>" target="_blank">Replay salvo</a>
+                    <?php endif; ?>
                     <div class="grid grid-cols-2 gap-3">
                         <a class="rounded-full bg-[#f5f3f5] px-4 py-3 text-center text-xs font-bold text-slate-700" href="<?= e(path_with_query('/creator/live', ['q' => $filters['q'] ?? '', 'status' => $filters['status'] ?? '', 'live' => (int) ($live['id'] ?? 0)])) ?>">Editar</a>
                         <a class="rounded-full bg-[#D81B60]/10 px-4 py-3 text-center text-xs font-bold text-[#D81B60]" href="<?= e($liveRoomUrl) ?>" target="_blank">Abrir sala</a>
