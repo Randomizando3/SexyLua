@@ -209,6 +209,10 @@
     };
 
     document.querySelectorAll('a[href="#"], button').forEach((element) => {
+        if (element.dataset.prototypeSkip === '1') {
+            return;
+        }
+
         const label = textOf(element);
 
         if (!label) {

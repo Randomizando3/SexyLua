@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
-use App\Core\JsonStore;
+use App\Core\StoreInterface;
 use App\Support\SeedFactory;
 
 final class PlatformRepository
 {
     public function __construct(
-        private readonly JsonStore $store,
+        private readonly StoreInterface $store,
         private readonly array $config,
     ) {
     }
@@ -636,41 +636,120 @@ final class PlatformRepository
         ];
     }
 
-    public function creatorContentData(int $creatorId): array
+    public function creatorContentData(int $creatorId, array $filters = []): array
     {
         $contents = array_values(array_filter($this->contentsWithCreators(), static fn (array $item): bool => (int) $item['creator_id'] === $creatorId));
         $contents = $this->sortByDate($contents, 'created_at');
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $status = trim((string) ($filters['status'] ?? ''));
+        $kind = trim((string) ($filters['kind'] ?? ''));
+        $editId = (int) ($filters['edit'] ?? 0);
+
+        $filtered = array_values(array_filter($contents, static function (array $item) use ($query, $status, $kind): bool {
+            if ($status !== '' && (string) ($item['status'] ?? '') !== $status) {
+                return false;
+            }
+
+            if ($kind !== '' && (string) ($item['kind'] ?? '') !== $kind) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower((string) ($item['title'] ?? '') . ' ' . (string) ($item['excerpt'] ?? '') . ' ' . (string) ($item['body'] ?? ''));
+
+            return str_contains($haystack, $query);
+        }));
+
+        $selectedItem = null;
+        if ($editId > 0) {
+            foreach ($contents as $item) {
+                if ((int) $item['id'] === $editId) {
+                    $selectedItem = $item;
+                    break;
+                }
+            }
+        }
+
+        $estimatedViews = array_reduce($contents, static fn (int $carry, array $item): int => $carry + ((int) ($item['saved_count'] ?? 0) * 42), 0);
+        $storageUnits = array_reduce($contents, static function (float $carry, array $item): float {
+            $bodyUnits = mb_strlen((string) ($item['body'] ?? '')) / 9000;
+            $mediaUnits = (string) ($item['media_url'] ?? '') !== '' ? 0.7 : 0.15;
+            $thumbUnits = (string) ($item['thumbnail_url'] ?? '') !== '' ? 0.1 : 0;
+
+            return $carry + $bodyUnits + $mediaUnits + $thumbUnits;
+        }, 0.0);
 
         return [
+            'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
             'items' => $contents,
+            'filtered_items' => $filtered,
+            'selected_item' => $selectedItem,
+            'filters' => [
+                'q' => $query,
+                'status' => $status,
+                'kind' => $kind,
+            ],
             'counts' => [
                 'approved' => count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'approved')),
                 'pending' => count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'pending')),
                 'draft' => count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'draft')),
                 'rejected' => count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'rejected')),
+                'archived' => count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'archived')),
+            ],
+            'summary' => [
+                'total_posts' => count($contents),
+                'estimated_views' => $estimatedViews,
+                'storage_gb' => max(0.2, round($storageUnits, 1)),
             ],
         ];
     }
 
     public function createContent(int $creatorId, array $data): array
     {
+        return $this->saveContent($creatorId, $data);
+    }
+
+    public function saveContent(int $creatorId, array $data): array
+    {
         $items = $this->contentItems();
-        $status = in_array(($data['status'] ?? 'draft'), ['draft', 'pending'], true) ? $data['status'] : 'draft';
+        $contentId = isset($data['id']) ? (int) $data['id'] : 0;
+        $status = in_array(($data['status'] ?? 'draft'), ['draft', 'pending', 'approved', 'rejected', 'archived'], true) ? $data['status'] : 'draft';
         $visibility = in_array(($data['visibility'] ?? 'public'), ['public', 'subscriber', 'premium'], true) ? $data['visibility'] : 'public';
         $kind = in_array(($data['kind'] ?? 'gallery'), ['gallery', 'video', 'audio', 'article', 'live_teaser'], true) ? $data['kind'] : 'gallery';
-
-        $item = [
-            'id' => $this->store->nextId($items),
-            'creator_id' => $creatorId,
+        $payload = [
             'title' => trim((string) ($data['title'] ?? 'Novo conteudo')),
             'excerpt' => trim((string) ($data['excerpt'] ?? 'Descricao rapida do conteudo.')),
             'body' => trim((string) ($data['body'] ?? '')),
             'visibility' => $visibility,
             'status' => $status,
             'kind' => $kind,
+            'duration' => trim((string) ($data['duration'] ?? '')),
+            'media_url' => trim((string) ($data['media_url'] ?? '')),
+            'thumbnail_url' => trim((string) ($data['thumbnail_url'] ?? '')),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+
+        if ($contentId > 0) {
+            foreach ($items as &$item) {
+                if ((int) $item['id'] === $contentId && (int) $item['creator_id'] === $creatorId) {
+                    $item = array_merge($item, array_filter($payload, static fn (mixed $value): bool => $value !== ''));
+                    $this->save('content_items', $items);
+
+                    return $item;
+                }
+            }
+            unset($item);
+        }
+
+        $item = [
+            'id' => $this->store->nextId($items),
+            'creator_id' => $creatorId,
             'created_at' => date('Y-m-d H:i:s'),
             'saved_count' => 0,
-        ];
+        ] + $payload;
 
         $items[] = $item;
         $this->save('content_items', $items);
@@ -716,25 +795,79 @@ final class PlatformRepository
         }
 
         $this->save('content_items', $items);
+        $savedItems = array_values(array_filter($this->savedItems(), static fn (array $saved): bool => (int) ($saved['content_id'] ?? 0) !== $contentId));
+        $this->save('saved_items', $savedItems);
 
         return true;
     }
 
-    public function creatorPlansData(int $creatorId): array
+    public function creatorPlansData(int $creatorId, array $filters = []): array
     {
         $plans = array_values(array_filter($this->plansWithCreators(), static fn (array $plan): bool => (int) $plan['creator_id'] === $creatorId));
-        $subscribers = array_values(array_filter($this->subscriptions(), static fn (array $subscription): bool => (int) $subscription['creator_id'] === $creatorId && $subscription['status'] === 'active'));
+        usort($plans, static fn (array $left, array $right): int => (int) ($right['price_tokens'] ?? 0) <=> (int) ($left['price_tokens'] ?? 0));
+        $subscribers = array_values(array_filter($this->subscriptions(), static fn (array $subscription): bool => (int) $subscription['creator_id'] === $creatorId));
         $subscribers = array_map(function (array $subscription): array {
             $subscription['subscriber'] = $this->findUserById((int) $subscription['subscriber_id']);
             $subscription['plan'] = $this->findPlanById((int) $subscription['plan_id']);
+            $subscription['vip'] = (bool) ($subscription['vip'] ?? false);
+            $subscription['creator_note'] = (string) ($subscription['creator_note'] ?? '');
+            $subscription['days_to_renew'] = max(0, (int) ceil((strtotime((string) ($subscription['renews_at'] ?? 'now')) - time()) / 86400));
 
             return $subscription;
         }, $subscribers);
+        $subscribers = $this->sortByDate($subscribers, 'renews_at');
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $status = trim((string) ($filters['subscriber_status'] ?? ''));
+        $planId = (int) ($filters['plan'] ?? 0);
+
+        $filteredSubscribers = array_values(array_filter($subscribers, static function (array $subscription) use ($query, $status): bool {
+            if ($status !== '' && (string) ($subscription['status'] ?? '') !== $status) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $subscriber = $subscription['subscriber'] ?? [];
+            $plan = $subscription['plan'] ?? [];
+            $haystack = mb_strtolower((string) ($subscriber['name'] ?? '') . ' ' . (string) ($subscriber['email'] ?? '') . ' ' . (string) ($plan['name'] ?? ''));
+
+            return str_contains($haystack, $query);
+        }));
+
+        $selectedPlan = null;
+        if ($planId > 0) {
+            foreach ($plans as $plan) {
+                if ((int) ($plan['id'] ?? 0) === $planId) {
+                    $selectedPlan = $plan;
+                    break;
+                }
+            }
+        }
+
+        $recurringTokens = array_reduce(
+            array_filter($subscribers, static fn (array $subscription): bool => (string) ($subscription['status'] ?? '') === 'active'),
+            static fn (int $carry, array $subscription): int => $carry + (int) (($subscription['plan']['price_tokens'] ?? 0)),
+            0
+        );
 
         return [
+            'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
             'plans' => $plans,
+            'selected_plan' => $selectedPlan,
             'active_subscribers' => count(array_filter($this->subscriptions(), static fn (array $subscription): bool => (int) $subscription['creator_id'] === $creatorId && $subscription['status'] === 'active')),
             'subscribers' => $subscribers,
+            'filtered_subscribers' => $filteredSubscribers,
+            'filters' => [
+                'q' => $query,
+                'subscriber_status' => $status,
+            ],
+            'summary' => [
+                'monthly_tokens' => $recurringTokens,
+                'vip_count' => count(array_filter($subscribers, static fn (array $subscription): bool => (bool) ($subscription['vip'] ?? false))),
+                'paused_count' => count(array_filter($subscribers, static fn (array $subscription): bool => (string) ($subscription['status'] ?? '') === 'paused')),
+            ],
         ];
     }
 
@@ -751,6 +884,7 @@ final class PlatformRepository
                     $plan['description'] = trim((string) ($data['description'] ?? $plan['description']));
                     $plan['price_tokens'] = max(1, (int) ($data['price_tokens'] ?? $plan['price_tokens']));
                     $plan['active'] = ($data['active'] ?? '1') === '1';
+                    $plan['label'] = trim((string) ($data['label'] ?? ($plan['label'] ?? '')));
                     $plan['perks'] = $perks !== [] ? $perks : $plan['perks'];
                     $this->save('plans', $plans);
 
@@ -767,6 +901,7 @@ final class PlatformRepository
             'description' => trim((string) ($data['description'] ?? 'Beneficios exclusivos para assinantes.')),
             'price_tokens' => max(1, (int) ($data['price_tokens'] ?? 49)),
             'active' => ($data['active'] ?? '1') === '1',
+            'label' => trim((string) ($data['label'] ?? '')),
             'perks' => $perks !== [] ? $perks : ['Conteudo exclusivo', 'Mensagens prioritarias'],
         ];
         $plans[] = $plan;
@@ -775,14 +910,153 @@ final class PlatformRepository
         return $plan;
     }
 
-    public function creatorLiveData(int $creatorId): array
+    public function deletePlan(int $creatorId, int $planId): array
+    {
+        $plans = $this->plans();
+        $hasActiveSubscribers = false;
+
+        foreach ($this->subscriptions() as $subscription) {
+            if ((int) ($subscription['creator_id'] ?? 0) === $creatorId && (int) ($subscription['plan_id'] ?? 0) === $planId && (string) ($subscription['status'] ?? '') === 'active') {
+                $hasActiveSubscribers = true;
+                break;
+            }
+        }
+
+        foreach ($plans as $index => $plan) {
+            if ((int) ($plan['id'] ?? 0) !== $planId || (int) ($plan['creator_id'] ?? 0) !== $creatorId) {
+                continue;
+            }
+
+            if ($hasActiveSubscribers) {
+                $plans[$index]['active'] = false;
+                $this->save('plans', $plans);
+
+                return ['ok' => true, 'message' => 'Plano desativado porque ainda possui assinantes ativos.'];
+            }
+
+            unset($plans[$index]);
+            $this->save('plans', array_values($plans));
+
+            return ['ok' => true, 'message' => 'Plano removido com sucesso.'];
+        }
+
+        return ['ok' => false, 'message' => 'Nao foi possivel remover o plano informado.'];
+    }
+
+    public function updateSubscriptionAccess(int $creatorId, int $subscriptionId, array $data): array
+    {
+        $subscriptions = $this->subscriptions();
+        $action = (string) ($data['action'] ?? 'note');
+        $changed = false;
+        $message = 'Assinatura atualizada.';
+
+        foreach ($subscriptions as &$subscription) {
+            if ((int) ($subscription['id'] ?? 0) !== $subscriptionId || (int) ($subscription['creator_id'] ?? 0) !== $creatorId) {
+                continue;
+            }
+
+            switch ($action) {
+                case 'pause':
+                    $subscription['status'] = 'paused';
+                    $message = 'Assinatura pausada pelo criador.';
+                    $changed = true;
+                    break;
+                case 'reactivate':
+                    $subscription['status'] = 'active';
+                    $subscription['renews_at'] = (string) ($subscription['renews_at'] ?? date('Y-m-d H:i:s', strtotime('+30 days')));
+                    $message = 'Assinatura reativada.';
+                    $changed = true;
+                    break;
+                case 'cancel':
+                    $subscription['status'] = 'cancelled';
+                    $message = 'Assinatura cancelada manualmente.';
+                    $changed = true;
+                    break;
+                case 'toggle_vip':
+                    $subscription['vip'] = ! (bool) ($subscription['vip'] ?? false);
+                    $message = (bool) $subscription['vip'] ? 'Assinante marcado como VIP.' : 'Marcacao VIP removida.';
+                    $changed = true;
+                    break;
+                case 'note':
+                default:
+                    $subscription['creator_note'] = trim((string) ($data['creator_note'] ?? ''));
+                    $message = 'Observacao do assinante atualizada.';
+                    $changed = true;
+                    break;
+            }
+
+            break;
+        }
+        unset($subscription);
+
+        if (! $changed) {
+            return ['ok' => false, 'message' => 'Nao foi possivel atualizar este assinante.'];
+        }
+
+        $this->save('subscriptions', $subscriptions);
+
+        return ['ok' => true, 'message' => $message];
+    }
+
+    public function creatorLiveData(int $creatorId, array $filters = []): array
     {
         $lives = array_values(array_filter($this->livesWithCreators(), static fn (array $live): bool => (int) $live['creator_id'] === $creatorId));
         $lives = $this->sortByDate($lives, 'scheduled_for');
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $status = trim((string) ($filters['status'] ?? ''));
+        $selectedId = (int) ($filters['live'] ?? 0);
+
+        $filtered = array_values(array_filter($lives, static function (array $live) use ($query, $status): bool {
+            if ($status !== '' && (string) ($live['status'] ?? '') !== $status) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower((string) ($live['title'] ?? '') . ' ' . (string) ($live['description'] ?? ''));
+
+            return str_contains($haystack, $query);
+        }));
+
+        $selectedLive = null;
+        foreach ($lives as $live) {
+            if ($selectedId > 0 && (int) ($live['id'] ?? 0) === $selectedId) {
+                $selectedLive = $live;
+                break;
+            }
+        }
+
+        $selectedLive ??= $lives[0] ?? null;
+        $selectedMessages = [];
+        if ($selectedLive !== null) {
+            $selectedMessages = array_values(array_filter($this->liveMessages(), static fn (array $message): bool => (int) ($message['live_id'] ?? 0) === (int) ($selectedLive['id'] ?? 0)));
+            $selectedMessages = $this->sortByDate($selectedMessages, 'created_at');
+            $selectedMessages = array_map(function (array $message): array {
+                $message['sender'] = $this->findUserById((int) ($message['sender_id'] ?? 0));
+
+                return $message;
+            }, $selectedMessages);
+        }
 
         return [
+            'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
             'lives' => $lives,
+            'filtered_lives' => $filtered,
+            'selected_live' => $selectedLive,
             'active_live' => array_values(array_filter($lives, static fn (array $live): bool => $live['status'] === 'live'))[0] ?? null,
+            'messages' => $selectedMessages,
+            'filters' => [
+                'q' => $query,
+                'status' => $status,
+            ],
+            'summary' => [
+                'scheduled' => count(array_filter($lives, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'scheduled')),
+                'live' => count(array_filter($lives, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'live')),
+                'ended' => count(array_filter($lives, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'ended')),
+                'chat_enabled' => count(array_filter($lives, static fn (array $live): bool => (bool) ($live['chat_enabled'] ?? false))),
+            ],
         ];
     }
 
@@ -800,12 +1074,21 @@ final class PlatformRepository
             'viewer_count' => max(0, (int) ($data['viewer_count'] ?? 0)),
             'price_tokens' => max(0, (int) ($data['price_tokens'] ?? 0)),
             'chat_enabled' => ($data['chat_enabled'] ?? '1') === '1',
+            'category' => trim((string) ($data['category'] ?? 'Chatting & Chill')),
+            'access_mode' => in_array(($data['access_mode'] ?? 'public'), ['public', 'subscriber'], true) ? (string) $data['access_mode'] : 'public',
+            'goal_tokens' => max(0, (int) ($data['goal_tokens'] ?? 0)),
+            'cover_url' => trim((string) ($data['cover_url'] ?? '')),
+            'pinned_notice' => trim((string) ($data['pinned_notice'] ?? '')),
+            'recording_enabled' => ($data['recording_enabled'] ?? '0') === '1',
         ];
 
         if ($liveId > 0) {
             foreach ($lives as &$live) {
                 if ((int) $live['id'] === $liveId && (int) $live['creator_id'] === $creatorId) {
-                    $live = array_merge($live, $payload);
+                    if ((int) ($payload['viewer_count'] ?? 0) === 0) {
+                        $payload['viewer_count'] = (int) ($live['viewer_count'] ?? 0);
+                    }
+                    $live = array_merge($live, array_filter($payload, static fn (mixed $value): bool => $value !== ''));
                     $this->save('live_sessions', $lives);
 
                     return $live;
@@ -849,14 +1132,78 @@ final class PlatformRepository
         return $changed;
     }
 
-    public function creatorWalletData(int $creatorId): array
+    public function deleteLive(int $creatorId, int $liveId): bool
+    {
+        $lives = $this->liveSessions();
+        $before = count($lives);
+        $lives = array_values(array_filter($lives, static fn (array $live): bool => ! ((int) ($live['id'] ?? 0) === $liveId && (int) ($live['creator_id'] ?? 0) === $creatorId)));
+
+        if (count($lives) === $before) {
+            return false;
+        }
+
+        $this->save('live_sessions', $lives);
+        $messages = array_values(array_filter($this->liveMessages(), static fn (array $message): bool => (int) ($message['live_id'] ?? 0) !== $liveId));
+        $this->save('live_messages', $messages);
+
+        return true;
+    }
+
+    public function creatorWalletData(int $creatorId, array $filters = []): array
     {
         $wallet = $this->walletData($creatorId);
         $minWithdrawal = (int) ($this->settings()['withdraw_min_tokens'] ?? 50);
+        $creator = $this->findCreatorBySlugOrId(null, $creatorId);
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $type = trim((string) ($filters['type'] ?? ''));
+        $transactions = array_values(array_filter($wallet['transactions'], static function (array $transaction) use ($query, $type): bool {
+            if ($type !== '' && ! str_contains((string) ($transaction['type'] ?? ''), $type)) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower((string) ($transaction['note'] ?? '') . ' ' . (string) ($transaction['type'] ?? ''));
+
+            return str_contains($haystack, $query);
+        }));
+        $subscriptionIncome = array_reduce(
+            array_filter($wallet['transactions'], static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'subscription_income'),
+            static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0),
+            0
+        );
+        $tipsIncome = array_reduce(
+            array_filter($wallet['transactions'], static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'tip_income'),
+            static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0),
+            0
+        );
+        $pendingPayouts = array_reduce(
+            array_filter($wallet['transactions'], static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'payout_request'),
+            static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0),
+            0
+        );
 
         return $wallet + [
+            'creator' => $creator,
+            'transactions_filtered' => $transactions,
             'can_withdraw' => $wallet['balance'] >= $minWithdrawal,
             'min_withdrawal' => $minWithdrawal,
+            'filters' => [
+                'q' => $query,
+                'type' => $type,
+            ],
+            'summary' => [
+                'subscription_income' => $subscriptionIncome,
+                'tips_income' => $tipsIncome,
+                'pending_payouts' => $pendingPayouts,
+                'available_brl' => round((float) $wallet['balance'] * (float) ($this->settings()['token_price_brl'] ?? 0.35), 2),
+            ],
+            'payout_profile' => [
+                'method' => (string) ($creator['payout_method'] ?? 'pix'),
+                'key' => (string) ($creator['payout_key'] ?? ''),
+            ],
         ];
     }
 
@@ -894,12 +1241,18 @@ final class PlatformRepository
             $this->livesWithCreators(),
             static fn (array $live): bool => in_array((int) $live['creator_id'], $trackedCreatorIds, true) && in_array($live['status'], ['live', 'scheduled'], true)
         ));
+        $suggestedContent = array_values(array_filter(
+            $this->contentsWithCreators(),
+            static fn (array $item): bool => (int) ($item['creator_id'] ?? 0) !== $creatorId && (string) ($item['status'] ?? '') === 'approved'
+        ));
 
         return [
             'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
             'favorite_creators' => $favoriteCreators,
             'saved_content' => $savedContent,
             'tracked_lives' => array_slice($this->sortByDate($trackedLives, 'scheduled_for'), 0, 4),
+            'suggested_creators' => array_slice(array_values(array_filter($this->creators(), static fn (array $creator): bool => (int) ($creator['id'] ?? 0) !== $creatorId)), 0, 4),
+            'suggested_content' => array_slice($this->sortByDate($suggestedContent, 'created_at'), 0, 4),
         ];
     }
 
@@ -923,6 +1276,10 @@ final class PlatformRepository
                 'withdraw_min_tokens' => (int) ($settings['withdraw_min_tokens'] ?? 50),
                 'withdraw_max_tokens' => (int) ($settings['withdraw_max_tokens'] ?? 25000),
             ],
+            'security' => [
+                'has_stream_key' => trim((string) ($creator['stream_key'] ?? '')) !== '',
+                'has_payout_key' => trim((string) ($creator['payout_key'] ?? '')) !== '',
+            ],
         ];
     }
 
@@ -940,6 +1297,15 @@ final class PlatformRepository
         $city = trim((string) ($data['city'] ?? ''));
         $mood = trim((string) ($data['mood'] ?? ''));
         $coverStyle = trim((string) ($data['cover_style'] ?? ''));
+        $slug = trim((string) ($data['slug'] ?? ''));
+        $avatarUrl = trim((string) ($data['avatar_url'] ?? ''));
+        $coverUrl = trim((string) ($data['cover_url'] ?? ''));
+        $payoutMethod = trim((string) ($data['payout_method'] ?? ''));
+        $payoutKey = trim((string) ($data['payout_key'] ?? ''));
+        $instagram = trim((string) ($data['instagram'] ?? ''));
+        $telegram = trim((string) ($data['telegram'] ?? ''));
+        $streamKey = trim((string) ($data['stream_key'] ?? ''));
+        $newPassword = (string) ($data['new_password'] ?? '');
 
         foreach ($users as &$user) {
             if ((int) $user['id'] !== $creatorId || ($user['role'] ?? null) !== 'creator') {
@@ -967,6 +1333,11 @@ final class PlatformRepository
                 $user['city'] = $city;
                 $changedUsers = true;
             }
+
+            if ($newPassword !== '' && ! password_verify($newPassword, (string) ($user['password'] ?? ''))) {
+                $user['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
+                $changedUsers = true;
+            }
         }
         unset($user);
 
@@ -986,6 +1357,49 @@ final class PlatformRepository
                 $profile['cover_style'] = $coverStyle;
                 $changedProfiles = true;
             }
+
+            if ($slug !== '') {
+                $normalizedSlug = $this->uniqueSlug($slug, $creatorId);
+                if ($normalizedSlug !== (string) ($profile['slug'] ?? '')) {
+                    $profile['slug'] = $normalizedSlug;
+                    $changedProfiles = true;
+                }
+            }
+
+            if ($avatarUrl !== '' && $avatarUrl !== (string) ($profile['avatar_url'] ?? '')) {
+                $profile['avatar_url'] = $avatarUrl;
+                $changedProfiles = true;
+            }
+
+            if ($coverUrl !== '' && $coverUrl !== (string) ($profile['cover_url'] ?? '')) {
+                $profile['cover_url'] = $coverUrl;
+                $changedProfiles = true;
+            }
+
+            if ($payoutMethod !== '' && $payoutMethod !== (string) ($profile['payout_method'] ?? '')) {
+                $profile['payout_method'] = $payoutMethod;
+                $changedProfiles = true;
+            }
+
+            if ($payoutKey !== '' && $payoutKey !== (string) ($profile['payout_key'] ?? '')) {
+                $profile['payout_key'] = $payoutKey;
+                $changedProfiles = true;
+            }
+
+            if ($instagram !== '' && $instagram !== (string) ($profile['instagram'] ?? '')) {
+                $profile['instagram'] = $instagram;
+                $changedProfiles = true;
+            }
+
+            if ($telegram !== '' && $telegram !== (string) ($profile['telegram'] ?? '')) {
+                $profile['telegram'] = $telegram;
+                $changedProfiles = true;
+            }
+
+            if ($streamKey !== '' && $streamKey !== (string) ($profile['stream_key'] ?? '')) {
+                $profile['stream_key'] = $streamKey;
+                $changedProfiles = true;
+            }
         }
         unset($profile);
 
@@ -996,12 +1410,19 @@ final class PlatformRepository
         if (! $foundProfile) {
             $profiles[] = [
                 'user_id' => $creatorId,
-                'slug' => $this->uniqueSlug($name !== '' ? $name : ((string) ($this->findUserById($creatorId)['name'] ?? 'criador'))),
+                'slug' => $this->uniqueSlug($slug !== '' ? $slug : ($name !== '' ? $name : ((string) ($this->findUserById($creatorId)['name'] ?? 'criador'))), $creatorId),
                 'mood' => $mood !== '' ? $mood : 'Lua Nova',
                 'cover_style' => $coverStyle !== '' ? $coverStyle : 'rose-dawn',
                 'featured' => false,
                 'followers' => 0,
                 'rating' => 5.0,
+                'avatar_url' => $avatarUrl,
+                'cover_url' => $coverUrl,
+                'payout_method' => $payoutMethod !== '' ? $payoutMethod : 'pix',
+                'payout_key' => $payoutKey,
+                'instagram' => $instagram,
+                'telegram' => $telegram,
+                'stream_key' => $streamKey,
             ];
             $changedProfiles = true;
         }
@@ -1017,12 +1438,21 @@ final class PlatformRepository
         return true;
     }
 
-    public function requestPayout(int $creatorId, int $tokens): array
+    public function requestPayout(int $creatorId, array $data): array
     {
+        $tokens = (int) ($data['tokens'] ?? 0);
         $minWithdrawal = (int) ($this->settings()['withdraw_min_tokens'] ?? 50);
+        $creator = $this->findCreatorBySlugOrId(null, $creatorId) ?? [];
+        $payoutMethod = trim((string) ($data['payout_method'] ?? ($creator['payout_method'] ?? 'pix')));
+        $payoutKey = trim((string) ($data['payout_key'] ?? ($creator['payout_key'] ?? '')));
+        $note = trim((string) ($data['note'] ?? ''));
 
         if ($tokens < $minWithdrawal) {
             return ['ok' => false, 'message' => 'O valor minimo para saque nao foi atingido.'];
+        }
+
+        if ($payoutKey === '') {
+            return ['ok' => false, 'message' => 'Preencha uma chave ou conta de pagamento antes de solicitar o saque.'];
         }
 
         if ($this->walletBalance($creatorId) < $tokens) {
@@ -1036,7 +1466,10 @@ final class PlatformRepository
             'type' => 'payout_request',
             'direction' => 'out',
             'amount' => $tokens,
-            'note' => 'Pedido de saque enviado pelo criador',
+            'note' => $note !== '' ? $note : 'Pedido de saque enviado pelo criador',
+            'payout_method' => $payoutMethod !== '' ? $payoutMethod : 'pix',
+            'payout_key' => $payoutKey,
+            'status' => 'pending',
             'created_at' => date('Y-m-d H:i:s'),
         ];
         $this->save('wallet_transactions', $transactions);
@@ -1517,11 +1950,17 @@ final class PlatformRepository
         }, $rows);
     }
 
-    private function uniqueSlug(string $name): string
+    private function uniqueSlug(string $name, ?int $ignoreUserId = null): string
     {
         $base = strtolower(trim(preg_replace('/[^a-z0-9]+/i', '-', iconv('UTF-8', 'ASCII//TRANSLIT', $name) ?: $name), '-'));
         $slug = $base !== '' ? $base : 'criador';
-        $existing = array_map(static fn (array $profile): string => (string) $profile['slug'], $this->creatorProfiles());
+        $existing = array_map(
+            static fn (array $profile): string => (string) $profile['slug'],
+            array_values(array_filter(
+                $this->creatorProfiles(),
+                static fn (array $profile): bool => $ignoreUserId === null || (int) ($profile['user_id'] ?? 0) !== $ignoreUserId
+            ))
+        );
         $counter = 2;
 
         while (in_array($slug, $existing, true)) {

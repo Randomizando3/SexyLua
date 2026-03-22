@@ -5,13 +5,14 @@ Aplicacao em PHP puro, JS, HTML e CSS, baseada no prototipo visual da pasta `Vis
 ## Rodar localmente
 
 1. Abra o projeto na pasta raiz.
-2. Rode:
+2. Opcional: copie `.env.example` para `.env` se quiser trocar o driver para PostgreSQL.
+3. Rode:
 
 ```powershell
 php -S 127.0.0.1:8088 -t public
 ```
 
-3. Acesse:
+4. Acesse:
 
 `http://127.0.0.1:8088`
 
@@ -27,7 +28,7 @@ php -S 127.0.0.1:8088 -t public
 - `src/`: core, controladores e repositorio
 - `templates/`: layouts e telas
 - `storage/data/`: persistencia local em JSON
-- `database/postgresql-schema.sql`: schema equivalente para futura migracao ao PostgreSQL
+- `database/postgresql-schema.sql`: schema usado pelo driver PostgreSQL
 
 ## Resetar dados demo
 
@@ -35,6 +36,25 @@ php -S 127.0.0.1:8088 -t public
 php scripts/reset_data.php
 ```
 
-## Observacao sobre banco
+## Migrar JSON para PostgreSQL
 
-O runtime atual usa JSON porque o PHP desta maquina nao possui `pdo_pgsql` ativo. O schema PostgreSQL ja foi incluido para migracao futura quando o driver estiver disponivel no servidor.
+1. Ative no `.env`:
+
+```ini
+SEXYLUA_STORAGE_DRIVER=postgresql
+SEXYLUA_PG_DSN=pgsql:host=127.0.0.1;port=5432;dbname=sexylua
+SEXYLUA_PG_USER=postgres
+SEXYLUA_PG_PASSWORD=sua_senha
+```
+
+2. Rode a migracao:
+
+```powershell
+php scripts/migrate_json_to_postgres.php
+```
+
+3. Teste o driver:
+
+```powershell
+php scripts/postgres_smoke_test.php
+```

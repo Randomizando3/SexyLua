@@ -8,15 +8,23 @@ $platform = $data['platform'] ?? [];
 $activeLive = $data['active_live'] ?? null;
 $nextLive = $data['next_live'] ?? null;
 $activeSubscribers = (int) ($data['active_subscribers'] ?? 0);
+$security = $data['security'] ?? [];
 $moods = ['Lua Nova', 'Lua Crescente', 'Lua Cheia', 'Lua Minguante', 'Aurora Rubi', 'Meia Noite', 'Eclipse Rosa'];
 $coverStyles = ['rose-dawn', 'amber-night', 'violet-haze', 'solar-flare', 'midnight-ruby', 'rose-lounge', 'noir-silk'];
+$payoutMethods = [
+    'pix' => 'PIX',
+    'bank_transfer' => 'Transferencia',
+    'paypal' => 'PayPal',
+];
+$avatarUrl = media_url((string) ($creator['avatar_url'] ?? ''));
+$coverUrl = media_url((string) ($creator['cover_url'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>SexyLua - Configurações do Criador</title>
+    <title>SexyLua - Configuracoes do Criador</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -69,11 +77,11 @@ $coverStyles = ['rose-dawn', 'amber-night', 'violet-haze', 'solar-flare', 'midni
     <nav class="flex-1 space-y-1">
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator/content">
             <span class="material-symbols-outlined">brightness_4</span>
-            <span>Meu Conteúdo</span>
+            <span>Meu Conteudo</span>
         </a>
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator">
             <span class="material-symbols-outlined">insights</span>
-            <span>Métricas Lunares</span>
+            <span>Metricas Lunares</span>
         </a>
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator/live">
             <span class="material-symbols-outlined">settings_input_antenna</span>
@@ -93,14 +101,14 @@ $coverStyles = ['rose-dawn', 'amber-night', 'violet-haze', 'solar-flare', 'midni
         </a>
         <a class="mx-2 flex items-center gap-3 rounded-full bg-pink-50 px-4 py-3 text-pink-700" href="/creator/settings">
             <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
-            <span>Configurações</span>
+            <span>Configuracoes</span>
         </a>
         <div class="px-8 pb-4 pt-8">
-            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Administração</p>
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Administracao</p>
         </div>
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/admin/users">
             <span class="material-symbols-outlined">group</span>
-            <span>Gestão de Usuários</span>
+            <span>Gestao de Usuarios</span>
         </a>
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/admin/finance">
             <span class="material-symbols-outlined">payments</span>
@@ -108,7 +116,7 @@ $coverStyles = ['rose-dawn', 'amber-night', 'violet-haze', 'solar-flare', 'midni
         </a>
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/admin/moderation">
             <span class="material-symbols-outlined">gavel</span>
-            <span>Moderação de Conteúdo</span>
+            <span>Moderacao de Conteudo</span>
         </a>
     </nav>
     <div class="mt-auto px-6 py-4">
@@ -116,7 +124,7 @@ $coverStyles = ['rose-dawn', 'amber-night', 'violet-haze', 'solar-flare', 'midni
             <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
             <div class="overflow-hidden">
                 <p class="truncate text-sm font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
-                <p class="text-xs text-pink-600">Configuração ativa</p>
+                <p class="text-xs text-pink-600">Configuracao ativa</p>
             </div>
         </div>
     </div>
@@ -127,9 +135,9 @@ $coverStyles = ['rose-dawn', 'amber-night', 'violet-haze', 'solar-flare', 'midni
         <div class="flex items-center gap-8">
             <h1 class="text-2xl font-black lg:hidden">SexyLua</h1>
             <nav class="hidden items-center gap-6 md:flex">
-                <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator">Métricas Lunares</a>
+                <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator">Metricas Lunares</a>
                 <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator/live">Configurar Live</a>
-                <a class="border-b-2 border-white py-1 text-white" href="/creator/settings">Configurações</a>
+                <a class="border-b-2 border-white py-1 text-white" href="/creator/settings">Configuracoes</a>
             </nav>
         </div>
         <div class="flex items-center gap-4">
@@ -143,39 +151,45 @@ $coverStyles = ['rose-dawn', 'amber-night', 'violet-haze', 'solar-flare', 'midni
     <div class="mx-auto max-w-7xl px-8 py-12">
         <header class="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-                <h2 class="mb-2 text-4xl font-extrabold tracking-tight">Configurações do Criador</h2>
-                <p class="text-on-surface-variant">Edite sua apresentação, ajuste o mood do perfil e mantenha o estúdio pronto para o uso diário.</p>
+                <h2 class="mb-2 text-4xl font-extrabold tracking-tight">Configuracoes do Criador</h2>
+                <p class="text-on-surface-variant">Edite sua apresentacao, dados de repasse, identidade do perfil e o acesso tecnico da sua conta.</p>
             </div>
             <div class="rounded-full bg-surface-container-lowest px-6 py-3 shadow-sm">
                 <span class="text-sm font-bold text-primary"><?= e((string) $activeSubscribers) ?> assinantes ativos</span>
             </div>
         </header>
 
-        <div class="grid grid-cols-1 gap-8 xl:grid-cols-[1.15fr_0.85fr]">
+        <div class="grid grid-cols-1 gap-8 xl:grid-cols-[1.2fr_0.8fr]">
             <section class="rounded-2xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
                 <div class="mb-8">
-                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Perfil público</p>
+                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Perfil publico</p>
                     <h3 class="mt-3 text-3xl font-extrabold">Dados principais</h3>
                 </div>
 
-                <form action="/creator/settings/update" class="space-y-6" method="post">
+                <form action="/creator/settings/update" class="space-y-8" method="post" enctype="multipart/form-data">
                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
 
                     <div class="grid gap-6 md:grid-cols-2">
                         <label class="block space-y-2">
-                            <span class="text-sm font-semibold text-on-surface-variant">Nome artístico</span>
+                            <span class="text-sm font-semibold text-on-surface-variant">Nome artistico</span>
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="name" type="text" value="<?= e((string) ($creator['name'] ?? '')) ?>">
                         </label>
+                        <label class="block space-y-2">
+                            <span class="text-sm font-semibold text-on-surface-variant">Slug publico</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="slug" type="text" value="<?= e((string) ($creator['slug'] ?? '')) ?>">
+                        </label>
+                    </div>
+
+                    <div class="grid gap-6 md:grid-cols-2">
                         <label class="block space-y-2">
                             <span class="text-sm font-semibold text-on-surface-variant">Cidade</span>
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="city" type="text" value="<?= e((string) ($creator['city'] ?? '')) ?>">
                         </label>
+                        <label class="block space-y-2">
+                            <span class="text-sm font-semibold text-on-surface-variant">Headline</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="headline" type="text" value="<?= e((string) ($creator['headline'] ?? '')) ?>">
+                        </label>
                     </div>
-
-                    <label class="block space-y-2">
-                        <span class="text-sm font-semibold text-on-surface-variant">Headline</span>
-                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="headline" type="text" value="<?= e((string) ($creator['headline'] ?? '')) ?>">
-                    </label>
 
                     <label class="block space-y-2">
                         <span class="text-sm font-semibold text-on-surface-variant">Bio</span>
@@ -201,16 +215,119 @@ $coverStyles = ['rose-dawn', 'amber-night', 'violet-haze', 'solar-flare', 'midni
                         </label>
                     </div>
 
-                    <button class="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)] transition-transform duration-200 hover:scale-[1.02]" type="submit">
+                    <div class="grid gap-6 md:grid-cols-2">
+                        <div class="space-y-4 rounded-3xl bg-surface-container-low p-5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-semibold text-on-surface-variant">Avatar atual</span>
+                                <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">Perfil</span>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <?php if ($avatarUrl !== ''): ?>
+                                    <img alt="Avatar do criador" class="h-16 w-16 rounded-full object-cover" src="<?= e($avatarUrl) ?>">
+                                <?php else: ?>
+                                    <div class="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
+                                <?php endif; ?>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
+                                    <p class="text-xs text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
+                                </div>
+                            </div>
+                            <label class="block space-y-2">
+                                <span class="text-sm font-semibold text-on-surface-variant">URL do avatar</span>
+                                <input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_url" type="text" value="<?= e((string) ($creator['avatar_url'] ?? '')) ?>">
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-sm font-semibold text-on-surface-variant">Upload de avatar</span>
+                                <input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_file" type="file" accept=".jpg,.jpeg,.png,.webp,.gif">
+                            </label>
+                        </div>
+
+                        <div class="space-y-4 rounded-3xl bg-surface-container-low p-5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-semibold text-on-surface-variant">Capa atual</span>
+                                <span class="rounded-full bg-zinc-900/5 px-3 py-1 text-xs font-bold text-zinc-700">Studio</span>
+                            </div>
+                            <?php if ($coverUrl !== ''): ?>
+                                <img alt="Capa do criador" class="h-40 w-full rounded-3xl object-cover" src="<?= e($coverUrl) ?>">
+                            <?php else: ?>
+                                <div class="flex h-40 w-full items-center justify-center rounded-3xl bg-gradient-to-br from-pink-700 via-rose-600 to-orange-400 text-lg font-bold text-white">
+                                    <?= e((string) ($creator['mood'] ?? 'Lua Nova')) ?>
+                                </div>
+                            <?php endif; ?>
+                            <label class="block space-y-2">
+                                <span class="text-sm font-semibold text-on-surface-variant">URL da capa</span>
+                                <input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_url" type="text" value="<?= e((string) ($creator['cover_url'] ?? '')) ?>">
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-sm font-semibold text-on-surface-variant">Upload da capa</span>
+                                <input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp,.gif">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-6 md:grid-cols-2">
+                        <label class="block space-y-2">
+                            <span class="text-sm font-semibold text-on-surface-variant">Instagram</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="instagram" type="text" value="<?= e((string) ($creator['instagram'] ?? '')) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-sm font-semibold text-on-surface-variant">Telegram</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="telegram" type="text" value="<?= e((string) ($creator['telegram'] ?? '')) ?>">
+                        </label>
+                    </div>
+
+                    <div class="rounded-3xl bg-surface-container-low p-6">
+                        <div class="mb-5">
+                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Financeiro</p>
+                            <h4 class="mt-2 text-2xl font-extrabold">Recebimentos</h4>
+                        </div>
+                        <div class="grid gap-6 md:grid-cols-2">
+                            <label class="block space-y-2">
+                                <span class="text-sm font-semibold text-on-surface-variant">Metodo de saque</span>
+                                <select class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="payout_method">
+                                    <?php foreach ($payoutMethods as $value => $label): ?>
+                                        <option value="<?= e($value) ?>" <?= (string) ($creator['payout_method'] ?? 'pix') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-sm font-semibold text-on-surface-variant">Chave de recebimento</span>
+                                <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="payout_key" type="text" value="<?= e((string) ($creator['payout_key'] ?? '')) ?>">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="rounded-3xl bg-surface-container-low p-6">
+                        <div class="mb-5">
+                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Seguranca</p>
+                            <h4 class="mt-2 text-2xl font-extrabold">Acesso tecnico</h4>
+                        </div>
+                        <div class="grid gap-6 md:grid-cols-2">
+                            <label class="block space-y-2 md:col-span-2">
+                                <span class="text-sm font-semibold text-on-surface-variant">Stream key</span>
+                                <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="stream_key" type="text" value="<?= e((string) ($creator['stream_key'] ?? '')) ?>">
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-sm font-semibold text-on-surface-variant">Nova senha</span>
+                                <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password" type="password">
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-sm font-semibold text-on-surface-variant">Confirmar nova senha</span>
+                                <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password_confirmation" type="password">
+                            </label>
+                        </div>
+                    </div>
+
+                    <button class="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)] transition-transform duration-200 hover:scale-[1.02]" type="submit" data-prototype-skip="1">
                         <span class="material-symbols-outlined">save</span>
-                        Salvar Configurações
+                        Salvar Configuracoes
                     </button>
                 </form>
             </section>
 
             <section class="space-y-8">
                 <div class="rounded-2xl bg-primary p-8 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)]">
-                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Resumo rápido</p>
+                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Resumo rapido</p>
                     <h3 class="mt-3 text-3xl font-extrabold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h3>
                     <p class="mt-3 text-sm leading-relaxed text-white/80"><?= e(excerpt((string) ($creator['headline'] ?? ''), 100)) ?></p>
                     <div class="mt-6 grid grid-cols-2 gap-4 text-sm">
@@ -226,18 +343,18 @@ $coverStyles = ['rose-dawn', 'amber-night', 'violet-haze', 'solar-flare', 'midni
                 </div>
 
                 <div class="rounded-2xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
-                    <h3 class="text-xl font-bold">Operação da conta</h3>
+                    <h3 class="text-xl font-bold">Operacao da conta</h3>
                     <div class="mt-5 space-y-4 text-sm">
                         <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
-                            <span class="text-on-surface-variant">Saque mínimo</span>
+                            <span class="text-on-surface-variant">Saque minimo</span>
                             <strong><?= e(token_amount((int) ($platform['withdraw_min_tokens'] ?? 50))) ?></strong>
                         </div>
                         <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
-                            <span class="text-on-surface-variant">Saque máximo</span>
+                            <span class="text-on-surface-variant">Saque maximo</span>
                             <strong><?= e(token_amount((int) ($platform['withdraw_max_tokens'] ?? 25000))) ?></strong>
                         </div>
                         <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
-                            <span class="text-on-surface-variant">Próxima live</span>
+                            <span class="text-on-surface-variant">Proxima live</span>
                             <strong><?= $nextLive ? e(format_datetime((string) ($nextLive['scheduled_for'] ?? ''), 'd/m H:i')) : 'Sem agenda' ?></strong>
                         </div>
                     </div>
@@ -257,6 +374,24 @@ $coverStyles = ['rose-dawn', 'amber-night', 'violet-haze', 'solar-flare', 'midni
                         <div class="rounded-2xl bg-surface-container-low p-4">
                             <p class="text-on-surface-variant">Mood atual</p>
                             <p class="mt-1 font-bold"><?= e((string) ($creator['mood'] ?? 'Lua Nova')) ?></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
+                    <h3 class="text-xl font-bold">Chaves salvas</h3>
+                    <div class="mt-5 space-y-4 text-sm">
+                        <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
+                            <span class="text-on-surface-variant">Stream key</span>
+                            <strong><?= !empty($security['has_stream_key']) ? 'Configurada' : 'Pendente' ?></strong>
+                        </div>
+                        <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
+                            <span class="text-on-surface-variant">Chave de saque</span>
+                            <strong><?= !empty($security['has_payout_key']) ? 'Configurada' : 'Pendente' ?></strong>
+                        </div>
+                        <div class="rounded-2xl bg-surface-container-low p-4">
+                            <p class="text-on-surface-variant">URL publica</p>
+                            <p class="mt-1 break-all font-bold">/profile?slug=<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
                         </div>
                     </div>
                 </div>

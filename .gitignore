@@ -12,3 +12,5 @@ cookies_*.txt
 Visual.zip
 storage/data/*.json
 !storage/data/.gitkeep
+public/uploads/*
+!public/uploads/.gitkeep

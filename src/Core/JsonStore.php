@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core;
 
-final class JsonStore
+final class JsonStore implements StoreInterface
 {
     public function __construct(
         private readonly string $dataDir,
@@ -56,6 +56,11 @@ final class JsonStore
         }
 
         return $max + 1;
+    }
+
+    public function driver(): string
+    {
+        return 'json';
     }
 
     private function path(string $collection): string

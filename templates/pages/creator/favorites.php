@@ -6,6 +6,8 @@ $creator = $data['creator'] ?? [];
 $favoriteCreators = $data['favorite_creators'] ?? [];
 $savedContent = $data['saved_content'] ?? [];
 $trackedLives = $data['tracked_lives'] ?? [];
+$suggestedCreators = $data['suggested_creators'] ?? [];
+$suggestedContent = $data['suggested_content'] ?? [];
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -66,11 +68,11 @@ $trackedLives = $data['tracked_lives'] ?? [];
     <nav class="flex-1 space-y-1">
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator/content">
             <span class="material-symbols-outlined">brightness_4</span>
-            <span>Meu Conteúdo</span>
+            <span>Meu Conteudo</span>
         </a>
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator">
             <span class="material-symbols-outlined">insights</span>
-            <span>Métricas Lunares</span>
+            <span>Metricas Lunares</span>
         </a>
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator/live">
             <span class="material-symbols-outlined">settings_input_antenna</span>
@@ -90,14 +92,14 @@ $trackedLives = $data['tracked_lives'] ?? [];
         </a>
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/creator/settings">
             <span class="material-symbols-outlined">settings</span>
-            <span>Configurações</span>
+            <span>Configuracoes</span>
         </a>
         <div class="px-8 pb-4 pt-8">
-            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Administração</p>
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Administracao</p>
         </div>
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/admin/users">
             <span class="material-symbols-outlined">group</span>
-            <span>Gestão de Usuários</span>
+            <span>Gestao de Usuarios</span>
         </a>
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/admin/finance">
             <span class="material-symbols-outlined">payments</span>
@@ -105,7 +107,7 @@ $trackedLives = $data['tracked_lives'] ?? [];
         </a>
         <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="/admin/moderation">
             <span class="material-symbols-outlined">gavel</span>
-            <span>Moderação de Conteúdo</span>
+            <span>Moderacao de Conteudo</span>
         </a>
     </nav>
     <div class="mt-auto px-6 py-4">
@@ -113,7 +115,7 @@ $trackedLives = $data['tracked_lives'] ?? [];
             <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
             <div class="overflow-hidden">
                 <p class="truncate text-sm font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
-                <p class="text-xs text-pink-600">Criador ativo</p>
+                <p class="text-xs text-pink-600">Radar pessoal</p>
             </div>
         </div>
     </div>
@@ -124,14 +126,14 @@ $trackedLives = $data['tracked_lives'] ?? [];
         <div class="flex items-center gap-8">
             <h1 class="text-2xl font-black lg:hidden">SexyLua</h1>
             <nav class="hidden items-center gap-6 md:flex">
-                <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator/content">Meu Conteúdo</a>
-                <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator">Métricas Lunares</a>
+                <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator/content">Meu Conteudo</a>
+                <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator">Metricas Lunares</a>
                 <a class="border-b-2 border-white py-1 text-white" href="/creator/favorites">Favoritos</a>
             </nav>
         </div>
         <div class="flex items-center gap-4">
             <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator/live">Configurar Live</a>
-            <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator/settings">Configurações</a>
+            <a class="rounded-full px-3 py-1 text-white/80 transition-colors hover:bg-white/10" href="/creator/settings">Configuracoes</a>
         </div>
     </div>
 </header>
@@ -141,7 +143,7 @@ $trackedLives = $data['tracked_lives'] ?? [];
         <header class="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
                 <h2 class="mb-2 text-4xl font-extrabold tracking-tight">Favoritos do Criador</h2>
-                <p class="text-on-surface-variant">Perfis, conteúdos e lives que você separou para acompanhar mais de perto.</p>
+                <p class="text-on-surface-variant">Perfis, conteudos e lives que voce acompanha para inspiracao, collabs e referencia diaria.</p>
             </div>
             <div class="rounded-full bg-surface-container-lowest px-6 py-3 shadow-sm">
                 <span class="text-sm font-bold text-primary"><?= count($favoriteCreators) ?> perfis acompanhados</span>
@@ -155,7 +157,7 @@ $trackedLives = $data['tracked_lives'] ?? [];
             </div>
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
                 <?php foreach ($favoriteCreators as $favoriteCreator): ?>
-                    <a class="group overflow-hidden rounded-2xl bg-surface-container-lowest p-5 shadow-[0px_20px_40px_rgba(27,28,29,0.05)] transition-transform hover:-translate-y-1" href="<?= e('/profile?id=' . (int) $favoriteCreator['id']) ?>">
+                    <div class="group overflow-hidden rounded-2xl bg-surface-container-lowest p-5 shadow-[0px_20px_40px_rgba(27,28,29,0.05)] transition-transform hover:-translate-y-1">
                         <div class="mb-4 flex items-center gap-4">
                             <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) $favoriteCreator['name'])) ?></div>
                             <div class="min-w-0">
@@ -164,38 +166,92 @@ $trackedLives = $data['tracked_lives'] ?? [];
                             </div>
                         </div>
                         <p class="mb-4 text-sm leading-relaxed text-on-surface-variant"><?= e(excerpt((string) ($favoriteCreator['headline'] ?? ''), 90)) ?></p>
-                        <div class="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                            <span><?= e((string) number_format((float) ($favoriteCreator['followers'] ?? 0), 0, ',', '.')) ?> fãs</span>
+                        <div class="mb-4 flex items-center justify-between text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+                            <span><?= e((string) number_format((float) ($favoriteCreator['followers'] ?? 0), 0, ',', '.')) ?> fas</span>
                             <span><?= e((string) ($favoriteCreator['subscriber_count'] ?? 0)) ?> assinantes</span>
                         </div>
-                    </a>
+                        <div class="flex items-center gap-3">
+                            <a class="flex-1 rounded-full bg-surface-container-low px-4 py-3 text-center text-sm font-bold text-on-surface transition-colors hover:bg-surface-container" href="<?= e('/profile?id=' . (int) $favoriteCreator['id']) ?>">Abrir perfil</a>
+                            <form action="/creator/favorites/toggle" method="post" class="flex-1" data-prototype-skip="1">
+                                <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                <input name="creator_id" type="hidden" value="<?= e((string) ($favoriteCreator['id'] ?? 0)) ?>">
+                                <input name="redirect" type="hidden" value="/creator/favorites">
+                                <button class="w-full rounded-full bg-primary px-4 py-3 text-sm font-bold text-white" type="submit">Remover</button>
+                            </form>
+                        </div>
+                    </div>
                 <?php endforeach; ?>
             </div>
+            <?php if ($favoriteCreators === []): ?>
+                <div class="mt-6 rounded-3xl bg-surface-container-low p-6 text-sm text-on-surface-variant">Nenhum criador salvo ainda. Use as sugestoes abaixo para montar seu radar.</div>
+            <?php endif; ?>
         </section>
 
         <div class="grid grid-cols-1 gap-8 xl:grid-cols-[1.2fr_0.8fr]">
-            <section class="rounded-2xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
-                <div class="mb-6 flex items-center justify-between">
-                    <h3 class="text-2xl font-bold">Conteúdos guardados</h3>
-                    <span class="text-sm font-bold text-primary"><?= count($savedContent) ?> itens</span>
-                </div>
-                <div class="space-y-4">
-                    <?php foreach ($savedContent as $item): ?>
-                        <a class="flex items-start gap-4 rounded-2xl bg-surface-container-low p-4 transition-colors hover:bg-surface-container" href="<?= e('/profile?id=' . (int) ($item['creator']['id'] ?? $item['creator_id'])) ?>">
-                            <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-secondary-container/20 text-[#ab2c5d]">
-                                <span class="material-symbols-outlined"><?= e($item['kind'] === 'video' ? 'play_circle' : ($item['kind'] === 'audio' ? 'headphones' : 'photo_library')) ?></span>
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-base font-bold"><?= e((string) $item['title']) ?></p>
-                                <p class="mt-1 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 110)) ?></p>
-                                <div class="mt-3 flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                                    <span><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></span>
-                                    <span><?= e(format_datetime((string) ($item['created_at'] ?? ''), 'd/m')) ?></span>
-                                    <span><?= e((string) ($item['saved_count'] ?? 0)) ?> saves</span>
+            <section class="space-y-8">
+                <div class="rounded-2xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
+                    <div class="mb-6 flex items-center justify-between">
+                        <h3 class="text-2xl font-bold">Conteudos guardados</h3>
+                        <span class="text-sm font-bold text-primary"><?= count($savedContent) ?> itens</span>
+                    </div>
+                    <div class="space-y-4">
+                        <?php foreach ($savedContent as $item): ?>
+                            <div class="flex items-start gap-4 rounded-2xl bg-surface-container-low p-4">
+                                <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-secondary-container/20 text-[#ab2c5d]">
+                                    <span class="material-symbols-outlined"><?= e($item['kind'] === 'video' ? 'play_circle' : ($item['kind'] === 'audio' ? 'headphones' : 'photo_library')) ?></span>
                                 </div>
+                                <div class="min-w-0 flex-1">
+                                    <a class="truncate text-base font-bold hover:text-primary" href="<?= e('/profile?id=' . (int) ($item['creator']['id'] ?? $item['creator_id'])) ?>"><?= e((string) $item['title']) ?></a>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 110)) ?></p>
+                                    <div class="mt-3 flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+                                        <span><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></span>
+                                        <span><?= e(format_datetime((string) ($item['created_at'] ?? ''), 'd/m')) ?></span>
+                                        <span><?= e((string) ($item['saved_count'] ?? 0)) ?> saves</span>
+                                    </div>
+                                </div>
+                                <form action="/creator/saved/toggle" method="post" class="w-full max-w-[120px]" data-prototype-skip="1">
+                                    <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                    <input name="content_id" type="hidden" value="<?= e((string) ($item['id'] ?? 0)) ?>">
+                                    <input name="redirect" type="hidden" value="/creator/favorites">
+                                    <button class="w-full rounded-full bg-white px-4 py-3 text-sm font-bold text-primary shadow-sm" type="submit">Remover</button>
+                                </form>
                             </div>
-                        </a>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php if ($savedContent === []): ?>
+                        <div class="mt-6 rounded-3xl bg-surface-container-low p-6 text-sm text-on-surface-variant">Nenhum conteudo salvo ainda. Use as sugestoes para testar o fluxo.</div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="rounded-2xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
+                    <div class="mb-6 flex items-center justify-between">
+                        <h3 class="text-2xl font-bold">Conteudos sugeridos</h3>
+                        <span class="text-sm font-bold text-primary"><?= count($suggestedContent) ?> recomendacoes</span>
+                    </div>
+                    <div class="space-y-4">
+                        <?php foreach ($suggestedContent as $item): ?>
+                            <div class="flex items-start gap-4 rounded-2xl bg-surface-container-low p-4">
+                                <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                    <span class="material-symbols-outlined"><?= e($item['kind'] === 'video' ? 'smart_display' : ($item['kind'] === 'audio' ? 'graphic_eq' : 'collections')) ?></span>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <a class="truncate text-base font-bold hover:text-primary" href="<?= e('/profile?id=' . (int) ($item['creator']['id'] ?? $item['creator_id'])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 110)) ?></p>
+                                    <div class="mt-3 flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+                                        <span><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></span>
+                                        <span><?= e((string) ($item['kind'] ?? 'post')) ?></span>
+                                        <span><?= e((string) ($item['saved_count'] ?? 0)) ?> saves</span>
+                                    </div>
+                                </div>
+                                <form action="/creator/saved/toggle" method="post" class="w-full max-w-[120px]" data-prototype-skip="1">
+                                    <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                    <input name="content_id" type="hidden" value="<?= e((string) ($item['id'] ?? 0)) ?>">
+                                    <input name="redirect" type="hidden" value="/creator/favorites">
+                                    <button class="w-full rounded-full bg-primary px-4 py-3 text-sm font-bold text-white" type="submit">Salvar</button>
+                                </form>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </section>
 
@@ -203,7 +259,7 @@ $trackedLives = $data['tracked_lives'] ?? [];
                 <div class="rounded-2xl bg-primary p-8 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)]">
                     <p class="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Radar de Lives</p>
                     <h3 class="mt-3 text-3xl font-extrabold">Perfis em movimento</h3>
-                    <p class="mt-3 text-sm leading-relaxed text-white/80">Use essa lista como atalho rápido para entrar em lives agendadas ou em andamento dos perfis que você mais acompanha.</p>
+                    <p class="mt-3 text-sm leading-relaxed text-white/80">Use essa lista como atalho rapido para entrar em lives agendadas ou em andamento dos perfis que voce acompanha.</p>
                 </div>
 
                 <div class="rounded-2xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
@@ -221,6 +277,36 @@ $trackedLives = $data['tracked_lives'] ?? [];
                                 <p class="text-sm text-on-surface-variant"><?= e((string) ($live['creator']['name'] ?? 'Criador')) ?> • <?= e((string) ($live['viewer_count'] ?? 0)) ?> viewers</p>
                                 <p class="mt-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant"><?= e(format_datetime((string) ($live['scheduled_for'] ?? ''), 'd/m H:i')) ?></p>
                             </a>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php if ($trackedLives === []): ?>
+                        <div class="mt-4 rounded-3xl bg-surface-container-low p-4 text-sm text-on-surface-variant">Nenhuma live rastreada no momento.</div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="rounded-2xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
+                    <div class="mb-5 flex items-center justify-between">
+                        <h3 class="text-xl font-bold">Criadores sugeridos</h3>
+                        <span class="text-sm font-bold text-primary"><?= count($suggestedCreators) ?> perfis</span>
+                    </div>
+                    <div class="space-y-4">
+                        <?php foreach ($suggestedCreators as $suggestedCreator): ?>
+                            <div class="rounded-2xl bg-surface-container-low p-4">
+                                <div class="flex items-center gap-4">
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($suggestedCreator['name'] ?? 'Criador'))) ?></div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="truncate font-bold"><?= e((string) ($suggestedCreator['name'] ?? 'Criador')) ?></p>
+                                        <p class="truncate text-sm text-on-surface-variant">@<?= e((string) ($suggestedCreator['slug'] ?? 'criador')) ?></p>
+                                    </div>
+                                </div>
+                                <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($suggestedCreator['headline'] ?? ''), 80)) ?></p>
+                                <form action="/creator/favorites/toggle" method="post" class="mt-4" data-prototype-skip="1">
+                                    <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                    <input name="creator_id" type="hidden" value="<?= e((string) ($suggestedCreator['id'] ?? 0)) ?>">
+                                    <input name="redirect" type="hidden" value="/creator/favorites">
+                                    <button class="w-full rounded-full bg-primary px-4 py-3 text-sm font-bold text-white" type="submit">Salvar no radar</button>
+                                </form>
+                            </div>
                         <?php endforeach; ?>
                     </div>
                 </div>

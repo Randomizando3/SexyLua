@@ -11,6 +11,7 @@ final class Request
         private readonly string $path,
         private readonly array $query,
         private readonly array $input,
+        private readonly array $files,
         private readonly array $server,
     ) {
     }
@@ -24,6 +25,7 @@ final class Request
             self::normalizePath($uri ?: '/'),
             $_GET,
             $_POST,
+            $_FILES,
             $_SERVER,
         );
     }
@@ -63,6 +65,24 @@ final class Request
     public function all(): array
     {
         return $this->input;
+    }
+
+    public function file(string $key): ?array
+    {
+        $file = $this->files[$key] ?? null;
+
+        return is_array($file) ? $file : null;
+    }
+
+    public function hasFile(string $key): bool
+    {
+        $file = $this->file($key);
+
+        return is_array($file)
+            && isset($file['error'], $file['tmp_name'])
+            && (int) $file['error'] === UPLOAD_ERR_OK
+            && is_string($file['tmp_name'])
+            && $file['tmp_name'] !== '';
     }
 
     public function queryParams(): array

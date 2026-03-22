@@ -18,9 +18,9 @@ final class View
         $this->shared = array_merge($this->shared, $data);
     }
 
-    public function render(string $template, array $data = [], ?string $layout = 'layouts/marketing'): void
+    public function render(string $template, array $context = [], ?string $layout = 'layouts/marketing'): void
     {
-        $payload = array_merge($this->shared, $data);
+        $payload = array_merge($this->shared, $context);
         $templatePath = $this->resolve($template);
 
         extract($payload, EXTR_SKIP);

@@ -10,7 +10,7 @@ final class App
 {
     public function __construct(
         public readonly array $config,
-        public readonly JsonStore $store,
+        public readonly StoreInterface $store,
         public readonly PlatformRepository $repository,
         public readonly View $view,
         public readonly Auth $auth,
