@@ -9,11 +9,8 @@ $creatorTopbarAction = is_array($creatorTopbarAction ?? null) ? $creatorTopbarAc
 ?>
 <header class="fixed top-0 z-[60] flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 font-['Plus_Jakarta_Sans'] font-bold tracking-wide text-white shadow-lg shadow-[#D81B60]/20 lg:pl-[17.5rem]">
     <div class="flex items-center gap-4">
-        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#D81B60] shadow-sm">
-            <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">bedtime</span>
-        </div>
         <div>
-            <h1 class="text-2xl font-black">SexyLua</h1>
+            <a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
             <p class="hidden text-[10px] uppercase tracking-[0.3em] text-white/75 lg:block"><?= e($creatorTopbarLabel) ?></p>
         </div>
     </div>

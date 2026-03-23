@@ -93,7 +93,7 @@
 <!-- TopNavBar -->
 <nav class="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-20 bg-[#D81B60] shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
 <div class="flex items-center gap-12">
-<span class="text-2xl font-black text-white italic tracking-tighter">SexyLua</span>
+<a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
 <div class="hidden md:flex gap-8">
 <a class="text-white border-b-2 border-white pb-1 font-['Plus_Jakarta_Sans'] tracking-wide uppercase text-sm font-bold" href="#">Live Cam</a>
 <a class="text-white/80 hover:text-white transition-colors font-['Plus_Jakarta_Sans'] tracking-wide uppercase text-sm font-bold" href="#">Explorar</a>
@@ -383,7 +383,7 @@
 </main>
 <!-- Footer -->
 <footer class="w-full flex flex-col items-center gap-6 px-10 bg-[#D81B60] py-12 relative z-20">
-<span class="text-lg font-bold text-white">SexyLua</span>
+<?= brand_logo_white('h-8 w-auto') ?>
 <div class="flex gap-8">
 <a class="text-white/70 hover:text-white underline-offset-4 hover:underline font-['Manrope'] text-xs tracking-widest uppercase transition-all duration-300" href="/terms">Termos</a>
 <a class="text-white/70 hover:text-white underline-offset-4 hover:underline font-['Manrope'] text-xs tracking-widest uppercase transition-all duration-300" href="/privacy">Privacidade</a>

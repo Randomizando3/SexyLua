@@ -69,7 +69,7 @@
 <body class="font-body text-on-surface antialiased">
     <nav class="fixed top-0 z-50 flex h-20 w-full items-center justify-between bg-[#D81B60] px-8 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
         <div class="flex items-center gap-12">
-            <a class="text-2xl font-black italic tracking-tighter text-white" href="/">SexyLua</a>
+            <a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
             <div class="hidden items-center gap-8 md:flex">
                 <a class="font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/">Live Cam</a>
                 <a class="font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/explore">Explorar</a>
@@ -169,7 +169,7 @@
 
     <footer class="flex w-full flex-col items-center gap-6 bg-[#D81B60] px-10 py-12">
         <div class="flex flex-col items-center gap-4">
-            <span class="text-lg font-bold text-white">SexyLua</span>
+            <?= brand_logo_white('h-8 w-auto') ?>
             <div class="flex gap-8">
                 <a class="font-['Manrope'] text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/">Inicio</a>
                 <a class="font-['Manrope'] text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/explore">Explorar</a>

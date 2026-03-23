@@ -115,7 +115,7 @@
 <body class="bg-surface font-body text-on-surface lunar-pattern">
 <!-- TopNavBar -->
 <nav class="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-20 bg-[#D81B60] shadow-[0px_10px_30px_rgba(216,27,96,0.15)]">
-<div class="text-2xl font-black text-white italic tracking-tighter">SexyLua</div>
+<a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
 <div class="hidden md:flex items-center gap-8 font-['Plus_Jakarta_Sans'] tracking-wide uppercase text-sm font-bold">
 <a class="text-white/80 hover:text-white transition-colors hover:scale-105 duration-200" href="#">Live Cam</a>
 <a class="text-white border-b-2 border-white pb-1 hover:scale-105 duration-200" href="#">Explorar</a>
@@ -387,7 +387,7 @@
 </main>
 <!-- Footer -->
 <footer class="w-full flex flex-col items-center gap-6 px-10 bg-[#D81B60] py-16">
-<div class="text-3xl font-black text-white italic tracking-tighter">SexyLua</div>
+<?= brand_logo_white('h-9 w-auto') ?>
 <div class="flex flex-wrap justify-center gap-10 font-['Manrope'] text-xs tracking-widest uppercase text-white/70">
 <a class="hover:text-white underline-offset-8 hover:underline transition-all duration-300" href="/terms">Termos</a>
 <a class="hover:text-white underline-offset-8 hover:underline transition-all duration-300" href="/privacy">Privacidade</a>

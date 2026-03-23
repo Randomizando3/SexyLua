@@ -22,6 +22,11 @@ function e(?string $value): string
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
+function brand_logo_white(string $classes = 'h-8 w-auto', string $alt = 'SexyLua'): string
+{
+    return '<img alt="' . e($alt) . '" class="' . e($classes) . '" decoding="async" loading="eager" src="' . e(asset('img/sexylualogobranco.png')) . '">';
+}
+
 function redirect_to(string $path): never
 {
     header('Location: ' . $path);

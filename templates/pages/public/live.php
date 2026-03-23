@@ -62,7 +62,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
 <body class="antialiased">
 <nav class="fixed top-0 z-50 flex h-20 w-full items-center justify-between bg-[#D81B60] px-8 text-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
     <div class="flex items-center gap-12">
-        <a class="text-2xl font-black italic tracking-tighter" href="/">SexyLua</a>
+        <a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
         <div class="hidden items-center gap-8 md:flex">
             <a class="border-b-2 border-white pb-1 text-sm font-bold uppercase tracking-wide" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">Live Cam</a>
             <a class="text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/explore">Explorar</a>

@@ -64,7 +64,7 @@ $summary = $data['summary'] ?? [];
 <body class="min-h-screen">
 <header class="fixed top-0 z-50 flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 font-['Plus_Jakarta_Sans'] font-bold tracking-wide text-white shadow-lg shadow-[#D81B60]/20">
     <div class="flex items-center gap-4">
-        <h1 class="text-2xl font-black">SexyLua</h1>
+        <?= brand_logo_white('h-8 w-auto') ?>
         <span class="hidden border-l border-white/20 pl-4 text-xs uppercase tracking-widest opacity-80 md:block">Subscriber Club</span>
     </div>
     <div class="flex items-center gap-3">
