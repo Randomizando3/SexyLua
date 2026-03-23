@@ -23,16 +23,8 @@ $creatorAdminItems = [
 ];
 ?>
 <aside class="fixed left-0 top-0 z-50 hidden h-full w-64 flex-col rounded-r-[3rem] bg-zinc-50 px-4 pb-6 pt-24 font-['Plus_Jakarta_Sans'] font-medium shadow-xl lg:flex">
-    <div class="mb-8 px-4">
-        <div class="flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-[#D81B60] text-white shadow-lg shadow-[#D81B60]/20">
-                <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">bedtime</span>
-            </div>
-            <div>
-                <h1 class="text-2xl font-bold tracking-tighter text-pink-700">SexyLua</h1>
-                <p class="mt-1 text-xs uppercase tracking-widest text-zinc-500">Hub Celestial</p>
-            </div>
-        </div>
+    <div class="mb-10 px-6">
+        <a class="block" href="/"><?= brand_logo_magenta('h-10 w-auto') ?></a>
     </div>
 
     <nav class="flex-1 space-y-1">

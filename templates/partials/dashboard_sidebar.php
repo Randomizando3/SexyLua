@@ -26,7 +26,7 @@ $menu = match ($role) {
 ?>
 <aside class="dashboard-sidebar">
     <div class="sidebar-brand">
-        <a href="/" class="brand-mark">SexyLua</a>
+        <a href="/" class="brand-mark"><?= brand_logo_magenta('h-9 w-auto') ?></a>
         <p><?= e(ucfirst($role)) ?></p>
     </div>
     <nav class="sidebar-nav">

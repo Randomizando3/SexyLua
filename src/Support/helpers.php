@@ -27,6 +27,11 @@ function brand_logo_white(string $classes = 'h-8 w-auto', string $alt = 'SexyLua
     return '<img alt="' . e($alt) . '" class="' . e($classes) . '" decoding="async" loading="eager" src="' . e(asset('img/sexylualogobranco.png')) . '">';
 }
 
+function brand_logo_magenta(string $classes = 'h-8 w-auto', string $alt = 'SexyLua'): string
+{
+    return '<img alt="' . e($alt) . '" class="' . e($classes) . '" decoding="async" loading="eager" src="' . e(asset('img/sexylualogomagenta.png')) . '">';
+}
+
 function redirect_to(string $path): never
 {
     header('Location: ' . $path);

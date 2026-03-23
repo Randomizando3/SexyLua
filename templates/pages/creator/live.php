@@ -34,10 +34,12 @@ $iceTransportPolicy = (string) ($app->config['app']['rtc_ice_transport_policy'] 
     <title>SexyLua - Live Studio</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <style>
         body { font-family: Manrope, sans-serif; background: #fbf9fb; color: #1b1c1d; }
         .headline { font-family: "Plus Jakarta Sans", sans-serif; }
         .signature-glow { background: linear-gradient(135deg, #D81B60 0%, #ab1155 100%); }
+        .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; }
     </style>
 </head>
 <body>

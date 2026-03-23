@@ -360,7 +360,7 @@
             const card = creatorCards[index]
 
             setText(q('h4', card), creator.name)
-            setText(q('p', card), `${compact(creator.followers || creator.subscriber_count || 0)} fãs`)
+            setText(q('p', card), `${compact(creator.followers || creator.subscriber_count || 0)} f�s`)
             setRoute(card, profileUrl(creator.id))
         }
     }
@@ -373,7 +373,7 @@
 
         if (primaryLive) {
             setText(q('main section.mb-16 h1'), `${primaryLive.creator && primaryLive.creator.name ? primaryLive.creator.name : 'Live'} em destaque.`)
-            setText(q('main section.mb-16 p.text-lg'), primaryLive.description || (primaryLive.creator && primaryLive.creator.headline) || 'Nova sessão demo conectada ao backend.')
+            setText(q('main section.mb-16 p.text-lg'), primaryLive.description || (primaryLive.creator && primaryLive.creator.headline) || 'Nova sess�o demo conectada ao backend.')
             setText(q('main section.mb-16 .flex.items-center.gap-2.mb-4 span:last-child'), `${compact(primaryLive.viewer_count)} assistindo agora`)
             setRoute(q('main section.mb-16 button'), liveUrl(primaryLive.id))
         }
@@ -394,7 +394,7 @@
             const card = creatorCards[index]
 
             setText(q('h3', card), creator.name)
-            setText(q('p', card), creator.headline || `${compact(creator.followers || 0)} fãs`)
+            setText(q('p', card), creator.headline || `${compact(creator.followers || 0)} f�s`)
             setInlineLabel(q('.absolute.top-4.left-4 span', card), phaseLabel(creator.mood))
             setRoute(card, profileUrl(creator.id))
         }
@@ -477,7 +477,7 @@
 
         const supporterCards = qa('.px-4.py-3.bg-surface-container.border-b .flex.gap-5.px-1 > div')
         for (let index = 0; index < count(supporterCards, supporters); index += 1) {
-            setText(q('span.text-\\[10px\\]', supporterCards[index]), supporters[index].user && supporters[index].user.name ? supporters[index].user.name : 'Fã')
+            setText(q('span.text-\\[10px\\]', supporterCards[index]), supporters[index].user && supporters[index].user.name ? supporters[index].user.name : 'F�')
         }
 
         const tipRows = qa('.px-4.py-3.bg-surface-container.border-b .flex.flex-col.gap-1\\.5 > div')
@@ -510,7 +510,7 @@
             const buttons = qa('button', card)
 
             setText(q('h4', card), item.creator && item.creator.name ? item.creator.name : 'Criador')
-            setText(q('p.text-white\\/70.text-sm', card), `Próxima renovação: ${shortDate(item.renews_at)}`)
+            setText(q('p.text-white\\/70.text-sm', card), `Pr�xima renova��o: ${shortDate(item.renews_at)}`)
             setRoute(card, profileUrl(item.creator.id))
             if (buttons[0]) {
                 setRoute(buttons[0], profileUrl(item.creator.id))
@@ -617,7 +617,7 @@
 
         const historyRows = qa('section:last-of-type .space-y-4 > div')
         for (let index = 0; index < count(historyRows, data.transactions || []); index += 1) {
-            setText(q('p.font-bold', historyRows[index]), data.transactions[index].note || data.transactions[index].type || 'Movimentação')
+            setText(q('p.font-bold', historyRows[index]), data.transactions[index].note || data.transactions[index].type || 'Movimenta��o')
             setText(q('p.text-xs', historyRows[index]), fullDateTime(data.transactions[index].created_at))
             setText(q('p.font-black', historyRows[index]), `${data.transactions[index].direction === 'in' ? '+' : '-'}${integer(data.transactions[index].amount || 0)}`)
         }
@@ -708,7 +708,7 @@
         setValue(q('input[type="number"][placeholder="0"]'), active.price_tokens || 0)
         setText(q('div.flex.items-center.gap-3 p.font-bold.text-white.shadow-sm'), handleOf(active.creator || { name: config.currentUserName }))
         setText(q('div.flex.items-center.gap-3 p.text-xs.text-white\\/70'), `${compact((active.creator && active.creator.followers) || 0)} Seguidores`)
-        setText(q('div.p-4.bg-white\\/10.backdrop-blur-xl.rounded-2xl.text-white\\/90.text-sm.border p.font-medium.italic'), `"${active.description || 'Sessão configurada e pronta para entrar no ar.'}"`)
+        setText(q('div.p-4.bg-white\\/10.backdrop-blur-xl.rounded-2xl.text-white\\/90.text-sm.border p.font-medium.italic'), `"${active.description || 'Sess�o configurada e pronta para entrar no ar.'}"`)
     }
 
     const patchCreatorWallet = () => {
@@ -723,7 +723,7 @@
 
         const rows = qa('div.p-10.rounded-xl.bg-surface-container-low .space-y-6 > div.group.cursor-pointer')
         for (let index = 0; index < count(rows, transactions); index += 1) {
-            setText(q('p.text-sm.font-bold.text-on-surface', rows[index]), transactions[index].note || transactions[index].type || 'Movimentação')
+            setText(q('p.text-sm.font-bold.text-on-surface', rows[index]), transactions[index].note || transactions[index].type || 'Movimenta��o')
             setText(q('p.text-\\[11px\\].text-slate-500', rows[index]), fullDateTime(transactions[index].created_at))
             setText(q('p.text-sm.font-bold', rows[index]), `${transactions[index].direction === 'in' ? '+' : '-'} ${money((transactions[index].amount || 0) * tokenPrice)}`)
         }
@@ -752,7 +752,7 @@
         }
 
         const activities = [
-            pending[0] ? { title: `Pendência de moderação - ${pending[0].title}`, meta: `${pending[0].creator && pending[0].creator.name ? pending[0].creator.name : 'Criador'} • ${relativeLabel(pending[0].created_at)}` } : null,
+            pending[0] ? { title: `Pend�ncia de modera��o - ${pending[0].title}`, meta: `${pending[0].creator && pending[0].creator.name ? pending[0].creator.name : 'Criador'} � ${relativeLabel(pending[0].created_at)}` } : null,
             recentUsers[0] ? { title: `Novo cadastro - ${recentUsers[0].name}`, meta: `${recentUsers[0].role} • ${relativeLabel(recentUsers[0].created_at)}` } : null,
             liveNow[0] ? { title: `Live em andamento - ${liveNow[0].title}`, meta: `${liveNow[0].creator && liveNow[0].creator.name ? liveNow[0].creator.name : 'Criador'} • ${compact(liveNow[0].viewer_count)} viewers` } : null,
         ].filter(Boolean)
@@ -800,14 +800,14 @@
         for (let index = 0; index < 3 && index < pending.length; index += 1) {
             setText(q('p.text-sm.font-bold', cards[index]), `@${slugify(pending[index].creator && pending[index].creator.name ? pending[index].creator.name : 'criador')}`)
             setText(q('p.text-xs.text-on-surface-variant', cards[index]), `Postado ${relativeLabel(pending[index].created_at)}`)
-            setText(q('p.text-on-surface.font-medium.leading-relaxed', cards[index]), pending[index].excerpt || pending[index].body || 'Conteúdo aguardando revisão.')
-            setText(q('.absolute.top-4.left-4 span', cards[index]), pending[index].visibility === 'premium' ? 'Premium' : pending[index].kind === 'video' ? 'Vídeo' : 'Em revisão')
+            setText(q('p.text-on-surface.font-medium.leading-relaxed', cards[index]), pending[index].excerpt || pending[index].body || 'Conte�do aguardando revis�o.')
+            setText(q('.absolute.top-4.left-4 span', cards[index]), pending[index].visibility === 'premium' ? 'Premium' : pending[index].kind === 'video' ? 'V�deo' : 'Em revis�o')
         }
 
         if (pending[3] && cards[3]) {
             setText(q('p.text-lg.font-bold', cards[3]), `@${slugify(pending[3].creator && pending[3].creator.name ? pending[3].creator.name : 'criador')}`)
             setText(q('p.text-sm.text-on-surface-variant', cards[3]), `Postado ${relativeLabel(pending[3].created_at)}`)
-            setText(q('p.text-on-surface.font-medium.leading-relaxed.text-lg', cards[3]), pending[3].body || pending[3].excerpt || 'Conteúdo pendente aguardando decisão administrativa.')
+            setText(q('p.text-on-surface.font-medium.leading-relaxed.text-lg', cards[3]), pending[3].body || pending[3].excerpt || 'Conte�do pendente aguardando decis�o administrativa.')
             setText(q('.absolute.top-4.left-4 span', cards[3]), pending[3].kind === 'live_teaser' ? 'Teaser em análise' : 'Fila prioritária')
         }
 

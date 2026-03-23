@@ -104,7 +104,7 @@ final class Auth
         }
 
         if (! $this->hasRole($roles)) {
-            $this->flash->add('error', 'Seu perfil não tem permissão para esta área.');
+            $this->flash->add('error', 'Seu perfil n�o tem permiss�o para esta �rea.');
             redirect_to($this->homeForRole($this->user()['role'] ?? 'subscriber'));
         }
     }

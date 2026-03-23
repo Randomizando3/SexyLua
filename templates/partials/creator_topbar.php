@@ -3,16 +3,12 @@
 declare(strict_types=1);
 
 $creatorShellCreator = $creatorShellCreator ?? ($creator ?? []);
-$creatorTopbarLabel = (string) ($creatorTopbarLabel ?? 'Creator Studio');
 $creatorTopbarSearch = (string) ($creatorTopbarSearch ?? '');
 $creatorTopbarAction = is_array($creatorTopbarAction ?? null) ? $creatorTopbarAction : null;
 ?>
-<header class="fixed top-0 z-[60] flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 font-['Plus_Jakarta_Sans'] font-bold tracking-wide text-white shadow-lg shadow-[#D81B60]/20 lg:pl-[17.5rem]">
-    <div class="flex items-center gap-4">
-        <div>
-            <a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
-            <p class="hidden text-[10px] uppercase tracking-[0.3em] text-white/75 lg:block"><?= e($creatorTopbarLabel) ?></p>
-        </div>
+<header class="fixed top-0 z-[60] flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 font-['Plus_Jakarta_Sans'] font-bold tracking-wide text-white shadow-lg shadow-[#D81B60]/20 lg:pl-[18.75rem] lg:pr-8">
+    <div class="flex items-center lg:pl-1">
+        <a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
     </div>
 
     <?php if ($creatorTopbarSearch !== ''): ?>

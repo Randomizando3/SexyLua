@@ -117,7 +117,7 @@
 <section class="relative px-8 pt-20 pb-16 flex flex-col items-center text-center max-w-5xl mx-auto z-10">
 <div class="mb-6 inline-flex items-center gap-2 bg-primary-container/10 px-4 py-1.5 rounded-full">
 <span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
-<span class="text-primary font-label font-bold text-xs uppercase tracking-widest">A Revolução Lunar</span>
+<span class="text-primary font-label font-bold text-xs uppercase tracking-widest">A Revolu��o Lunar</span>
 </div>
 <h1 class="font-headline text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface leading-tight mb-8">
                 Explore a Sua Sensualidade<br/>sob a Luz da SexyLua
@@ -127,7 +127,7 @@
             </p>
 <div class="flex flex-wrap justify-center gap-6">
 <button class="bg-primary text-on-primary px-10 py-5 rounded-full font-headline font-bold text-lg shadow-lg hover:bg-primary-container hover:scale-105 transition-all duration-300">
-                    Começar Exploração
+                    Come�ar Explora��o
                 </button>
 <button class="bg-surface-container-highest text-on-surface px-10 py-5 rounded-full font-headline font-bold text-lg hover:scale-105 transition-all duration-300">
                     Ver Planos
@@ -351,7 +351,7 @@
 <div class="bg-primary p-12 rounded-lg flex flex-col justify-between text-on-primary">
 <span class="material-symbols-outlined text-5xl" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
 <div>
-<h3 class="font-headline text-2xl font-bold mb-4">Prazer em Alta Definição</h3>
+<h3 class="font-headline text-2xl font-bold mb-4">Prazer em Alta Defini��o</h3>
 <p class="text-on-primary/80 mb-6">Chat 4K, câmeras interativas e conexões reais que transcendem a órbita digital.</p>
 <div class="flex -space-x-3">
 <div class="w-10 h-10 rounded-full border-2 border-primary bg-surface-container-highest overflow-hidden">

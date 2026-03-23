@@ -1,7 +1,7 @@
 <?php $currentUser = $app->auth->user(); ?>
 <header class="marketing-header">
     <div class="brand-block">
-        <a href="/" class="brand-mark">SexyLua</a>
+        <a href="/" class="brand-mark"><?= brand_logo_magenta('h-9 w-auto') ?></a>
         <button class="nav-toggle" type="button" data-toggle-nav>Menu</button>
     </div>
     <nav class="marketing-nav" data-nav-menu>

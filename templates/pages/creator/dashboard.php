@@ -104,12 +104,12 @@ include base_path('templates/partials/creator_topbar.php');
 <!-- Header Section -->
 <header class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
 <div>
-<h2 class="text-4xl font-extrabold text-on-background tracking-tight mb-2">OlÃ¡, Ana Silva ðŸ‘‹</h2>
-<p class="text-on-surface-variant font-medium">Sua influÃªncia celestial estÃ¡ crescendo. Veja o que mudou hoje.</p>
+<h2 class="text-4xl font-extrabold text-on-background tracking-tight mb-2">Olá, Ana Silva 👋</h2>
+<p class="text-on-surface-variant font-medium">Sua influência celestial está crescendo. Veja o que mudou hoje.</p>
 </div>
 <div class="flex items-center gap-3">
 <button class="bg-surface-container-highest px-6 py-3 rounded-full font-bold text-sm hover:scale-105 transition-transform active:opacity-80">
-                        Baixar RelatÃ³rio
+                        Baixar Relatório
                     </button>
 <button class="bg-primary text-on-primary px-8 py-3 rounded-full font-bold text-sm shadow-lg shadow-primary/20 hover:scale-105 transition-transform active:opacity-80 flex items-center gap-2">
 <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">sensors</span>
@@ -129,7 +129,7 @@ include base_path('templates/partials/creator_topbar.php');
 <div class="text-right">
 <span class="text-3xl font-black text-primary tracking-tighter">R$ 14.850,00</span>
 <p class="text-xs text-emerald-600 font-bold flex items-center justify-end gap-1">
-<span class="material-symbols-outlined text-xs">trending_up</span> +12% vs mÃªs anterior
+<span class="material-symbols-outlined text-xs">trending_up</span> +12% vs mês anterior
                             </p>
 </div>
 </div>
@@ -161,7 +161,7 @@ include base_path('templates/partials/creator_topbar.php');
 <span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sab</span><span>Dom</span>
 </div>
 </section>
-<!-- MÃ©tricas Estelares (Viewers/Followers) -->
+<!-- Métricas Estelares (Viewers/Followers) -->
 <section class="md:col-span-4 space-y-8">
 <div class="bg-primary text-on-primary rounded-xl p-8 shadow-xl relative overflow-hidden">
 <!-- Moon Motif Ornament -->
@@ -176,14 +176,14 @@ include base_path('templates/partials/creator_topbar.php');
 </div>
 </div>
 <div class="bg-surface-container-low rounded-xl p-8">
-<h3 class="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-6">MÃ©tricas de Engajamento</h3>
+<h3 class="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-6">Métricas de Engajamento</h3>
 <div class="space-y-6">
 <div class="flex items-center justify-between">
 <div class="flex items-center gap-3">
 <div class="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center">
 <span class="material-symbols-outlined text-primary text-xl">visibility</span>
 </div>
-<span class="text-sm font-bold">VisualizaÃ§Ãµes</span>
+<span class="text-sm font-bold">Visualizações</span>
 </div>
 <span class="font-black text-lg">128k</span>
 </div>
@@ -201,7 +201,7 @@ include base_path('templates/partials/creator_topbar.php');
 <div class="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center">
 <span class="material-symbols-outlined text-primary text-xl">chat_bubble</span>
 </div>
-<span class="text-sm font-bold">ComentÃ¡rios</span>
+<span class="text-sm font-bold">Comentários</span>
 </div>
 <span class="font-black text-lg">8.9k</span>
 </div>
@@ -216,60 +216,60 @@ include base_path('templates/partials/creator_topbar.php');
 </div>
 <form class="space-y-6">
 <div>
-<label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">TÃ­tulo da TransmissÃ£o</label>
+<label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">T�tulo da Transmiss�o</label>
 <input class="w-full bg-surface-container-lowest border-none rounded-md py-4 px-4 focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="Ex: Noite de Gala no Luau" type="text"/>
 </div>
 <div>
-<label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">PreÃ§o de Acesso (Moedas Lunares)</label>
+<label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">Preço de Acesso (Moedas Lunares)</label>
 <div class="relative">
 <input class="w-full bg-surface-container-lowest border-none rounded-md py-4 px-4 focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="150" type="number"/>
 <span class="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary">toll</span>
 </div>
 </div>
 <div class="pt-4">
-<button class="w-full py-4 bg-primary-container text-on-primary font-bold rounded-full hover:scale-102 transition-transform shadow-md" type="button">Salvar PrÃ©-definiÃ§Ã£o</button>
+<button class="w-full py-4 bg-primary-container text-on-primary font-bold rounded-full hover:scale-102 transition-transform shadow-md" type="button">Salvar Pr�-defini��o</button>
 </div>
 </form>
 </section>
-<!-- Meus ConteÃºdos (Horizontal Scroll-like Bento) -->
+<!-- Meus Conteúdos (Horizontal Scroll-like Bento) -->
 <section class="md:col-span-7 bg-surface-container-lowest rounded-xl p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.04)]">
 <div class="flex items-center justify-between mb-8">
-<h3 class="text-xl font-bold">Meus ConteÃºdos</h3>
+<h3 class="text-xl font-bold">Meus Conteúdos</h3>
 <a class="text-primary text-sm font-bold hover:underline" href="#">Ver tudo</a>
 </div>
 <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
 <div class="group cursor-pointer">
 <div class="relative aspect-[3/4] rounded-lg overflow-hidden mb-3">
-<img alt="Criadora de moda posando com iluminaÃ§Ã£o rosa" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9b0sipK2Ibp_t_8EHvXGGXneYrdYmJza9kLn1JcpriOEu5AgR3FdDQed57q4QIhIw3gaaHqyq_q3c_Pkgnpu8RRAkiCPwo9zsuevqz8s7h_eQmbUAuisAcWPSnAHuHIrV0whulFm7Pp-77FwKEyckJXS0oBFzRlEzYzJjL1VaHiA05o3h-N5_IyDpzp4cCKSrEB--1H1RX22KZxP9K3Ld6XntqhJOFB4hmwyaYYdP8UPUuwcK1gGMRiIvKkGPKslzgIdH75j2gpY"/>
+<img alt="Criadora de moda posando com ilumina��o rosa" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9b0sipK2Ibp_t_8EHvXGGXneYrdYmJza9kLn1JcpriOEu5AgR3FdDQed57q4QIhIw3gaaHqyq_q3c_Pkgnpu8RRAkiCPwo9zsuevqz8s7h_eQmbUAuisAcWPSnAHuHIrV0whulFm7Pp-77FwKEyckJXS0oBFzRlEzYzJjL1VaHiA05o3h-N5_IyDpzp4cCKSrEB--1H1RX22KZxP9K3Ld6XntqhJOFB4hmwyaYYdP8UPUuwcK1gGMRiIvKkGPKslzgIdH75j2gpY"/>
 <div class="absolute top-3 left-3 bg-primary px-3 py-1 rounded-full text-[10px] font-bold text-white">R$ 50</div>
 <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-<span class="text-white text-xs font-bold">Editar MÃ­dia</span>
+<span class="text-white text-xs font-bold">Editar Mídia</span>
 </div>
 </div>
 <p class="text-sm font-bold truncate">Editorial Outono</p>
-<p class="text-[10px] text-on-surface-variant font-bold uppercase">2.4k VisualizaÃ§Ãµes</p>
+<p class="text-[10px] text-on-surface-variant font-bold uppercase">2.4k Visualizações</p>
 </div>
 <div class="group cursor-pointer">
 <div class="relative aspect-[3/4] rounded-lg overflow-hidden mb-3">
-<img alt="Retrato do criador com iluminaÃ§Ã£o artÃ­stica" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJu3x9OeL94sVLi94VxE1794kznQc89xOfHHMkcngI5DULr7j2K9FEbkJDxbMTXyF11bGXXFUzblgOLKf8MUE5tcS-T_LJQSJW53r9SstFKSr3Bn6dodKEefpKgF9hpcAx_T6rhhImtEpV-303yYBBmtOt635L4AHhfmjsjhVNSEett2iFSAncTYm0BDODZjJrsnDClJOQ7jo5YMoeJRvaK1ANKTrqsGAmE7iW9DXJOnCn3_dvGPscUWNa79i9JlgaCHr1TyUNL5E"/>
-<div class="absolute top-3 left-3 bg-zinc-800 px-3 py-1 rounded-full text-[10px] font-bold text-white">GrÃ¡tis</div>
+<img alt="Retrato do criador com ilumina��o art�stica" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJu3x9OeL94sVLi94VxE1794kznQc89xOfHHMkcngI5DULr7j2K9FEbkJDxbMTXyF11bGXXFUzblgOLKf8MUE5tcS-T_LJQSJW53r9SstFKSr3Bn6dodKEefpKgF9hpcAx_T6rhhImtEpV-303yYBBmtOt635L4AHhfmjsjhVNSEett2iFSAncTYm0BDODZjJrsnDClJOQ7jo5YMoeJRvaK1ANKTrqsGAmE7iW9DXJOnCn3_dvGPscUWNa79i9JlgaCHr1TyUNL5E"/>
+<div class="absolute top-3 left-3 bg-zinc-800 px-3 py-1 rounded-full text-[10px] font-bold text-white">Grátis</div>
 <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-<span class="text-white text-xs font-bold">Editar MÃ­dia</span>
+<span class="text-white text-xs font-bold">Editar Mídia</span>
 </div>
 </div>
 <p class="text-sm font-bold truncate">Bastidores Live #4</p>
-<p class="text-[10px] text-on-surface-variant font-bold uppercase">8.1k VisualizaÃ§Ãµes</p>
+<p class="text-[10px] text-on-surface-variant font-bold uppercase">8.1k Visualizações</p>
 </div>
 <div class="group cursor-pointer hidden sm:block">
 <div class="relative aspect-[3/4] rounded-lg overflow-hidden mb-3">
-<img alt="Modelo posando em estÃºdio artÃ­stico" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuACZ1Mtw0LqJ5iQMMdu2NZvz0eVr6svj0S8D83xyzVUT26ydMcg3gFKUmwR0T2KYLhE9NKa15IswGkVEWAT1HpfVWzq9laKkOZvOa8TBbqW20W9ZO4BexE6uyEmMIiI7ApDG1o_ndvaVDOvsehXdpgJ7fIJFHNLeJMxPP6fnFVf_TXEO9-tCklIUQbZWBfHfKywYzJO5_60xedaA6EoGBCtN9m2lMf8ivxbc0eBDawOiYytHOWifOG3NLq8jIXepe_39DJosuMw2R8"/>
+<img alt="Modelo posando em estúdio artístico" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuACZ1Mtw0LqJ5iQMMdu2NZvz0eVr6svj0S8D83xyzVUT26ydMcg3gFKUmwR0T2KYLhE9NKa15IswGkVEWAT1HpfVWzq9laKkOZvOa8TBbqW20W9ZO4BexE6uyEmMIiI7ApDG1o_ndvaVDOvsehXdpgJ7fIJFHNLeJMxPP6fnFVf_TXEO9-tCklIUQbZWBfHfKywYzJO5_60xedaA6EoGBCtN9m2lMf8ivxbc0eBDawOiYytHOWifOG3NLq8jIXepe_39DJosuMw2R8"/>
 <div class="absolute top-3 left-3 bg-primary px-3 py-1 rounded-full text-[10px] font-bold text-white">R$ 120</div>
 <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-<span class="text-white text-xs font-bold">Editar MÃ­dia</span>
+<span class="text-white text-xs font-bold">Editar Mídia</span>
 </div>
 </div>
 <p class="text-sm font-bold truncate">Premium Orbit</p>
-<p class="text-[10px] text-on-surface-variant font-bold uppercase">1.5k VisualizaÃ§Ãµes</p>
+<p class="text-[10px] text-on-surface-variant font-bold uppercase">1.5k Visualizações</p>
 </div>
 </div>
 </section>
@@ -278,13 +278,13 @@ include base_path('templates/partials/creator_topbar.php');
 </main>
 <!-- Footer (Authority: JSON) -->
 <footer class="lg:pl-64 bg-zinc-50 dark:bg-zinc-950 full-width py-12 border-t border-pink-100 dark:border-pink-900/20 w-full flex flex-col items-center justify-center gap-6 px-4">
-<div class="font-black text-pink-700 text-xl tracking-tighter">SexyLua</div>
+<?= brand_logo_magenta('h-9 w-auto') ?>
 <div class="flex flex-wrap justify-center gap-8 font-['Manrope'] text-xs uppercase tracking-widest">
-<a class="text-zinc-400 hover:text-pink-500 hover:underline transition-all" href="#">Termos de ServiÃ§o</a>
+<a class="text-zinc-400 hover:text-pink-500 hover:underline transition-all" href="#">Termos de Serviço</a>
 <a class="text-zinc-400 hover:text-pink-500 hover:underline transition-all" href="#">Privacidade</a>
 <a class="text-zinc-400 hover:text-pink-500 hover:underline transition-all" href="#">Suporte Lunar</a>
 </div>
-<p class="text-zinc-400 font-['Manrope'] text-[10px] uppercase tracking-[0.3em]">Â© 2024 SexyLua Editorial Celestial</p>
+<p class="text-zinc-400 font-['Manrope'] text-[10px] uppercase tracking-[0.3em]">© 2024 SexyLua Editorial Celestial</p>
 </footer>
 <!-- FAB for quick actions (Contextual Mobile UI) -->
 <button class="md:hidden fixed bottom-8 right-8 w-16 h-16 bg-primary text-on-primary rounded-full shadow-2xl z-50 flex items-center justify-center hover:scale-110 active:scale-95 transition-transform">

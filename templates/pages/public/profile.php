@@ -173,7 +173,7 @@
 <div class="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-8 text-center">
 <span class="material-symbols-outlined text-white text-5xl mb-4" style="font-variation-settings: 'FILL' 1;">movie</span>
 <h3 class="text-white font-headline font-bold text-xl mb-2">Bastidores Lunares</h3>
-<p class="text-white/80 text-sm mb-6">Um vídeo íntimo de 5 minutos sobre minha última sessão de fotos editorial.</p>
+<p class="text-white/80 text-sm mb-6">Um v�deo �ntimo de 5 minutos sobre minha �ltima sess�o de fotos editorial.</p>
 <button class="bg-white text-primary px-6 py-2 rounded-full font-bold text-sm uppercase tracking-wider">Ver Vídeo</button>
 </div>
 </div>
@@ -183,8 +183,8 @@
 <div class="absolute inset-0 bg-gradient-to-tr from-primary/60 to-transparent flex flex-col items-center justify-center p-12 text-center">
 <div class="bg-white/10 lunar-blur p-8 rounded-xl border border-white/20">
 <span class="material-symbols-outlined text-white text-6xl mb-4" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
-<h3 class="text-white font-headline font-extrabold text-3xl mb-4 italic">Coleção Eclipse</h3>
-<p class="text-white/90 text-lg mb-8 max-w-md mx-auto">24 fotos em alta definição capturando a metamorfose mais intensa da minha carreira.</p>
+<h3 class="text-white font-headline font-extrabold text-3xl mb-4 italic">Cole��o Eclipse</h3>
+<p class="text-white/90 text-lg mb-8 max-w-md mx-auto">24 fotos em alta defini��o capturando a metamorfose mais intensa da minha carreira.</p>
 <button class="bg-primary-container text-white px-10 py-4 rounded-full font-bold text-lg hover:scale-105 transition-all shadow-xl">Assine para Ver</button>
 </div>
 </div>
@@ -210,7 +210,7 @@
 <p class="text-2xl font-headline font-black text-primary">12.4k</p>
 </div>
 <div class="bg-surface-container-lowest p-4 rounded-md">
-<p class="text-xs text-on-surface-variant uppercase font-bold mb-1 tracking-tight">Fãs</p>
+<p class="text-xs text-on-surface-variant uppercase font-bold mb-1 tracking-tight">F�s</p>
 <p class="text-2xl font-headline font-black text-primary">850</p>
 </div>
 </div>
