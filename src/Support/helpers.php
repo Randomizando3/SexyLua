@@ -333,6 +333,62 @@ function prototype_runtime_html(array $payload): string
     $conversationId = $prototype['subscriber_message']['conversation_id'] ?? null;
     $moderationIds = $prototype['moderation']['content_ids'] ?? [];
     $settings = prototype_sanitize_runtime_data($app->repository->settings());
+    $isAdmin = is_array($user) && (string) ($user['role'] ?? '') === 'admin';
+
+    $routes = [
+        'home' => '/',
+        'explore' => '/explore',
+        'login' => '/login',
+        'register' => '/register',
+        'subscriber' => '/subscriber',
+        'subscriberSubscriptions' => '/subscriber/subscriptions',
+        'subscriberFavorites' => '/subscriber/favorites',
+        'subscriberMessages' => '/subscriber/messages',
+        'subscriberWallet' => '/subscriber/wallet',
+        'subscriberSettings' => '/subscriber/settings',
+        'creator' => '/creator',
+        'creatorMetrics' => '/creator',
+        'creatorContent' => '/creator/content',
+        'creatorFavorites' => '/creator/favorites',
+        'creatorMemberships' => '/creator/memberships',
+        'creatorLive' => '/creator/live',
+        'creatorWallet' => '/creator/wallet',
+        'creatorSettings' => '/creator/settings',
+        'live' => '/live?id=' . (string) ($prototype['live']['id'] ?? 1),
+        'profile' => '/profile?id=' . (string) ($prototype['profile']['creator_id'] ?? 2),
+    ];
+
+    if ($isAdmin) {
+        $routes = array_merge($routes, [
+            'admin' => '/admin',
+            'adminUsers' => '/admin/users',
+            'adminModeration' => '/admin/moderation',
+            'adminFinance' => '/admin/finance',
+            'adminSettings' => '/admin/settings',
+        ]);
+    }
+
+    $actions = [
+        'favorite' => $favoriteCreatorId ? '/subscriber/favorites/toggle' : null,
+        'subscribe' => isset($prototype['profile']['plan_id']) ? '/profile/subscribe' : null,
+        'message' => isset($prototype['profile']['creator_id']) ? '/profile/message' : null,
+        'subscriberMessage' => $conversationId ? '/subscriber/messages/send' : null,
+        'tip' => isset($prototype['live']['creator_id']) ? '/tip' : null,
+        'chat' => isset($prototype['live']['id']) ? '/live/chat' : null,
+        'topup' => ! empty($prototype['wallet_topup']) ? '/subscriber/wallet/add-funds' : null,
+        'payout' => ! empty($prototype['wallet_payout']) ? '/creator/wallet/payout' : null,
+        'contentCreate' => ! empty($prototype['creator_content_create']) ? '/creator/content/create' : null,
+        'creatorQuickLive' => ! empty($prototype['creator_live_quick']) ? '/creator/live/save' : null,
+        'creatorSettingsUpdate' => ! empty($prototype['creator_settings']) ? '/creator/settings/update' : null,
+        'logout' => $user ? '/logout' : null,
+    ];
+
+    if ($isAdmin) {
+        $actions = array_merge($actions, [
+            'adminSettings' => ! empty($prototype['admin_settings']) ? '/admin/settings/update' : null,
+            'adminReview' => $moderationIds !== [] ? '/admin/moderation/review' : null,
+        ]);
+    }
 
     $runtime = [
         'page' => $prototype['page'] ?? '',
@@ -343,49 +399,8 @@ function prototype_runtime_html(array $payload): string
         'currentUser' => prototype_sanitize_runtime_data($currentUser),
         'settings' => is_array($settings) ? $settings : [],
         'data' => prototype_sanitize_runtime_data($payload['data'] ?? null),
-        'routes' => [
-            'home' => '/',
-            'explore' => '/explore',
-            'login' => '/login',
-            'register' => '/register',
-            'subscriber' => '/subscriber',
-            'subscriberSubscriptions' => '/subscriber/subscriptions',
-            'subscriberFavorites' => '/subscriber/favorites',
-            'subscriberMessages' => '/subscriber/messages',
-            'subscriberWallet' => '/subscriber/wallet',
-            'subscriberSettings' => '/subscriber/settings',
-            'creator' => '/creator',
-            'creatorMetrics' => '/creator',
-            'creatorContent' => '/creator/content',
-            'creatorFavorites' => '/creator/favorites',
-            'creatorMemberships' => '/creator/memberships',
-            'creatorLive' => '/creator/live',
-            'creatorWallet' => '/creator/wallet',
-            'creatorSettings' => '/creator/settings',
-            'admin' => '/admin',
-            'adminUsers' => '/admin/users',
-            'adminModeration' => '/admin/moderation',
-            'adminFinance' => '/admin/finance',
-            'adminSettings' => '/admin/settings',
-            'live' => '/live?id=' . (string) ($prototype['live']['id'] ?? 1),
-            'profile' => '/profile?id=' . (string) ($prototype['profile']['creator_id'] ?? 2),
-        ],
-        'actions' => [
-            'favorite' => $favoriteCreatorId ? '/subscriber/favorites/toggle' : null,
-            'subscribe' => isset($prototype['profile']['plan_id']) ? '/profile/subscribe' : null,
-            'message' => isset($prototype['profile']['creator_id']) ? '/profile/message' : null,
-            'subscriberMessage' => $conversationId ? '/subscriber/messages/send' : null,
-            'tip' => isset($prototype['live']['creator_id']) ? '/tip' : null,
-            'chat' => isset($prototype['live']['id']) ? '/live/chat' : null,
-            'topup' => ! empty($prototype['wallet_topup']) ? '/subscriber/wallet/add-funds' : null,
-            'payout' => ! empty($prototype['wallet_payout']) ? '/creator/wallet/payout' : null,
-            'contentCreate' => ! empty($prototype['creator_content_create']) ? '/creator/content/create' : null,
-            'creatorQuickLive' => ! empty($prototype['creator_live_quick']) ? '/creator/live/save' : null,
-            'creatorSettingsUpdate' => ! empty($prototype['creator_settings']) ? '/creator/settings/update' : null,
-            'adminSettings' => ! empty($prototype['admin_settings']) ? '/admin/settings/update' : null,
-            'adminReview' => $moderationIds !== [] ? '/admin/moderation/review' : null,
-            'logout' => $user ? '/logout' : null,
-        ],
+        'routes' => $routes,
+        'actions' => $actions,
         'profile' => $prototype['profile'] ?? null,
         'live' => $prototype['live'] ?? null,
         'moderation' => [
@@ -445,11 +460,11 @@ function prototype_runtime_html(array $payload): string
         $forms[] = '<form id="prototype-creator-live-form" method="post" action="/creator/live/save" style="display:none"><input type="hidden" name="_token" value="' . e($runtime['csrf']) . '"><input type="hidden" name="title" value=""><input type="hidden" name="description" value="Live criada a partir do layout original"><input type="hidden" name="scheduled_for" value=""><input type="hidden" name="price_luacoins" value="0"><input type="hidden" name="status" value="scheduled"><input type="hidden" name="chat_enabled" value="1"></form>';
     }
 
-    if (! empty($prototype['admin_settings'])) {
+    if ($isAdmin && ! empty($prototype['admin_settings'])) {
         $forms[] = '<form id="prototype-admin-settings-form" method="post" action="/admin/settings/update" style="display:none"><input type="hidden" name="_token" value="' . e($runtime['csrf']) . '"><input type="hidden" name="platform_fee_percent" value=""><input type="hidden" name="withdraw_min_luacoins" value=""><input type="hidden" name="withdraw_max_luacoins" value=""><input type="hidden" name="slow_mode_seconds" value=""><input type="hidden" name="maintenance_mode" value=""><input type="hidden" name="auto_moderation" value=""><input type="hidden" name="live_chat_enabled" value=""></form>';
     }
 
-    if ($moderationIds !== []) {
+    if ($isAdmin && $moderationIds !== []) {
         $forms[] = '<form id="prototype-admin-review-form" method="post" action="/admin/moderation/review" style="display:none"><input type="hidden" name="_token" value="' . e($runtime['csrf']) . '"><input type="hidden" name="content_id" value=""><input type="hidden" name="decision" value=""><input type="hidden" name="moderation_feedback" value=""></form>';
     }
 

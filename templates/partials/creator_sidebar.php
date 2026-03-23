@@ -16,11 +16,6 @@ $creatorMenuItems = [
     ['key' => 'wallet', 'href' => '/creator/wallet', 'icon' => 'account_balance_wallet', 'label' => 'Carteira'],
     ['key' => 'settings', 'href' => '/creator/settings', 'icon' => 'settings', 'label' => 'Configuracoes'],
 ];
-$creatorAdminItems = [
-    ['href' => '/admin/users', 'icon' => 'group', 'label' => 'Gestao de Usuarios'],
-    ['href' => '/admin/finance', 'icon' => 'payments', 'label' => 'Financeiro'],
-    ['href' => '/admin/moderation', 'icon' => 'gavel', 'label' => 'Moderacao'],
-];
 ?>
 <aside class="fixed left-0 top-0 z-50 hidden h-full w-64 flex-col rounded-r-[3rem] bg-zinc-50 px-4 pb-6 pt-20 font-['Plus_Jakarta_Sans'] font-medium shadow-xl lg:flex">
     <nav class="flex-1 space-y-1">
@@ -28,17 +23,6 @@ $creatorAdminItems = [
             <?php $active = $creatorShellCurrent === $item['key']; ?>
             <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 transition-colors <?= $active ? 'bg-pink-50 text-pink-700' : 'text-zinc-600 hover:bg-zinc-100' ?>" href="<?= e((string) $item['href']) ?>">
                 <span class="material-symbols-outlined"<?= $active ? ' style="font-variation-settings: \'FILL\' 1;"' : '' ?>><?= e((string) $item['icon']) ?></span>
-                <span><?= e((string) $item['label']) ?></span>
-            </a>
-        <?php endforeach; ?>
-
-        <div class="px-8 pb-4 pt-8">
-            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Administracao</p>
-        </div>
-
-        <?php foreach ($creatorAdminItems as $item): ?>
-            <a class="mx-2 flex items-center gap-3 rounded-full px-4 py-3 text-zinc-600 transition-colors hover:bg-zinc-100" href="<?= e((string) $item['href']) ?>">
-                <span class="material-symbols-outlined"><?= e((string) $item['icon']) ?></span>
                 <span><?= e((string) $item['label']) ?></span>
             </a>
         <?php endforeach; ?>
