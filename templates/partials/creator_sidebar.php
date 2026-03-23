@@ -22,11 +22,7 @@ $creatorAdminItems = [
     ['href' => '/admin/moderation', 'icon' => 'gavel', 'label' => 'Moderacao'],
 ];
 ?>
-<aside class="fixed left-0 top-0 z-50 hidden h-full w-64 flex-col rounded-r-[3rem] bg-zinc-50 px-4 pb-6 pt-24 font-['Plus_Jakarta_Sans'] font-medium shadow-xl lg:flex">
-    <div class="mb-10 px-6">
-        <a class="block" href="/"><?= brand_logo_magenta('h-10 w-auto') ?></a>
-    </div>
-
+<aside class="fixed left-0 top-0 z-50 hidden h-full w-64 flex-col rounded-r-[3rem] bg-zinc-50 px-4 pb-6 pt-20 font-['Plus_Jakarta_Sans'] font-medium shadow-xl lg:flex">
     <nav class="flex-1 space-y-1">
         <?php foreach ($creatorMenuItems as $item): ?>
             <?php $active = $creatorShellCurrent === $item['key']; ?>

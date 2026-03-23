@@ -6,8 +6,8 @@ $creatorShellCreator = $creatorShellCreator ?? ($creator ?? []);
 $creatorTopbarSearch = (string) ($creatorTopbarSearch ?? '');
 $creatorTopbarAction = is_array($creatorTopbarAction ?? null) ? $creatorTopbarAction : null;
 ?>
-<header class="fixed top-0 z-[60] flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 font-['Plus_Jakarta_Sans'] font-bold tracking-wide text-white shadow-lg shadow-[#D81B60]/20 lg:pl-[18.75rem] lg:pr-8">
-    <div class="flex items-center lg:pl-1">
+<header class="fixed top-0 z-[60] flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 font-['Plus_Jakarta_Sans'] font-bold tracking-wide text-white shadow-lg shadow-[#D81B60]/20 lg:pl-[16.5rem] lg:pr-8">
+    <div class="flex items-center">
         <a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
     </div>
 
