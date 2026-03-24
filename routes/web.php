@@ -22,6 +22,7 @@ $router->get('/live/rtc/poll', [LiveRtcController::class, 'poll']);
 $router->post('/live/rtc/join', [LiveRtcController::class, 'join']);
 $router->post('/live/rtc/start', [LiveRtcController::class, 'start']);
 $router->post('/live/rtc/stop', [LiveRtcController::class, 'stop']);
+$router->post('/live/rtc/chunk', [LiveRtcController::class, 'segment']);
 $router->post('/live/rtc/signal', [LiveRtcController::class, 'signal']);
 $router->post('/live/rtc/heartbeat', [LiveRtcController::class, 'heartbeat']);
 $router->post('/live/rtc/leave', [LiveRtcController::class, 'leave']);

@@ -16,10 +16,11 @@ $selectedLiveId = (int) ($selected['id'] ?? 0);
 $roomUrl = $selectedLiveId > 0 ? path_with_query('/live', ['id' => $selectedLiveId]) : '';
 $streamStatus = (string) ($selected['stream_status'] ?? 'idle');
 $viewerCount = (int) ($selected['viewer_count'] ?? 0);
-$bitrate = (int) ($selected['max_bitrate_kbps'] ?? 1500);
+$bitrate = (int) ($selected['max_bitrate_kbps'] ?? 1200);
 $videoWidth = (int) ($selected['video_width'] ?? 960);
 $videoHeight = (int) ($selected['video_height'] ?? 540);
 $videoFps = (int) ($selected['video_fps'] ?? 24);
+$segmentDurationSeconds = (int) ($selected['segment_duration_seconds'] ?? 6);
 $replayUrl = media_url((string) ($selected['recording_url'] ?? ''));
 $replayDuration = (int) ($selected['recording_duration_seconds'] ?? 0);
 $hasReplay = $replayUrl !== '';
@@ -69,8 +70,8 @@ include base_path('templates/partials/creator_topbar.php');
     <div class="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
             <p class="text-xs font-bold uppercase tracking-[0.3em] text-[#D81B60]">Creator Studio</p>
-            <h2 class="headline mt-2 text-4xl font-extrabold">Transmissao inicial P2P</h2>
-            <p class="mt-3 max-w-3xl text-slate-500">Nesta etapa a live sai direto da conexao do criador para os viewers. O bitrate esta limitado a 1.5 Mbps para ficar leve e trocavel por um terceiro depois.</p>
+            <h2 class="headline mt-2 text-4xl font-extrabold">Transmissao segmentada</h2>
+            <p class="mt-3 max-w-3xl text-slate-500">O studio envia blocos comprimidos de <?= e((string) $segmentDurationSeconds) ?> segundos para a plataforma, que distribui a fila para os viewers sem depender de P2P.</p>
         </div>
         <div class="grid grid-cols-1 gap-4 text-center sm:grid-cols-3">
             <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Agendadas</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= e((string) ($summary['scheduled'] ?? 0)) ?></p></div>
@@ -94,6 +95,7 @@ include base_path('templates/partials/creator_topbar.php');
                 data-poll-url="/live/rtc/poll"
                 data-heartbeat-url="/live/rtc/heartbeat"
                 data-leave-url="/live/rtc/leave"
+                data-chunk-upload-url="/live/rtc/chunk"
                 data-recording-upload-url="/live/rtc/recording"
                 data-recording-enabled="<?= (bool) ($selected['recording_enabled'] ?? false) ? '1' : '0' ?>"
                 data-replay-url="<?= e($replayUrl) ?>"
@@ -103,6 +105,7 @@ include base_path('templates/partials/creator_topbar.php');
                 data-video-width="<?= e((string) $videoWidth) ?>"
                 data-video-height="<?= e((string) $videoHeight) ?>"
                 data-video-fps="<?= e((string) $videoFps) ?>"
+                data-segment-duration-ms="<?= e((string) ($segmentDurationSeconds * 1000)) ?>"
             >
                 <div class="relative aspect-video bg-slate-950">
                     <video autoplay class="h-full w-full object-cover" data-live-local-video muted playsinline></video>
@@ -120,7 +123,7 @@ include base_path('templates/partials/creator_topbar.php');
                     <div class="absolute inset-0 flex items-center justify-center bg-black/50 px-6 text-center text-white" data-live-waiting>
                         <div class="max-w-md">
                             <p class="headline text-3xl font-extrabold">Studio local</p>
-                            <p class="mt-3 text-sm text-white/75" data-live-waiting-text><?= $selectedLiveId > 0 ? 'Preview local pronto. Clique em iniciar transmissao para abrir a live.' : 'Crie ou selecione uma live para abrir a transmissao local.' ?></p>
+                            <p class="mt-3 text-sm text-white/75" data-live-waiting-text><?= $selectedLiveId > 0 ? 'Preview pronto. Clique em iniciar para enviar os blocos da live para a plataforma.' : 'Crie ou selecione uma live para abrir a transmissao segmentada.' ?></p>
                         </div>
                     </div>
                 </div>
@@ -129,7 +132,7 @@ include base_path('templates/partials/creator_topbar.php');
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <div class="rounded-2xl bg-[#f5f3f5] p-4">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Modo</p>
-                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) ($selected['stream_mode'] ?? 'p2p_mesh')) ?></p>
+                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) ($selected['stream_mode'] ?? 'segment_queue')) ?></p>
                         </div>
                         <div class="rounded-2xl bg-[#f5f3f5] p-4">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Bitrate</p>
@@ -145,8 +148,8 @@ include base_path('templates/partials/creator_topbar.php');
                         </div>
                     </div>
                     <div class="flex flex-col gap-3 sm:flex-row">
-                        <button class="signature-glow flex-1 rounded-full px-6 py-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" data-live-start data-prototype-skip="1" type="button">Iniciar transmissao local</button>
-                        <button class="flex-1 rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" data-live-stop data-prototype-skip="1" type="button">Encerrar transmissao local</button>
+                        <button class="signature-glow flex-1 rounded-full px-6 py-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" data-live-start data-prototype-skip="1" type="button">Iniciar transmissao segmentada</button>
+                        <button class="flex-1 rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" data-live-stop data-prototype-skip="1" type="button">Encerrar transmissao</button>
                     </div>
                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                         <div class="rounded-2xl bg-[#f5f3f5] p-4">
@@ -158,8 +161,8 @@ include base_path('templates/partials/creator_topbar.php');
                             </div>
                         </div>
                         <div class="rounded-2xl bg-[#f5f3f5] p-4">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Replay local</p>
-                            <p class="mt-2 text-sm font-bold text-slate-800" data-live-record-status><?= $hasReplay ? 'Replay pronto para uso' : 'Sem replay salvo ainda' ?></p>
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Fila de distribuicao</p>
+                            <p class="mt-2 text-sm font-bold text-slate-800" data-live-record-status><?= $hasReplay ? 'Replay pronto para uso' : 'Segmentos de 6 segundos com compressao otimizada.' ?></p>
                             <p class="mt-1 text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Duracao <span data-live-record-duration><?= e($replayDuration > 0 ? gmdate('H:i:s', $replayDuration) : '00:00:00') ?></span></p>
                             <a class="<?= $hasReplay ? '' : 'hidden ' ?>mt-3 block break-all text-sm font-bold text-[#D81B60] underline" data-live-record-link href="<?= e($replayUrl) ?>" target="_blank"><?= e($replayUrl !== '' ? $replayUrl : '') ?></a>
                             <div class="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -175,7 +178,7 @@ include base_path('templates/partials/creator_topbar.php');
                         <?php else: ?>
                             <p class="mt-2">Salve uma live para gerar a sala publica.</p>
                         <?php endif; ?>
-                        <p class="mt-3 text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Recomendacao inicial: conexao de upload acima de 20 Mbps para testar com folga.</p>
+                        <p class="mt-3 text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Recomendacao inicial: upload acima de 10 Mbps para manter folga no envio da fila.</p>
                     </div>
                 </div>
             </div>
@@ -226,7 +229,7 @@ include base_path('templates/partials/creator_topbar.php');
                 </div>
                 <div class="rounded-2xl bg-[#f5f3f5] p-4 text-sm text-slate-600">
                     <p class="font-bold text-slate-800">Preset inicial da transmissao</p>
-                    <p class="mt-2">Bitrate maximo: <strong><?= e((string) $bitrate) ?> kbps</strong> • Resolucao: <strong><?= e((string) $videoWidth) ?>x<?= e((string) $videoHeight) ?></strong> • FPS: <strong><?= e((string) $videoFps) ?></strong></p>
+                    <p class="mt-2">Blocos de <strong><?= e((string) $segmentDurationSeconds) ?>s</strong> • Bitrate maximo: <strong><?= e((string) $bitrate) ?> kbps</strong> • Resolucao: <strong><?= e((string) $videoWidth) ?>x<?= e((string) $videoHeight) ?></strong> • FPS: <strong><?= e((string) $videoFps) ?></strong></p>
                 </div>
                 <button class="signature-glow w-full rounded-full px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit"><?= $selected ? 'Salvar alteracoes' : 'Salvar live' ?></button>
             </form>
@@ -258,7 +261,7 @@ include base_path('templates/partials/creator_topbar.php');
                         <span><?= e((string) ($live['viewer_count'] ?? 0)) ?> viewers</span>
                     </div>
                     <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-500">
-                        stream <?= e((string) ($live['stream_status'] ?? 'idle')) ?> • <?= e((string) ($live['max_bitrate_kbps'] ?? 1500)) ?> kbps
+                        fila <?= e((string) ($live['stream_status'] ?? 'idle')) ?> • <?= e((string) ($live['max_bitrate_kbps'] ?? 1200)) ?> kbps
                     </div>
                     <?php if ((string) ($live['recording_url'] ?? '') !== ''): ?>
                         <a class="block rounded-2xl bg-[#D81B60]/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]" href="<?= e(media_url((string) ($live['recording_url'] ?? ''))) ?>" target="_blank">Replay salvo</a>
@@ -276,6 +279,6 @@ include base_path('templates/partials/creator_topbar.php');
     </div>
 </main>
 
-<script src="<?= e(asset('js/live-rtc.js')) ?>"></script>
+<script src="<?= e(asset('js/live-segment.js')) ?>"></script>
 </body>
 </html>

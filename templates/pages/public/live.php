@@ -19,6 +19,7 @@ $cover = media_url((string) ($live['cover_url'] ?? ''));
 $replayUrl = media_url((string) ($live['recording_url'] ?? ''));
 $replayDuration = (int) ($live['recording_duration_seconds'] ?? 0);
 $hasReplay = $replayUrl !== '' && (bool) ($live['recording_enabled'] ?? false);
+$segmentDurationSeconds = (int) ($live['segment_duration_seconds'] ?? $stream['segment_duration_seconds'] ?? 6);
 $iceServers = base64_encode((string) json_encode($app->config['app']['rtc_ice_servers'] ?? [], JSON_UNESCAPED_SLASHES));
 $iceTransportPolicy = (string) ($app->config['app']['rtc_ice_transport_policy'] ?? 'all');
 $profileUrl = path_with_query('/profile', ['id' => (int) ($creator['id'] ?? 0)]);
@@ -39,6 +40,8 @@ $accessMessage = $canWatch
 
 if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live') {
     $accessMessage = 'Replay pronto para assistir enquanto a live estiver offline.';
+} elseif ($canWatch) {
+    $accessMessage = 'Os blocos da live entram em fila na plataforma a cada ' . $segmentDurationSeconds . ' segundos.';
 }
 ?>
 <!DOCTYPE html>
@@ -100,6 +103,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                 data-replay-enabled="<?= $hasReplay ? '1' : '0' ?>"
                 data-ice-servers="<?= e($iceServers) ?>"
                 data-ice-transport-policy="<?= e($iceTransportPolicy) ?>"
+                data-segment-duration-ms="<?= e((string) ($segmentDurationSeconds * 1000)) ?>"
             >
                 <div class="relative aspect-video bg-slate-950">
                     <video autoplay class="h-full w-full bg-slate-950 object-cover" controls data-live-remote-video playsinline></video>
@@ -109,12 +113,12 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                             <span class="signature-glow rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-status-text><?= e((string) ($stream['status'] ?? 'idle')) ?></span>
                             <span class="rounded-full bg-black/35 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]"><span data-live-viewer-count><?= e((string) $viewerCount) ?></span> viewers</span>
                         </div>
-                        <span class="rounded-full bg-black/35 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-stream-state><?= e((string) ($stream['stream_mode'] ?? 'p2p_mesh')) ?></span>
+                        <span class="rounded-full bg-black/35 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-stream-state><?= e((string) ($stream['stream_mode'] ?? 'segment_queue')) ?></span>
                     </div>
                     <div class="absolute inset-0 flex items-center justify-center bg-black/55 px-6 text-center text-white" data-live-waiting>
                         <div class="max-w-md">
                             <p class="headline text-4xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
-                            <p class="mt-3 text-sm text-white/75" data-live-waiting-text><?= e($accessMessage !== '' ? $accessMessage : 'Aguardando o criador iniciar a transmissao.') ?></p>
+                            <p class="mt-3 text-sm text-white/75" data-live-waiting-text><?= e($accessMessage !== '' ? $accessMessage : 'Aguardando o criador iniciar a transmissao segmentada.') ?></p>
                             <button class="mt-5 hidden rounded-full bg-white px-6 py-3 text-sm font-bold uppercase tracking-widest text-[#ab1155]" data-live-playback data-prototype-skip="1" type="button">Ativar playback</button>
                         </div>
                     </div>
@@ -152,7 +156,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                             <?php endif; ?>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    <div class="grid grid-cols-2 gap-4 md:grid-cols-5">
                         <div class="rounded-2xl bg-surface-container-low p-4">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Categoria</p>
                             <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) ($live['category'] ?? 'Studio')) ?></p>
@@ -164,6 +168,10 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                         <div class="rounded-2xl bg-surface-container-low p-4">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Bitrate</p>
                             <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) ($live['max_bitrate_kbps'] ?? 1500)) ?> kbps</p>
+                        </div>
+                        <div class="rounded-2xl bg-surface-container-low p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Fila</p>
+                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) $segmentDurationSeconds) ?>s por bloco</p>
                         </div>
                         <div class="rounded-2xl bg-surface-container-low p-4">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Meta</p>
@@ -274,6 +282,6 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
     </div>
 </main>
 
-<script src="<?= e(asset('js/live-rtc.js')) ?>"></script>
+<script src="<?= e(asset('js/live-segment.js')) ?>"></script>
 </body>
 </html>

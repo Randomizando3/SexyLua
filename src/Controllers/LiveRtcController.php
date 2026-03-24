@@ -37,7 +37,8 @@ final class LiveRtcController extends Controller
             (string) $request->input('peer_id', ''),
             session_id(),
             [
-                'max_bitrate_kbps' => (int) $request->input('max_bitrate_kbps', 1500),
+                'segment_duration_seconds' => (int) $request->input('segment_duration_seconds', 6),
+                'max_bitrate_kbps' => (int) $request->input('max_bitrate_kbps', 1200),
                 'video_width' => (int) $request->input('video_width', 960),
                 'video_height' => (int) $request->input('video_height', 540),
                 'video_fps' => (int) $request->input('video_fps', 24),
@@ -127,6 +128,48 @@ final class LiveRtcController extends Controller
         );
 
         $this->json($result, 200);
+    }
+
+    public function segment(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+
+        if (! $this->app->csrf->validate((string) $request->input('_token'))) {
+            $this->json(['ok' => false, 'message' => 'Sessao expirada para enviar o segmento.'], 419);
+        }
+
+        if (! $request->hasFile('segment_file')) {
+            $this->json(['ok' => false, 'message' => 'Nenhum segmento foi enviado.'], 422);
+        }
+
+        $liveId = (int) $request->input('live_id', 0);
+        $segmentPath = store_uploaded_file(
+            $request->file('segment_file'),
+            'live/segments/' . $liveId,
+            ['webm', 'mp4', 'ogg'],
+            1024 * 1024 * 25
+        );
+
+        if ($segmentPath === null) {
+            $this->json(['ok' => false, 'message' => 'Nao foi possivel salvar o segmento da live.'], 422);
+        }
+
+        $file = $request->file('segment_file') ?? [];
+        $result = $this->app->repository->appendLiveSegment(
+            (int) $this->user()['id'],
+            $liveId,
+            (string) $request->input('peer_id', ''),
+            session_id(),
+            [
+                'segment_sequence' => (int) $request->input('segment_sequence', 0),
+                'segment_duration_ms' => (int) $request->input('segment_duration_ms', 6000),
+                'segment_url' => $segmentPath,
+                'segment_mime_type' => (string) ($file['type'] ?? $request->input('segment_mime_type', 'video/webm')),
+                'segment_bytes' => (int) ($file['size'] ?? 0),
+            ]
+        );
+
+        $this->json($result, (bool) ($result['ok'] ?? false) ? 200 : 422);
     }
 
     public function recording(Request $request): void

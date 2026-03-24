@@ -11,6 +11,9 @@ final class PlatformRepository
 {
     private const LIVE_PRESENCE_TIMEOUT_SECONDS = 90;
     private const LIVE_SIGNAL_TIMEOUT_SECONDS = 180;
+    private const LIVE_DEFAULT_SEGMENT_DURATION_SECONDS = 6;
+    private const LIVE_SEGMENT_RETENTION_COUNT = 30;
+    private const LIVE_DEFAULT_BITRATE_KBPS = 1200;
     private const SEEDED_COLLECTIONS = [
         'users',
         'creator_profiles',
@@ -1406,8 +1409,9 @@ final class PlatformRepository
             'cover_url' => trim((string) ($data['cover_url'] ?? '')),
             'pinned_notice' => trim((string) ($data['pinned_notice'] ?? '')),
             'recording_enabled' => ($data['recording_enabled'] ?? '0') === '1',
-            'stream_mode' => 'p2p_mesh',
-            'max_bitrate_kbps' => max(300, min(2500, (int) ($data['max_bitrate_kbps'] ?? 1500))),
+            'stream_mode' => 'segment_queue',
+            'segment_duration_seconds' => self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS,
+            'max_bitrate_kbps' => max(300, min(2500, (int) ($data['max_bitrate_kbps'] ?? self::LIVE_DEFAULT_BITRATE_KBPS))),
             'video_width' => max(320, min(1920, (int) ($data['video_width'] ?? 960))),
             'video_height' => max(240, min(1080, (int) ($data['video_height'] ?? 540))),
             'video_fps' => max(12, min(30, (int) ($data['video_fps'] ?? 24))),
@@ -1562,9 +1566,15 @@ final class PlatformRepository
         }
 
         $this->clearLiveSignals($liveId);
+        $this->clearLiveSegmentFiles($liveId);
         $streams = $this->liveStreams();
         $updated = false;
         $now = date('Y-m-d H:i:s');
+        $segmentDurationSeconds = max(2, min(15, (int) ($settings['segment_duration_seconds'] ?? $live['segment_duration_seconds'] ?? self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS)));
+        $maxBitrate = max(300, min(2500, (int) ($settings['max_bitrate_kbps'] ?? $live['max_bitrate_kbps'] ?? self::LIVE_DEFAULT_BITRATE_KBPS)));
+        $videoWidth = max(320, min(1920, (int) ($settings['video_width'] ?? $live['video_width'] ?? 960)));
+        $videoHeight = max(240, min(1080, (int) ($settings['video_height'] ?? $live['video_height'] ?? 540)));
+        $videoFps = max(12, min(30, (int) ($settings['video_fps'] ?? $live['video_fps'] ?? 24)));
 
         foreach ($streams as &$stream) {
             if ((int) ($stream['live_id'] ?? 0) !== $liveId) {
@@ -1575,10 +1585,14 @@ final class PlatformRepository
             $stream['broadcaster_peer_id'] = $peerId;
             $stream['updated_at'] = $now;
             $stream['started_at'] = (string) ($stream['started_at'] ?? $now);
-            $stream['max_bitrate_kbps'] = max(300, min(2500, (int) ($settings['max_bitrate_kbps'] ?? $stream['max_bitrate_kbps'] ?? $live['max_bitrate_kbps'] ?? 1500)));
-            $stream['video_width'] = max(320, min(1920, (int) ($settings['video_width'] ?? $stream['video_width'] ?? $live['video_width'] ?? 960)));
-            $stream['video_height'] = max(240, min(1080, (int) ($settings['video_height'] ?? $stream['video_height'] ?? $live['video_height'] ?? 540)));
-            $stream['video_fps'] = max(12, min(30, (int) ($settings['video_fps'] ?? $stream['video_fps'] ?? $live['video_fps'] ?? 24)));
+            $stream['stream_mode'] = 'segment_queue';
+            $stream['segment_duration_seconds'] = $segmentDurationSeconds;
+            $stream['max_bitrate_kbps'] = $maxBitrate;
+            $stream['video_width'] = $videoWidth;
+            $stream['video_height'] = $videoHeight;
+            $stream['video_fps'] = $videoFps;
+            $stream['latest_sequence'] = 0;
+            $stream['segments'] = [];
             $updated = true;
             break;
         }
@@ -1593,16 +1607,26 @@ final class PlatformRepository
                 'broadcaster_peer_id' => $peerId,
                 'started_at' => $now,
                 'updated_at' => $now,
-                'max_bitrate_kbps' => max(300, min(2500, (int) ($settings['max_bitrate_kbps'] ?? $live['max_bitrate_kbps'] ?? 1500))),
-                'video_width' => max(320, min(1920, (int) ($settings['video_width'] ?? $live['video_width'] ?? 960))),
-                'video_height' => max(240, min(1080, (int) ($settings['video_height'] ?? $live['video_height'] ?? 540))),
-                'video_fps' => max(12, min(30, (int) ($settings['video_fps'] ?? $live['video_fps'] ?? 24))),
+                'stream_mode' => 'segment_queue',
+                'segment_duration_seconds' => $segmentDurationSeconds,
+                'max_bitrate_kbps' => $maxBitrate,
+                'video_width' => $videoWidth,
+                'video_height' => $videoHeight,
+                'video_fps' => $videoFps,
+                'latest_sequence' => 0,
+                'segments' => [],
             ];
         }
 
         $this->save('live_streams', $streams);
         $this->updateLiveRuntimeFields($liveId, [
             'status' => 'live',
+            'stream_mode' => 'segment_queue',
+            'segment_duration_seconds' => $segmentDurationSeconds,
+            'max_bitrate_kbps' => $maxBitrate,
+            'video_width' => $videoWidth,
+            'video_height' => $videoHeight,
+            'video_fps' => $videoFps,
             'viewer_count' => $this->activeViewerCountForLive($liveId),
         ]);
 
@@ -1662,6 +1686,103 @@ final class PlatformRepository
             'message' => 'Transmissao encerrada.',
             'live' => $this->hydrateLiveRuntime($this->decorateLive($this->findLiveById($liveId) ?? $live)),
             'stream' => $this->publicLiveStreamState($liveId),
+        ];
+    }
+
+    public function appendLiveSegment(int $creatorId, int $liveId, string $peerId, string $sessionId, array $data): array
+    {
+        $this->cleanupLiveRtcData();
+        $live = $this->findLiveById($liveId);
+
+        if (! $live || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+            return ['ok' => false, 'message' => 'Live nao encontrada para este criador.'];
+        }
+
+        $presence = $this->findLivePresencePeer($liveId, $peerId, $sessionId, $creatorId);
+        if (! $presence || (string) ($presence['role'] ?? '') !== 'creator') {
+            return ['ok' => false, 'message' => 'Sessao do criador nao encontrada. Reabra o studio.'];
+        }
+
+        $streams = $this->liveStreams();
+        $now = date('Y-m-d H:i:s');
+        $segmentUrl = trim((string) ($data['segment_url'] ?? ''));
+        $segmentBytes = max(0, (int) ($data['segment_bytes'] ?? 0));
+        $segmentMimeType = trim((string) ($data['segment_mime_type'] ?? 'video/webm'));
+        $segmentDurationMs = max(1000, (int) ($data['segment_duration_ms'] ?? (self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS * 1000)));
+        $segmentSequence = max(1, (int) ($data['segment_sequence'] ?? 0));
+        $filesToDelete = [];
+        $updated = false;
+
+        if ($segmentUrl === '') {
+            return ['ok' => false, 'message' => 'Segmento invalido para esta live.'];
+        }
+
+        foreach ($streams as &$stream) {
+            if ((int) ($stream['live_id'] ?? 0) !== $liveId) {
+                continue;
+            }
+
+            $currentSequence = (int) ($stream['latest_sequence'] ?? 0);
+            if ($segmentSequence <= 0) {
+                $segmentSequence = $currentSequence + 1;
+            }
+
+            $segments = $this->normalizeLiveSegments((array) ($stream['segments'] ?? []));
+            $segments = array_values(array_filter(
+                $segments,
+                static fn (array $segment): bool => (int) ($segment['sequence'] ?? 0) !== $segmentSequence
+            ));
+            $segments[] = [
+                'sequence' => $segmentSequence,
+                'url' => $segmentUrl,
+                'duration_ms' => $segmentDurationMs,
+                'mime_type' => $segmentMimeType !== '' ? $segmentMimeType : 'video/webm',
+                'bytes' => $segmentBytes,
+                'created_at' => $now,
+            ];
+            usort($segments, static fn (array $left, array $right): int => ((int) ($left['sequence'] ?? 0)) <=> ((int) ($right['sequence'] ?? 0)));
+
+            while (count($segments) > self::LIVE_SEGMENT_RETENTION_COUNT) {
+                $removed = array_shift($segments);
+                if (is_array($removed) && (string) ($removed['url'] ?? '') !== '') {
+                    $filesToDelete[] = (string) $removed['url'];
+                }
+            }
+
+            $stream['status'] = 'live';
+            $stream['stream_mode'] = 'segment_queue';
+            $stream['broadcaster_peer_id'] = $peerId;
+            $stream['updated_at'] = $now;
+            $stream['latest_sequence'] = max($segmentSequence, (int) ($stream['latest_sequence'] ?? 0));
+            $stream['segment_duration_seconds'] = max(2, min(15, (int) ceil($segmentDurationMs / 1000)));
+            $stream['segments'] = $segments;
+            $updated = true;
+            break;
+        }
+        unset($stream);
+
+        if (! $updated) {
+            return ['ok' => false, 'message' => 'Transmissao nao esta ativa para receber segmentos.'];
+        }
+
+        $this->save('live_streams', $streams);
+
+        foreach ($filesToDelete as $fileUrl) {
+            $this->deletePublicMediaFile($fileUrl);
+        }
+
+        $this->updateLiveRuntimeFields($liveId, [
+            'status' => 'live',
+            'stream_mode' => 'segment_queue',
+            'viewer_count' => $this->activeViewerCountForLive($liveId),
+        ]);
+
+        return [
+            'ok' => true,
+            'message' => 'Segmento recebido.',
+            'segment_sequence' => $segmentSequence,
+            'stream' => $this->publicLiveStreamState($liveId),
+            'viewer_count' => $this->activeViewerCountForLive($liveId),
         ];
     }
 
@@ -1727,6 +1848,11 @@ final class PlatformRepository
                 && (int) ($signal['id'] ?? 0) > $afterId
         ));
         usort($signals, static fn (array $left, array $right): int => ((int) ($left['id'] ?? 0)) <=> ((int) ($right['id'] ?? 0)));
+        $stream = $this->publicLiveStreamState($liveId);
+        $segments = array_values(array_filter(
+            (array) ($stream['segments'] ?? []),
+            static fn (array $segment): bool => (int) ($segment['sequence'] ?? 0) > $afterId
+        ));
 
         return [
             'ok' => true,
@@ -1737,8 +1863,9 @@ final class PlatformRepository
                 'payload' => is_array($signal['payload'] ?? null) ? $signal['payload'] : [],
                 'created_at' => (string) ($signal['created_at'] ?? ''),
             ], $signals),
+            'segments' => $segments,
             'live' => $this->hydrateLiveRuntime($this->decorateLive($live)),
-            'stream' => $this->publicLiveStreamState($liveId),
+            'stream' => $stream,
             'viewer_count' => $this->activeViewerCountForLive($liveId),
             'server_time' => date('c'),
         ];
@@ -3076,6 +3203,8 @@ final class PlatformRepository
             'video_width' => (int) ($state['video_width'] ?? ($live['video_width'] ?? 960)),
             'video_height' => (int) ($state['video_height'] ?? ($live['video_height'] ?? 540)),
             'video_fps' => (int) ($state['video_fps'] ?? ($live['video_fps'] ?? 24)),
+            'segment_duration_seconds' => (int) ($state['segment_duration_seconds'] ?? ($live['segment_duration_seconds'] ?? self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS)),
+            'latest_sequence' => (int) ($state['latest_sequence'] ?? 0),
         ]);
     }
 
@@ -3100,11 +3229,14 @@ final class PlatformRepository
             'broadcaster_peer_id' => $broadcasterPeerId,
             'broadcaster_online' => $status === 'live' && $broadcaster !== null,
             'viewer_count' => $viewerCount,
-            'stream_mode' => (string) ($live['stream_mode'] ?? $stream['stream_mode'] ?? 'p2p_mesh'),
-            'max_bitrate_kbps' => (int) ($stream['max_bitrate_kbps'] ?? $live['max_bitrate_kbps'] ?? 1500),
+            'stream_mode' => (string) ($stream['stream_mode'] ?? $live['stream_mode'] ?? 'segment_queue'),
+            'max_bitrate_kbps' => (int) ($stream['max_bitrate_kbps'] ?? $live['max_bitrate_kbps'] ?? self::LIVE_DEFAULT_BITRATE_KBPS),
             'video_width' => (int) ($stream['video_width'] ?? $live['video_width'] ?? 960),
             'video_height' => (int) ($stream['video_height'] ?? $live['video_height'] ?? 540),
             'video_fps' => (int) ($stream['video_fps'] ?? $live['video_fps'] ?? 24),
+            'segment_duration_seconds' => (int) ($stream['segment_duration_seconds'] ?? $live['segment_duration_seconds'] ?? self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS),
+            'latest_sequence' => (int) ($stream['latest_sequence'] ?? 0),
+            'segments' => $this->normalizeLiveSegments((array) ($stream['segments'] ?? [])),
         ];
     }
 
@@ -3212,6 +3344,46 @@ final class PlatformRepository
         unset($live);
 
         $this->save('live_sessions', $lives);
+    }
+
+    private function normalizeLiveSegments(array $segments): array
+    {
+        $segments = array_values(array_filter(array_map(static function (array $segment): array {
+            return [
+                'sequence' => max(1, (int) ($segment['sequence'] ?? 0)),
+                'url' => trim((string) ($segment['url'] ?? '')),
+                'duration_ms' => max(1000, (int) ($segment['duration_ms'] ?? (self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS * 1000))),
+                'mime_type' => trim((string) ($segment['mime_type'] ?? 'video/webm')),
+                'bytes' => max(0, (int) ($segment['bytes'] ?? 0)),
+                'created_at' => trim((string) ($segment['created_at'] ?? '')),
+            ];
+        }, $segments), static fn (array $segment): bool => (string) ($segment['url'] ?? '') !== ''));
+
+        usort($segments, static fn (array $left, array $right): int => ((int) ($left['sequence'] ?? 0)) <=> ((int) ($right['sequence'] ?? 0)));
+
+        return $segments;
+    }
+
+    private function clearLiveSegmentFiles(int $liveId): void
+    {
+        $stream = $this->findLiveStreamRecord($liveId);
+
+        foreach ($this->normalizeLiveSegments((array) ($stream['segments'] ?? [])) as $segment) {
+            $this->deletePublicMediaFile((string) ($segment['url'] ?? ''));
+        }
+    }
+
+    private function deletePublicMediaFile(string $url): void
+    {
+        $url = trim($url);
+        if ($url === '' || str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return;
+        }
+
+        $path = public_path(ltrim($url, '/'));
+        if (is_file($path)) {
+            @unlink($path);
+        }
     }
 
     private function generateLivePeerId(string $role): string
