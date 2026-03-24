@@ -36,9 +36,9 @@ $creatorMenuItems = [
     <?php endif; ?>
 
     <div class="mt-auto px-4 py-4">
-        <form action="/logout" method="post">
+        <form action="/logout" class="mx-2" method="post">
             <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-            <button class="flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-4 text-sm font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-100" data-prototype-skip="1" type="submit">
+            <button class="flex w-full items-center gap-3 rounded-full bg-white px-4 py-3 text-sm font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-100" data-prototype-skip="1" type="submit">
                 <span class="material-symbols-outlined">logout</span>
                 Sair
             </button>

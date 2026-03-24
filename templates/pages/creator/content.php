@@ -114,7 +114,7 @@ ob_start();
 $creatorTopbarSearch = (string) ob_get_clean();
 $creatorShellCreator = $creator;
 $creatorShellCurrent = 'content';
-$creatorShellCta = ['href' => '#content-editor', 'label' => $selectedItem ? 'Editar Conteudo' : 'Novo Conteudo', 'icon' => 'edit_square'];
+$creatorShellCta = null;
 $creatorTopbarLabel = 'Gestao de Conteudo';
 $creatorTopbarAction = ['href' => '/creator/live', 'label' => 'Go Live'];
 include base_path('templates/partials/creator_sidebar.php');
@@ -130,7 +130,7 @@ include base_path('templates/partials/creator_topbar.php');
             </div>
             <div class="flex flex-wrap gap-3">
                 <a class="rounded-full bg-surface-container-lowest px-6 py-3 text-sm font-bold shadow-sm" href="/creator/content">Limpar filtros</a>
-                <a class="signature-glow rounded-full px-8 py-3 text-sm font-bold text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)]" href="#content-editor">Abrir editor</a>
+                <a class="signature-glow rounded-full px-8 py-3 text-sm font-bold text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)]" href="<?= e($selectedItem ? '#content-editor' : '/creator/content#content-editor') ?>"><?= $selectedItem ? 'Editar conteudo' : 'Novo conteudo' ?></a>
             </div>
         </header>
 
@@ -165,7 +165,7 @@ include base_path('templates/partials/creator_topbar.php');
             </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-8 xl:grid-cols-[1.05fr_1.45fr]">
+        <div class="grid grid-cols-1 gap-8 xl:grid-cols-[1.1fr_minmax(0,0.9fr)]">
             <section class="rounded-2xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]" id="content-editor">
                 <div class="mb-6 flex items-center justify-between gap-4">
                     <div>
@@ -252,16 +252,16 @@ include base_path('templates/partials/creator_topbar.php');
                 </form>
             </section>
 
-            <section class="space-y-6">
+            <section class="space-y-6 xl:max-w-xl">
                 <form action="/creator/content" class="rounded-2xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]" method="get">
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_auto]">
+                    <div class="grid grid-cols-1 gap-3">
                         <label class="block space-y-2">
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-on-surface-variant">Busca</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="q" placeholder="Titulo, resumo ou descricao" type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="q" placeholder="Titulo, resumo ou descricao" type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
                         </label>
                         <label class="block space-y-2">
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-on-surface-variant">Status</span>
-                            <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="status">
+                            <select class="w-full rounded-2xl border-none bg-surface-container-low px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="status">
                                 <option value="">Todos</option>
                                 <?php foreach ($statuses as $key => $label): ?>
                                     <option value="<?= e($key) ?>" <?= (string) ($filters['status'] ?? '') === $key ? 'selected' : '' ?>><?= e($label) ?></option>
@@ -270,21 +270,21 @@ include base_path('templates/partials/creator_topbar.php');
                         </label>
                         <label class="block space-y-2">
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-on-surface-variant">Tipo</span>
-                            <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="kind">
+                            <select class="w-full rounded-2xl border-none bg-surface-container-low px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="kind">
                                 <option value="">Todos</option>
                                 <?php foreach ($kinds as $key => $label): ?>
                                     <option value="<?= e($key) ?>" <?= (string) ($filters['kind'] ?? '') === $key ? 'selected' : '' ?>><?= e($label) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </label>
-                        <div class="flex flex-wrap items-end gap-3 md:col-span-2 2xl:col-span-1">
-                            <button class="min-w-[120px] rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
-                            <a class="min-w-[110px] rounded-full bg-surface-container-low px-5 py-4 text-center text-sm font-bold text-on-surface-variant" href="/creator/content">Reset</a>
+                        <div class="flex flex-wrap items-end gap-3 pt-1">
+                            <button class="min-w-[110px] rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
+                            <a class="min-w-[100px] rounded-full bg-surface-container-low px-4 py-3 text-center text-sm font-bold text-on-surface-variant" href="/creator/content">Reset</a>
                         </div>
                     </div>
                 </form>
 
-                <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <div class="grid grid-cols-1 gap-6">
                     <?php foreach ($items as $item): ?>
                         <?php
                         $preview = media_url((string) (($item['thumbnail_url'] ?? '') !== '' ? $item['thumbnail_url'] : ($item['media_url'] ?? '')));
