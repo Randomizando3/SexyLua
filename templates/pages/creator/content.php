@@ -284,7 +284,7 @@ include base_path('templates/partials/creator_topbar.php');
                     </div>
                 </form>
 
-                <div class="grid grid-cols-1 gap-6">
+                <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
                     <?php foreach ($items as $item): ?>
                         <?php
                         $preview = media_url((string) (($item['thumbnail_url'] ?? '') !== '' ? $item['thumbnail_url'] : ($item['media_url'] ?? '')));
