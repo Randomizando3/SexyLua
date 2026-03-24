@@ -261,9 +261,10 @@ function prototype_sanitize_runtime_data(mixed $value): mixed
 {
     if (is_array($value)) {
         $sanitized = [];
+        $hiddenKeys = ['password', 'stream_mode', 'segment_duration_seconds', 'latest_sequence', 'segments', 'broadcaster_peer_id'];
 
         foreach ($value as $key => $item) {
-            if (is_string($key) && in_array($key, ['password'], true)) {
+            if (is_string($key) && in_array($key, $hiddenKeys, true)) {
                 continue;
             }
 

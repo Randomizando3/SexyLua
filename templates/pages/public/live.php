@@ -32,16 +32,19 @@ if (($authUser['role'] ?? '') === 'subscriber') {
     $subscriptionsUrl = '/subscriber/subscriptions';
 }
 
+$liveStatus = (string) ($stream['status'] ?? 'idle');
+$liveStatusLabel = $liveStatus === 'live' ? 'Ao vivo' : ($liveStatus === 'ended' ? 'Encerrada' : 'Aguardando');
+
 $accessMessage = $canWatch
     ? ''
     : ($requiresLogin
         ? 'Entre para assistir esta live exclusiva.'
-        : ($requiresSubscription ? 'Esta live e exclusiva para assinantes ativos.' : 'A live ainda nao esta disponivel.'));
+        : ($requiresSubscription ? 'Esta live é exclusiva para assinantes ativos.' : 'A live ainda não está disponível.'));
 
-if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live') {
+if ($canWatch && $hasReplay && $liveStatus !== 'live') {
     $accessMessage = 'Replay pronto para assistir enquanto a live estiver offline.';
 } elseif ($canWatch) {
-    $accessMessage = 'Os blocos da live entram em fila na plataforma a cada ' . $segmentDurationSeconds . ' segundos.';
+    $accessMessage = 'Aguardando o criador iniciar a live.';
 }
 ?>
 <!DOCTYPE html>
@@ -49,7 +52,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>SexyLua - Live Room</title>
+    <title>SexyLua - Sala da Live</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,700;0,800;1,800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <style>
@@ -84,7 +87,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
     </div>
 </nav>
 
-<main class="max-w-7xl mx-auto px-4 pb-20 pt-24 md:px-8">
+<main class="mx-auto max-w-7xl px-4 pb-20 pt-24 md:px-8">
     <div class="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
         <section class="space-y-6 lg:col-span-8">
             <div
@@ -110,16 +113,16 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                     <?php if ($cover !== ''): ?><img alt="Capa da live" class="absolute inset-0 h-full w-full object-cover opacity-25" src="<?= e($cover) ?>"><?php endif; ?>
                     <div class="absolute left-6 right-6 top-6 flex items-start justify-between gap-4 text-white">
                         <div class="flex items-center gap-3">
-                            <span class="signature-glow rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-status-text><?= e((string) ($stream['status'] ?? 'idle')) ?></span>
+                            <span class="signature-glow rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-status-text><?= e($liveStatusLabel) ?></span>
                             <span class="rounded-full bg-black/35 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]"><span data-live-viewer-count><?= e((string) $viewerCount) ?></span> viewers</span>
                         </div>
-                        <span class="rounded-full bg-black/35 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-stream-state><?= e((string) ($stream['stream_mode'] ?? 'segment_queue')) ?></span>
+                        <span class="rounded-full bg-black/35 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-stream-state><?= e($liveStatusLabel) ?></span>
                     </div>
                     <div class="absolute inset-0 flex items-center justify-center bg-black/55 px-6 text-center text-white" data-live-waiting>
                         <div class="max-w-md">
                             <p class="headline text-4xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
-                            <p class="mt-3 text-sm text-white/75" data-live-waiting-text><?= e($accessMessage !== '' ? $accessMessage : 'Aguardando o criador iniciar a transmissao segmentada.') ?></p>
-                            <button class="mt-5 hidden rounded-full bg-white px-6 py-3 text-sm font-bold uppercase tracking-widest text-[#ab1155]" data-live-playback data-prototype-skip="1" type="button">Ativar playback</button>
+                            <p class="mt-3 text-sm text-white/75" data-live-waiting-text><?= e($accessMessage !== '' ? $accessMessage : 'Aguardando o criador iniciar a live.') ?></p>
+                            <button class="mt-5 hidden rounded-full bg-white px-6 py-3 text-sm font-bold uppercase tracking-widest text-[#ab1155]" data-live-playback data-prototype-skip="1" type="button">Continuar assistindo</button>
                         </div>
                     </div>
                 </div>
@@ -136,7 +139,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                             </div>
                             <div>
                                 <h1 class="headline text-3xl font-extrabold tracking-tight"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h1>
-                                <p class="mt-1 text-on-surface-variant"><?= e((string) ($creator['headline'] ?? 'Criando experiencias exclusivas ao vivo.')) ?></p>
+                                <p class="mt-1 text-on-surface-variant"><?= e((string) ($creator['headline'] ?? 'Criando experiências exclusivas ao vivo.')) ?></p>
                                 <a class="mt-3 inline-block text-sm font-bold text-[#ab1155] underline" href="<?= e($profileUrl) ?>">Abrir perfil</a>
                             </div>
                         </div>
@@ -166,12 +169,12 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                             <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) ($live['access_mode'] ?? 'public')) ?></p>
                         </div>
                         <div class="rounded-2xl bg-surface-container-low p-4">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Bitrate</p>
-                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) ($live['max_bitrate_kbps'] ?? 1500)) ?> kbps</p>
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Agendada</p>
+                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e(format_datetime((string) ($live['scheduled_for'] ?? ''), 'd/m H:i')) ?></p>
                         </div>
                         <div class="rounded-2xl bg-surface-container-low p-4">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Fila</p>
-                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) $segmentDurationSeconds) ?>s por bloco</p>
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Status</p>
+                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e($liveStatusLabel) ?></p>
                         </div>
                         <div class="rounded-2xl bg-surface-container-low p-4">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Meta</p>
@@ -182,8 +185,8 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                         <div class="rounded-2xl bg-surface-container-low p-4">
                             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                 <div>
-                                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Replay disponivel</p>
-                                    <p class="mt-2 text-sm font-bold text-slate-700"><?= e($replayDuration > 0 ? gmdate('H:i:s', $replayDuration) : 'Duracao em processamento') ?></p>
+                                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Replay disponível</p>
+                                    <p class="mt-2 text-sm font-bold text-slate-700"><?= e($replayDuration > 0 ? gmdate('H:i:s', $replayDuration) : 'Duração em processamento') ?></p>
                                 </div>
                                 <a class="rounded-full bg-[#D81B60]/10 px-5 py-3 text-center text-sm font-bold text-[#ab1155]" href="<?= e($replayUrl) ?>" target="_blank">Abrir replay</a>
                             </div>
@@ -196,13 +199,16 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                 <div class="mb-6 flex items-center justify-between">
                     <div>
                         <h2 class="headline text-2xl font-extrabold">Outras lives em destaque</h2>
-                        <p class="mt-2 text-sm text-on-surface-variant">Criadores que estao brilhando agora.</p>
+                        <p class="mt-2 text-sm text-on-surface-variant">Criadores que estão brilhando agora.</p>
                     </div>
                     <a class="text-sm font-bold text-[#ab1155] underline" href="/explore">Ver mais</a>
                 </div>
                 <div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                     <?php foreach (array_slice($relatedLives, 0, 6) as $item): ?>
-                        <?php $itemCover = media_url((string) ($item['cover_url'] ?? '')); ?>
+                        <?php
+                        $itemCover = media_url((string) ($item['cover_url'] ?? ''));
+                        $itemStatus = (string) ($item['stream_status'] ?? $item['status'] ?? 'idle');
+                        ?>
                         <a class="overflow-hidden rounded-3xl bg-surface-container-low transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($item['id'] ?? 0)])) ?>">
                             <div class="aspect-[4/3] bg-slate-900">
                                 <?php if ($itemCover !== ''): ?><img alt="<?= e((string) ($item['title'] ?? 'Live')) ?>" class="h-full w-full object-cover" src="<?= e($itemCover) ?>"><?php else: ?><div class="signature-glow flex h-full w-full items-center justify-center text-white"><span class="headline text-xl font-extrabold">LIVE</span></div><?php endif; ?>
@@ -210,7 +216,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                             <div class="space-y-2 p-4">
                                 <p class="headline text-lg font-extrabold"><?= e((string) ($item['title'] ?? 'Live')) ?></p>
                                 <p class="text-sm text-on-surface-variant"><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></p>
-                                <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($item['stream_status'] ?? $item['status'] ?? 'idle')) ?> • <?= e((string) ($item['viewer_count'] ?? 0)) ?> viewers</p>
+                                <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400"><?= e($itemStatus) ?> • <?= e((string) ($item['viewer_count'] ?? 0)) ?> viewers</p>
                             </div>
                         </a>
                     <?php endforeach; ?>
@@ -230,7 +236,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                 <div>
                     <h4 class="text-[10px] font-bold uppercase tracking-[0.25em] text-on-surface-variant">Top supporters</h4>
                     <div class="mt-3 flex gap-4">
-                        <?php foreach (array_slice($topSupporters, 0, 3) as $index => $supporter): ?>
+                        <?php foreach (array_slice($topSupporters, 0, 3) as $supporter): ?>
                             <div class="flex flex-col items-center">
                                 <div class="signature-glow flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white"><?= e(avatar_initials((string) ($supporter['user']['name'] ?? 'Fan'))) ?></div>
                                 <span class="mt-2 text-[10px] font-bold text-[#ab1155]"><?= e((string) ($supporter['user']['name'] ?? 'Fan')) ?></span>
@@ -241,7 +247,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                     </div>
                 </div>
                 <div>
-                    <h4 class="text-[10px] font-bold uppercase tracking-[0.25em] text-on-surface-variant">Doacoes recentes</h4>
+                    <h4 class="text-[10px] font-bold uppercase tracking-[0.25em] text-on-surface-variant">Doações recentes</h4>
                     <div class="mt-3 space-y-2">
                         <?php foreach (array_slice($recentTips, 0, 4) as $tip): ?>
                             <div class="flex items-center justify-between rounded-full bg-white px-4 py-2 text-xs">
@@ -260,7 +266,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                         <p class="rounded-2xl rounded-tl-none bg-white p-3 text-sm text-on-surface-variant shadow-sm"><?= e((string) ($message['body'] ?? '')) ?></p>
                     </div>
                 <?php endforeach; ?>
-                <?php if ($messages === []): ?><p class="text-sm text-slate-500">Ainda nao ha mensagens nesta live.</p><?php endif; ?>
+                <?php if ($messages === []): ?><p class="text-sm text-slate-500">Ainda não há mensagens nesta live.</p><?php endif; ?>
             </div>
             <div class="border-t border-slate-200/70 bg-white p-4">
                 <?php if ($canChat): ?>
@@ -275,7 +281,7 @@ if ($canWatch && $hasReplay && (string) ($stream['status'] ?? 'idle') !== 'live'
                 <?php elseif ($requiresSubscription): ?>
                     <a class="signature-glow block w-full rounded-full px-5 py-4 text-center text-sm font-bold text-white" href="<?= e($profileUrl) ?>">Assinar para falar no chat</a>
                 <?php else: ?>
-                    <p class="text-sm text-slate-500">O chat esta fechado nesta live.</p>
+                    <p class="text-sm text-slate-500">O chat está fechado nesta live.</p>
                 <?php endif; ?>
             </div>
         </aside>

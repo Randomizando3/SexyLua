@@ -69,6 +69,22 @@
         replayActive: false,
     }
 
+    const liveStatusLabel = (status) => {
+        if (status === 'live') {
+            return 'ao vivo'
+        }
+
+        if (status === 'ended') {
+            return 'encerrada'
+        }
+
+        if (liveId <= 0) {
+            return 'sem live'
+        }
+
+        return 'aguardando'
+    }
+
     const setText = (element, value) => {
         if (element) {
             element.textContent = String(value || '')
@@ -135,17 +151,16 @@
         }
 
         if (elements.previewMirrorButton) {
-            elements.previewMirrorButton.textContent = state.previewMirrored ? 'Desespelhar camera' : 'Espelhar camera'
+            elements.previewMirrorButton.textContent = state.previewMirrored ? 'Desespelhar câmera' : 'Espelhar câmera'
         }
     }
 
     const updateStatus = (stream) => {
         const status = stream && stream.status ? String(stream.status) : 'idle'
-        const streamMode = stream && stream.stream_mode ? String(stream.stream_mode) : 'segment_queue'
         state.lastStreamStatus = status
 
-        setText(elements.statusText, status === 'live' ? 'ao vivo' : status === 'ended' ? 'encerrada' : 'aguardando')
-        setText(elements.streamState, streamMode)
+        setText(elements.statusText, liveStatusLabel(status))
+        setText(elements.streamState, status === 'live' ? 'transmitindo' : status === 'ended' ? 'live encerrada' : 'aguardando live')
         updateViewerCount(stream && Number.isFinite(Number(stream.viewer_count)) ? Number(stream.viewer_count) : 0)
 
         if (mode === 'creator') {
@@ -165,7 +180,7 @@
         } catch (error) {
             return {
                 ok: false,
-                message: 'Resposta invalida da live.',
+                message: 'Resposta inválida da live.',
             }
         }
     }
@@ -240,9 +255,9 @@
         })
 
         if (!data.ok) {
-            showError(data.message || 'Nao foi possivel entrar na live.')
+            showError(data.message || 'Não foi possível entrar na live.')
             if (mode === 'viewer') {
-                setWaiting(data.message || accessMessage || 'Voce nao tem acesso a esta live.')
+                setWaiting(data.message || accessMessage || 'Você não tem acesso a esta live.')
             }
             return false
         }
@@ -367,7 +382,7 @@
             const data = await postMultipart(chunkUploadUrl, formData)
 
             if (!data.ok) {
-                showError(data.message || 'Falha ao enviar um segmento da live.')
+                showError(data.message || 'Falha ao enviar um trecho da live.')
                 continue
             }
 
@@ -393,7 +408,7 @@
         })
 
         processUploadQueue().catch((error) => {
-            showError(error instanceof Error ? error.message : 'Falha ao enviar os segmentos da live.')
+            showError(error instanceof Error ? error.message : 'Falha ao enviar partes da live.')
         })
     }
 
@@ -405,7 +420,7 @@
         await ensureLocalStream()
 
         if (typeof window.MediaRecorder === 'undefined') {
-            showError('Seu navegador nao suporta captura segmentada desta live.')
+            showError('Seu navegador não suporta a captura desta live.')
             return false
         }
 
@@ -426,10 +441,10 @@
             }
         }
         state.recorder.onerror = () => {
-            showError('Falha ao capturar um bloco da transmissao.')
+            showError('Falha ao capturar um trecho da live.')
         }
         state.recorder.start(segmentDurationMs)
-        setReplayStatus('Transmissao segmentada em blocos de 6 segundos.')
+        setReplayStatus('Live em andamento. A gravação local pode virar replay depois.')
 
         return true
     }
@@ -479,7 +494,7 @@
         })
 
         if (!data.ok) {
-            showError(data.message || 'Nao foi possivel iniciar a live.')
+            showError(data.message || 'Não foi possível iniciar a live.')
             return
         }
 
@@ -487,7 +502,7 @@
         state.pendingUploads = []
         state.broadcasting = true
         updateStatus(data.stream || {})
-        setWaiting('Camera aberta. Os segmentos de 6 segundos estao sendo enviados para a plataforma.')
+        setWaiting('Câmera aberta. Sua live está entrando no ar.')
         hideWaiting()
         await startSegmentRecorder()
         startLoops()
@@ -507,14 +522,14 @@
         })
 
         if (!data.ok) {
-            showError(data.message || 'Nao foi possivel encerrar a live.')
+            showError(data.message || 'Não foi possível encerrar a live.')
             return
         }
 
         state.broadcasting = false
         stopLocalStream()
         updateStatus(data.stream || {})
-        setWaiting('Transmissao encerrada. Os ultimos blocos continuam disponiveis por alguns instantes.')
+        setWaiting('Live encerrada. Se houver replay salvo, ele continua disponível.')
     }
 
     const enqueueViewerSegments = (segments, bootstrap = false) => {
@@ -568,7 +583,7 @@
 
         if (state.segmentQueue.length === 0) {
             if (state.lastStreamStatus === 'live') {
-                setWaiting('Aguardando o proximo bloco da transmissao...')
+                setWaiting('Aguardando a live continuar...')
             } else if (replayEnabled && replayUrl) {
                 playReplayFallback()
             }
@@ -590,7 +605,7 @@
             hideWaiting()
             setPlaybackButtonVisible(false)
         }).catch(() => {
-            setWaiting('Toque em playback para continuar assistindo os proximos blocos.')
+            setWaiting('Toque para continuar assistindo a live.')
             setPlaybackButtonVisible(true)
         })
     }
@@ -607,7 +622,7 @@
         })
 
         if (!data.ok) {
-            showError(data.message || 'Nao foi possivel acompanhar a live.')
+            showError(data.message || 'Não foi possível acompanhar a live.')
             return
         }
 
@@ -659,7 +674,7 @@
             return
         }
 
-        showError(data.message || 'Nao foi possivel manter a live conectada.')
+        showError(data.message || 'Não foi possível manter a live conectada.')
     }
 
     const startLoops = () => {
@@ -714,7 +729,7 @@
                     await ensureLocalStream()
                 } catch (error) {
                     state.previewAudio = false
-                    showError(error instanceof Error ? error.message : 'Nao foi possivel abrir o preview local.')
+                    showError(error instanceof Error ? error.message : 'Não foi possível abrir o preview local.')
                 }
             }
 
@@ -734,7 +749,7 @@
         elements.startButton.addEventListener('click', (event) => {
             event.preventDefault()
             startCreatorBroadcast().catch((error) => {
-                showError(error instanceof Error ? error.message : 'Falha ao iniciar a transmissao segmentada.')
+                showError(error instanceof Error ? error.message : 'Falha ao iniciar a live.')
             })
         })
     }
@@ -743,7 +758,7 @@
         elements.stopButton.addEventListener('click', (event) => {
             event.preventDefault()
             stopCreatorBroadcast().catch((error) => {
-                showError(error instanceof Error ? error.message : 'Falha ao encerrar a transmissao segmentada.')
+                showError(error instanceof Error ? error.message : 'Falha ao encerrar a live.')
             })
         })
     }
@@ -766,7 +781,7 @@
                 hideWaiting()
                 setPlaybackButtonVisible(false)
             }).catch((error) => {
-                showError(error instanceof Error ? error.message : 'Nao foi possivel iniciar o playback.')
+                showError(error instanceof Error ? error.message : 'Não foi possível continuar a reprodução.')
             })
         })
     }
@@ -783,7 +798,7 @@
         elements.recordStopButton.disabled = true
     }
 
-    setReplayStatus(replayEnabled ? 'Replay continua disponivel pelo arquivo salvo.' : 'Replay manual desativado nesta live segmentada.')
+    setReplayStatus(replayEnabled ? 'Replay disponível pelo arquivo salvo.' : 'Replay desativado nesta live.')
     updatePreviewControls()
 
     window.addEventListener('beforeunload', () => {
@@ -793,7 +808,7 @@
 
     if (mode === 'creator') {
         if (!canBroadcast || liveId <= 0) {
-            setWaiting('Crie ou selecione uma live para abrir o studio segmentado.')
+            setWaiting('Crie ou selecione uma live para abrir o estúdio.')
             return
         }
 
@@ -803,16 +818,16 @@
             }
 
             startLoops()
-            setWaiting('Preview pronto. Ao iniciar, a plataforma recebe blocos de 6 segundos para distribuir aos viewers.')
+            setWaiting('Preview pronto. Ao iniciar, sua live entra no ar para o público.')
         }).catch((error) => {
-            showError(error instanceof Error ? error.message : 'Nao foi possivel preparar o studio.')
+            showError(error instanceof Error ? error.message : 'Não foi possível preparar o estúdio.')
         })
 
         return
     }
 
     if (!canWatch) {
-        setWaiting(accessMessage || 'Voce nao tem acesso a esta live.')
+        setWaiting(accessMessage || 'Você não tem acesso a esta live.')
         return
     }
 
