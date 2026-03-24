@@ -102,7 +102,7 @@ include base_path('templates/partials/creator_topbar.php');
                 <h2 class="text-5xl font-extrabold tracking-tight">Gestao de <span class="italic text-primary">Assinaturas</span></h2>
                 <p class="mt-4 max-w-2xl text-slate-500">Crie planos, ajuste precos e acompanhe cada membro com acoes reais de pausa, reativacao, cancelamento, VIP e notas internas.</p>
             </div>
-            <div class="flex gap-4">
+            <div class="flex flex-wrap gap-4">
                 <div class="flex flex-col items-center rounded-xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
                     <span class="text-2xl font-bold text-primary"><?= e((string) $activeSubscribers) ?></span>
                     <span class="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Assinantes ativos</span>
@@ -183,7 +183,7 @@ include base_path('templates/partials/creator_topbar.php');
                                     <?php endforeach; ?>
                                 </div>
                             <?php endif; ?>
-                            <div class="mt-5 grid grid-cols-2 gap-3">
+                            <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <a class="rounded-full bg-surface-container-low px-4 py-3 text-center text-xs font-bold text-on-surface" href="<?= e(path_with_query('/creator/memberships', ['plan' => (int) ($plan['id'] ?? 0), 'q' => $filters['q'] ?? '', 'subscriber_status' => $filters['subscriber_status'] ?? ''])) ?>">Editar</a>
                                 <form action="/creator/memberships/delete" method="post" onsubmit="return confirm('Remover ou desativar este plano?');">
                                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
@@ -199,7 +199,7 @@ include base_path('templates/partials/creator_topbar.php');
 
             <section class="space-y-6">
                 <form action="/creator/memberships" class="rounded-2xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]" method="get">
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-[1fr_0.6fr_auto]">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)_auto]">
                         <label class="block space-y-2">
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-on-surface-variant">Busca</span>
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="q" placeholder="Nome, email ou plano" type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
@@ -213,9 +213,9 @@ include base_path('templates/partials/creator_topbar.php');
                                 <option value="cancelled" <?= (string) ($filters['subscriber_status'] ?? '') === 'cancelled' ? 'selected' : '' ?>>Cancelado</option>
                             </select>
                         </label>
-                        <div class="flex items-end gap-3">
-                            <button class="rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
-                            <a class="rounded-full bg-surface-container-low px-5 py-4 text-sm font-bold text-on-surface-variant" href="/creator/memberships">Reset</a>
+                        <div class="flex flex-wrap items-end gap-3 md:col-span-2 2xl:col-span-1">
+                            <button class="min-w-[120px] rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
+                            <a class="min-w-[110px] rounded-full bg-surface-container-low px-5 py-4 text-center text-sm font-bold text-on-surface-variant" href="/creator/memberships">Reset</a>
                         </div>
                     </div>
                 </form>

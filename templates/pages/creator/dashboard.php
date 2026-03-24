@@ -107,7 +107,7 @@ include base_path('templates/partials/creator_topbar.php');
 <h2 class="text-4xl font-extrabold text-on-background tracking-tight mb-2">Olá, Ana Silva 👋</h2>
 <p class="text-on-surface-variant font-medium">Sua influência celestial está crescendo. Veja o que mudou hoje.</p>
 </div>
-<div class="flex items-center gap-3">
+<div class="flex flex-wrap items-center gap-3">
 <button class="bg-surface-container-highest px-6 py-3 rounded-full font-bold text-sm hover:scale-105 transition-transform active:opacity-80">
                         Baixar Relatório
                     </button>

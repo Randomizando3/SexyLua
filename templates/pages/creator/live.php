@@ -72,7 +72,7 @@ include base_path('templates/partials/creator_topbar.php');
             <h2 class="headline mt-2 text-4xl font-extrabold">Transmissao inicial P2P</h2>
             <p class="mt-3 max-w-3xl text-slate-500">Nesta etapa a live sai direto da conexao do criador para os viewers. O bitrate esta limitado a 1.5 Mbps para ficar leve e trocavel por um terceiro depois.</p>
         </div>
-        <div class="grid grid-cols-3 gap-4 text-center">
+        <div class="grid grid-cols-1 gap-4 text-center sm:grid-cols-3">
             <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Agendadas</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= e((string) ($summary['scheduled'] ?? 0)) ?></p></div>
             <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Ao vivo</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= e((string) ($summary['live'] ?? 0)) ?></p></div>
             <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Viewers</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]" data-live-viewer-count><?= e((string) $viewerCount) ?></p></div>
@@ -126,7 +126,7 @@ include base_path('templates/partials/creator_topbar.php');
                 </div>
                 <div class="space-y-5 p-6">
                     <div class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800" data-live-error></div>
-                    <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <div class="rounded-2xl bg-[#f5f3f5] p-4">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Modo</p>
                             <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) ($selected['stream_mode'] ?? 'p2p_mesh')) ?></p>
@@ -216,11 +216,11 @@ include base_path('templates/partials/creator_topbar.php');
                     <input name="video_fps" type="hidden" value="<?= e((string) $videoFps) ?>">
                 </div>
                 <textarea class="min-h-[92px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="pinned_notice" placeholder="Aviso fixado"><?= e((string) ($selected['pinned_notice'] ?? '')) ?></textarea>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <label class="rounded-2xl bg-[#f5f3f5] p-4 text-sm font-semibold"><input <?= (string) ($selected['access_mode'] ?? 'public') === 'public' ? 'checked' : '' ?> class="mr-3" name="access_mode" type="radio" value="public"> Publico</label>
                     <label class="rounded-2xl bg-[#f5f3f5] p-4 text-sm font-semibold"><input <?= (string) ($selected['access_mode'] ?? '') === 'subscriber' ? 'checked' : '' ?> class="mr-3" name="access_mode" type="radio" value="subscriber"> Assinantes</label>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <label class="rounded-2xl bg-[#f5f3f5] p-4 text-sm font-semibold"><input <?= !isset($selected['chat_enabled']) || (bool) ($selected['chat_enabled'] ?? false) ? 'checked' : '' ?> class="mr-3" name="chat_enabled" type="checkbox" value="1"> Chat habilitado</label>
                     <label class="rounded-2xl bg-[#f5f3f5] p-4 text-sm font-semibold"><input <?= (bool) ($selected['recording_enabled'] ?? false) ? 'checked' : '' ?> class="mr-3" name="recording_enabled" type="checkbox" value="1"> Gravar replay</label>
                 </div>
@@ -233,10 +233,10 @@ include base_path('templates/partials/creator_topbar.php');
         </section>
     </div>
 
-    <form action="/creator/live" class="mt-10 grid grid-cols-1 gap-4 rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] md:grid-cols-[1fr_0.6fr_auto]" method="get">
+    <form action="/creator/live" class="mt-10 grid grid-cols-1 gap-4 rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)_auto]" method="get">
         <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="q" placeholder="Buscar live..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
         <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="status"><option value="">Todos os status</option><option value="scheduled" <?= (string) ($filters['status'] ?? '') === 'scheduled' ? 'selected' : '' ?>>Agendada</option><option value="live" <?= (string) ($filters['status'] ?? '') === 'live' ? 'selected' : '' ?>>Ao vivo</option><option value="ended" <?= (string) ($filters['status'] ?? '') === 'ended' ? 'selected' : '' ?>>Encerrada</option></select>
-        <div class="flex items-end gap-3"><button class="rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button><a class="rounded-full bg-[#f5f3f5] px-5 py-4 text-sm font-bold text-slate-600" href="/creator/live">Reset</a></div>
+        <div class="flex flex-wrap items-end gap-3 md:col-span-2 xl:col-span-1"><button class="min-w-[120px] rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button><a class="min-w-[110px] rounded-full bg-[#f5f3f5] px-5 py-4 text-center text-sm font-bold text-slate-600" href="/creator/live">Reset</a></div>
     </form>
 
     <div class="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -263,7 +263,7 @@ include base_path('templates/partials/creator_topbar.php');
                     <?php if ((string) ($live['recording_url'] ?? '') !== ''): ?>
                         <a class="block rounded-2xl bg-[#D81B60]/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]" href="<?= e(media_url((string) ($live['recording_url'] ?? ''))) ?>" target="_blank">Replay salvo</a>
                     <?php endif; ?>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <a class="rounded-full bg-[#f5f3f5] px-4 py-3 text-center text-xs font-bold text-slate-700" href="<?= e(path_with_query('/creator/live', ['q' => $filters['q'] ?? '', 'status' => $filters['status'] ?? '', 'live' => (int) ($live['id'] ?? 0)])) ?>">Editar</a>
                         <a class="rounded-full bg-[#D81B60]/10 px-4 py-3 text-center text-xs font-bold text-[#D81B60]" href="<?= e($liveRoomUrl) ?>" target="_blank">Abrir sala</a>
                         <form action="/creator/live/status" method="post"><input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>"><input name="live_id" type="hidden" value="<?= e((string) ($live['id'] ?? 0)) ?>"><input name="status" type="hidden" value="<?= e((string) $next[0]) ?>"><input name="redirect" type="hidden" value="<?= e($redirect) ?>"><button class="w-full rounded-full bg-slate-900 px-4 py-3 text-xs font-bold text-white" data-prototype-skip="1" type="submit"><?= e((string) $next[1]) ?></button></form>

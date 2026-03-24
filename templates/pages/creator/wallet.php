@@ -66,7 +66,7 @@ include base_path('templates/partials/creator_topbar.php');
         </section>
 
         <section class="space-y-6">
-            <form action="/creator/wallet" class="grid grid-cols-1 gap-4 rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] md:grid-cols-[1fr_0.6fr_auto]" method="get">
+            <form action="/creator/wallet" class="grid grid-cols-1 gap-4 rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)_auto]" method="get">
                 <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="q" placeholder="Buscar transacao..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
                 <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="type">
                     <option value="">Todos os tipos</option>
@@ -75,7 +75,7 @@ include base_path('templates/partials/creator_topbar.php');
                     <option value="payout" <?= (string) ($filters['type'] ?? '') === 'payout' ? 'selected' : '' ?>>Saques</option>
                     <option value="top_up" <?= (string) ($filters['type'] ?? '') === 'top_up' ? 'selected' : '' ?>>Recargas</option>
                 </select>
-                <div class="flex items-end gap-3"><button class="rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button><a class="rounded-full bg-[#f5f3f5] px-5 py-4 text-sm font-bold text-slate-600" href="/creator/wallet">Reset</a></div>
+                <div class="flex flex-wrap items-end gap-3 md:col-span-2 xl:col-span-1"><button class="min-w-[120px] rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button><a class="min-w-[110px] rounded-full bg-[#f5f3f5] px-5 py-4 text-center text-sm font-bold text-slate-600" href="/creator/wallet">Reset</a></div>
             </form>
 
             <div class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">

@@ -5,8 +5,6 @@ declare(strict_types=1);
 $creatorShellCreator = $creatorShellCreator ?? ($creator ?? []);
 $creatorShellCurrent = (string) ($creatorShellCurrent ?? 'dashboard');
 $creatorShellCta = $creatorShellCta ?? null;
-$creatorAvatarUrl = media_url((string) ($creatorShellCreator['avatar_url'] ?? ''));
-$creatorPublicUrl = path_with_query('/profile', ['id' => (int) ($creatorShellCreator['id'] ?? 0)]);
 $creatorMenuItems = [
     ['key' => 'dashboard', 'href' => '/creator', 'icon' => 'insights', 'label' => 'Metricas Lunares'],
     ['key' => 'content', 'href' => '/creator/content', 'icon' => 'movie', 'label' => 'Meu Conteudo'],
@@ -38,16 +36,12 @@ $creatorMenuItems = [
     <?php endif; ?>
 
     <div class="mt-auto px-4 py-4">
-        <a class="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm" href="<?= e($creatorPublicUrl) ?>">
-            <?php if ($creatorAvatarUrl !== ''): ?>
-                <img alt="Avatar do criador" class="h-11 w-11 rounded-full object-cover" src="<?= e($creatorAvatarUrl) ?>">
-            <?php else: ?>
-                <div class="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($creatorShellCreator['name'] ?? 'Criador'))) ?></div>
-            <?php endif; ?>
-            <div class="min-w-0">
-                <p class="truncate text-sm font-bold"><?= e((string) ($creatorShellCreator['name'] ?? 'Criador')) ?></p>
-                <p class="truncate text-xs text-pink-600"><?= e((string) ($creatorShellCreator['headline'] ?? 'Creator Studio ativo')) ?></p>
-            </div>
-        </a>
+        <form action="/logout" method="post">
+            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+            <button class="flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-4 text-sm font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-100" data-prototype-skip="1" type="submit">
+                <span class="material-symbols-outlined">logout</span>
+                Sair
+            </button>
+        </form>
     </div>
 </aside>
