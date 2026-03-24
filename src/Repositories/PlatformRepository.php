@@ -2365,9 +2365,26 @@ final class PlatformRepository
 
             return str_contains($haystack, $search);
         }));
+        $users = $this->sortByDate($users, 'created_at');
+        $items = array_map(function (array $user): array {
+            $item = $this->sanitizeUser($user);
+
+            if ((string) ($user['role'] ?? '') === 'creator') {
+                $profile = $this->findCreatorProfile((int) ($user['id'] ?? 0)) ?? [];
+                foreach (['slug', 'mood', 'cover_style', 'avatar_url', 'cover_url', 'payout_method', 'payout_key', 'instagram', 'telegram', 'stream_key'] as $field) {
+                    if (($profile[$field] ?? '') !== '') {
+                        $item[$field] = $profile[$field];
+                    }
+                }
+            }
+
+            $item['wallet_balance'] = $this->walletBalance((int) ($user['id'] ?? 0));
+
+            return $item;
+        }, $users);
 
         return [
-            'items' => $this->sortByDate($users, 'created_at'),
+            'items' => $items,
             'summary' => [
                 'total' => count($allUsers),
                 'creators' => count(array_filter($allUsers, static fn (array $user): bool => (string) ($user['role'] ?? '') === 'creator')),
@@ -2385,26 +2402,146 @@ final class PlatformRepository
     public function updateUser(int $userId, array $data): bool
     {
         $users = $this->users();
+        $profiles = $this->creatorProfiles();
         $changed = false;
+        $profileChanged = false;
+        $found = false;
+        $originalRole = '';
+        $targetRole = '';
+        $name = trim((string) ($data['name'] ?? ''));
+        $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
+        $headline = trim((string) ($data['headline'] ?? ''));
+        $bio = trim((string) ($data['bio'] ?? ''));
+        $city = trim((string) ($data['city'] ?? ''));
+        $avatarUrl = trim((string) ($data['avatar_url'] ?? ''));
+        $coverUrl = trim((string) ($data['cover_url'] ?? ''));
+        $newPassword = trim((string) ($data['new_password'] ?? ''));
+        $slug = trim((string) ($data['slug'] ?? ''));
+        $mood = trim((string) ($data['mood'] ?? ''));
+        $coverStyle = trim((string) ($data['cover_style'] ?? ''));
+        $payoutMethod = trim((string) ($data['payout_method'] ?? ''));
+        $payoutKey = trim((string) ($data['payout_key'] ?? ''));
+        $instagram = trim((string) ($data['instagram'] ?? ''));
+        $telegram = trim((string) ($data['telegram'] ?? ''));
+        $streamKey = trim((string) ($data['stream_key'] ?? ''));
 
         foreach ($users as &$user) {
             if ((int) $user['id'] === $userId) {
+                $found = true;
+                $originalRole = (string) ($user['role'] ?? 'subscriber');
                 $user['status'] = in_array(($data['status'] ?? $user['status']), ['active', 'suspended'], true) ? $data['status'] : $user['status'];
-                $user['headline'] = trim((string) ($data['headline'] ?? $user['headline']));
+                if (array_key_exists('headline', $data)) {
+                    $user['headline'] = $headline;
+                }
+                if ($name !== '') {
+                    $user['name'] = $name;
+                }
+                if (array_key_exists('bio', $data)) {
+                    $user['bio'] = $bio;
+                }
+                if (array_key_exists('city', $data)) {
+                    $user['city'] = $city;
+                }
+                if (array_key_exists('avatar_url', $data)) {
+                    $user['avatar_url'] = $avatarUrl;
+                }
+                if (array_key_exists('cover_url', $data)) {
+                    $user['cover_url'] = $coverUrl;
+                }
+                if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) && ! $this->emailInUse($email, $userId)) {
+                    $user['email'] = $email;
+                }
+                if ($newPassword !== '' && ! password_verify($newPassword, (string) ($user['password'] ?? ''))) {
+                    $user['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
+                }
                 if (isset($data['role']) && in_array($data['role'], ['subscriber', 'creator', 'admin'], true)) {
                     $user['role'] = $data['role'];
                 }
+                $targetRole = (string) ($user['role'] ?? $originalRole);
                 $changed = true;
                 break;
             }
         }
         unset($user);
 
+        if (! $found) {
+            return false;
+        }
+
+        if (in_array($originalRole, ['creator'], true) || $targetRole === 'creator') {
+            $profileFound = false;
+
+            foreach ($profiles as &$profile) {
+                if ((int) ($profile['user_id'] ?? 0) !== $userId) {
+                    continue;
+                }
+
+                $profileFound = true;
+
+                if ($slug !== '') {
+                    $normalizedSlug = $this->uniqueSlug($slug, $userId);
+                    if ($normalizedSlug !== (string) ($profile['slug'] ?? '')) {
+                        $profile['slug'] = $normalizedSlug;
+                        $profileChanged = true;
+                    }
+                }
+
+                foreach ([
+                    'mood' => $mood,
+                    'cover_style' => $coverStyle,
+                    'avatar_url' => $avatarUrl,
+                    'cover_url' => $coverUrl,
+                    'payout_method' => $payoutMethod,
+                    'payout_key' => $payoutKey,
+                    'instagram' => $instagram,
+                    'telegram' => $telegram,
+                    'stream_key' => $streamKey,
+                ] as $field => $value) {
+                    if (! array_key_exists($field, $data)) {
+                        continue;
+                    }
+
+                    if ($value !== (string) ($profile[$field] ?? '')) {
+                        $profile[$field] = $value;
+                        $profileChanged = true;
+                    }
+                }
+
+                break;
+            }
+            unset($profile);
+
+            if (! $profileFound && $targetRole === 'creator') {
+                $profiles[] = [
+                    'id' => $this->store->nextId($profiles),
+                    'user_id' => $userId,
+                    'slug' => $this->uniqueSlug($slug !== '' ? $slug : ($name !== '' ? $name : ((string) ($this->findUserById($userId)['name'] ?? 'criador'))), $userId),
+                    'mood' => $mood !== '' ? $mood : 'Lua Nova',
+                    'cover_style' => $coverStyle !== '' ? $coverStyle : 'rose-dawn',
+                    'featured' => false,
+                    'followers' => 0,
+                    'rating' => 5.0,
+                    'avatar_url' => $avatarUrl,
+                    'cover_url' => $coverUrl,
+                    'payout_method' => $payoutMethod !== '' ? $payoutMethod : 'pix',
+                    'payout_key' => $payoutKey,
+                    'instagram' => $instagram,
+                    'telegram' => $telegram,
+                    'stream_key' => $streamKey,
+                ];
+                $profileChanged = true;
+            }
+        }
+
         if ($changed) {
             $this->save('users', $users);
         }
 
-        return $changed;
+        if ($profileChanged) {
+            $this->save('creator_profiles', $profiles);
+        }
+
+        return $changed || $profileChanged;
     }
 
     private function updateBasicUserProfile(int $userId, string $role, array $data): bool
@@ -2571,6 +2708,16 @@ final class PlatformRepository
             $decorated,
             static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'payout_request' && (string) ($transaction['status'] ?? 'pending') === 'pending'
         ));
+        $pendingTopUps = array_values(array_filter(
+            $decorated,
+            static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'top_up_pending' && (string) ($transaction['status'] ?? 'pending') === 'pending'
+        ));
+        $users = array_map(function (array $user): array {
+            return $this->sanitizeUser($user) + [
+                'wallet_balance' => $this->walletBalance((int) ($user['id'] ?? 0)),
+            ];
+        }, $this->users());
+        usort($users, static fn (array $left, array $right): int => strnatcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? '')));
 
         return [
             'summary' => [
@@ -2580,16 +2727,348 @@ final class PlatformRepository
                 'top_ups' => count(array_filter($transactions, static fn (array $transaction): bool => $transaction['type'] === 'top_up')),
                 'pending_payout_tokens' => array_reduce($pendingPayouts, static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0), 0),
                 'pending_payout_count' => count($pendingPayouts),
+                'pending_top_up_count' => count($pendingTopUps),
             ],
             'transactions' => $decorated,
             'filtered_transactions' => $filteredTransactions,
             'pending_payouts' => $pendingPayouts,
+            'pending_topups' => $pendingTopUps,
+            'users' => $users,
             'filters' => [
                 'q' => $query,
                 'type' => $type,
                 'status' => $status,
             ],
         ];
+    }
+
+    public function adminAdjustWalletBalance(int $adminId, int $userId, int $luacoins, string $direction, string $note = ''): bool
+    {
+        if (! $this->findUserById($adminId) || ! $this->findUserById($userId) || $luacoins <= 0) {
+            return false;
+        }
+
+        $direction = $direction === 'debit' ? 'debit' : 'credit';
+        if ($direction === 'debit' && $this->walletBalance($userId) < $luacoins) {
+            return false;
+        }
+
+        $transactions = $this->walletTransactions();
+        $transactions[] = [
+            'id' => $this->store->nextId($transactions),
+            'user_id' => $userId,
+            'type' => $direction === 'credit' ? 'admin_credit' : 'admin_debit',
+            'direction' => $direction === 'credit' ? 'in' : 'out',
+            'amount' => $luacoins,
+            'note' => trim($note) !== '' ? trim($note) : ($direction === 'credit' ? 'Credito manual do admin' : 'Debito manual do admin'),
+            'admin_id' => $adminId,
+            'status' => 'completed',
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+
+        $this->save('wallet_transactions', $transactions);
+
+        return true;
+    }
+
+    public function reviewTopUpRequest(int $transactionId, string $status, string $adminNote = ''): bool
+    {
+        if (! in_array($status, ['approved', 'rejected'], true)) {
+            return false;
+        }
+
+        $transactions = $this->walletTransactions();
+        $changed = false;
+
+        foreach ($transactions as &$transaction) {
+            if ((int) ($transaction['id'] ?? 0) !== $transactionId || (string) ($transaction['type'] ?? '') !== 'top_up_pending') {
+                continue;
+            }
+
+            $transaction['status'] = $status;
+            $transaction['admin_note'] = trim($adminNote);
+            $transaction['reviewed_at'] = date('Y-m-d H:i:s');
+            if ($status === 'approved') {
+                $transaction['type'] = 'top_up';
+                $transaction['note'] = 'Recarga aprovada manualmente pelo admin';
+                $transaction['approved_at'] = date('Y-m-d H:i:s');
+            } else {
+                $transaction['note'] = 'Recarga rejeitada manualmente pelo admin';
+            }
+            $changed = true;
+            break;
+        }
+        unset($transaction);
+
+        if (! $changed) {
+            return false;
+        }
+
+        $this->save('wallet_transactions', $transactions);
+
+        return true;
+    }
+
+    public function adminOperationsData(array $filters = []): array
+    {
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $creatorId = (int) ($filters['creator_id'] ?? 0);
+        $contentStatus = trim((string) ($filters['content_status'] ?? ''));
+        $liveStatus = trim((string) ($filters['live_status'] ?? ''));
+
+        $contents = array_values(array_filter($this->contentsWithCreators(), static function (array $item) use ($query, $creatorId, $contentStatus): bool {
+            if ($creatorId > 0 && (int) ($item['creator_id'] ?? 0) !== $creatorId) {
+                return false;
+            }
+
+            if ($contentStatus !== '' && (string) ($item['status'] ?? '') !== $contentStatus) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower((string) (($item['title'] ?? '') . ' ' . ($item['excerpt'] ?? '') . ' ' . ($item['creator']['name'] ?? '')));
+
+            return str_contains($haystack, $query);
+        }));
+        $plans = array_values(array_filter($this->plansWithCreators(), static function (array $plan) use ($query, $creatorId): bool {
+            if ($creatorId > 0 && (int) ($plan['creator_id'] ?? 0) !== $creatorId) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower((string) (($plan['name'] ?? '') . ' ' . ($plan['description'] ?? '') . ' ' . ($plan['creator']['name'] ?? '')));
+
+            return str_contains($haystack, $query);
+        }));
+        $lives = array_values(array_filter($this->livesWithCreators(), static function (array $live) use ($query, $creatorId, $liveStatus): bool {
+            if ($creatorId > 0 && (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+                return false;
+            }
+
+            if ($liveStatus !== '' && (string) ($live['status'] ?? '') !== $liveStatus) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower((string) (($live['title'] ?? '') . ' ' . ($live['description'] ?? '') . ' ' . ($live['creator']['name'] ?? '')));
+
+            return str_contains($haystack, $query);
+        }));
+
+        $users = array_filter($this->users(), static fn (array $user): bool => (string) ($user['role'] ?? '') === 'creator');
+        $users = array_map(fn (array $user): array => $this->sanitizeUser($user), $users);
+        usort($users, static fn (array $left, array $right): int => strnatcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? '')));
+
+        return [
+            'contents' => $this->sortByDate($contents, 'created_at'),
+            'plans' => $plans,
+            'lives' => $this->sortByDate($lives, 'scheduled_for'),
+            'creators' => $users,
+            'filters' => [
+                'q' => $query,
+                'creator_id' => $creatorId,
+                'content_status' => $contentStatus,
+                'live_status' => $liveStatus,
+            ],
+            'summary' => [
+                'content_count' => count($contents),
+                'plan_count' => count($plans),
+                'live_count' => count($lives),
+                'live_now' => count(array_filter($lives, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'live')),
+            ],
+        ];
+    }
+
+    public function adminSaveContent(int $contentId, array $data): bool
+    {
+        if ($contentId <= 0) {
+            return false;
+        }
+
+        $items = $this->contentItems();
+        $changed = false;
+
+        foreach ($items as &$item) {
+            if ((int) ($item['id'] ?? 0) !== $contentId) {
+                continue;
+            }
+
+            $item['title'] = trim((string) ($data['title'] ?? $item['title']));
+            $item['excerpt'] = trim((string) ($data['excerpt'] ?? $item['excerpt']));
+            $item['body'] = trim((string) ($data['body'] ?? $item['body']));
+            $item['visibility'] = in_array(($data['visibility'] ?? $item['visibility']), ['public', 'subscriber', 'premium'], true) ? (string) ($data['visibility'] ?? $item['visibility']) : (string) $item['visibility'];
+            $item['kind'] = in_array(($data['kind'] ?? $item['kind']), ['gallery', 'video', 'audio', 'article', 'live_teaser'], true) ? (string) ($data['kind'] ?? $item['kind']) : (string) $item['kind'];
+            $item['status'] = in_array(($data['status'] ?? $item['status']), ['draft', 'pending', 'approved', 'rejected', 'archived'], true) ? (string) ($data['status'] ?? $item['status']) : (string) $item['status'];
+            $item['duration'] = trim((string) ($data['duration'] ?? $item['duration'] ?? ''));
+            $item['media_url'] = trim((string) ($data['media_url'] ?? $item['media_url'] ?? ''));
+            $item['thumbnail_url'] = trim((string) ($data['thumbnail_url'] ?? $item['thumbnail_url'] ?? ''));
+            $item['updated_at'] = date('Y-m-d H:i:s');
+            $changed = true;
+            break;
+        }
+        unset($item);
+
+        if (! $changed) {
+            return false;
+        }
+
+        $this->save('content_items', $items);
+
+        return true;
+    }
+
+    public function adminDeleteContent(int $contentId): bool
+    {
+        $items = $this->contentItems();
+        $before = count($items);
+        $items = array_values(array_filter($items, static fn (array $item): bool => (int) ($item['id'] ?? 0) !== $contentId));
+
+        if (count($items) === $before) {
+            return false;
+        }
+
+        $this->save('content_items', $items);
+        $savedItems = array_values(array_filter($this->savedItems(), static fn (array $saved): bool => (int) ($saved['content_id'] ?? 0) !== $contentId));
+        $this->save('saved_items', $savedItems);
+
+        return true;
+    }
+
+    public function adminSavePlan(int $planId, array $data): bool
+    {
+        if ($planId <= 0) {
+            return false;
+        }
+
+        $plans = $this->plans();
+        $changed = false;
+        $perks = array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', (string) ($data['perks'] ?? '')) ?: [])));
+
+        foreach ($plans as &$plan) {
+            if ((int) ($plan['id'] ?? 0) !== $planId) {
+                continue;
+            }
+
+            $plan['name'] = trim((string) ($data['name'] ?? $plan['name']));
+            $plan['description'] = trim((string) ($data['description'] ?? $plan['description']));
+            $plan['price_tokens'] = max(1, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? $plan['price_tokens']));
+            $plan['active'] = ($data['active'] ?? ($plan['active'] ? '1' : '0')) === '1';
+            $plan['label'] = trim((string) ($data['label'] ?? ($plan['label'] ?? '')));
+            if ($perks !== []) {
+                $plan['perks'] = $perks;
+            }
+            $changed = true;
+            break;
+        }
+        unset($plan);
+
+        if (! $changed) {
+            return false;
+        }
+
+        $this->save('plans', $plans);
+
+        return true;
+    }
+
+    public function adminDeletePlan(int $planId): array
+    {
+        $plans = $this->plans();
+        $hasActiveSubscribers = false;
+
+        foreach ($this->subscriptions() as $subscription) {
+            if ((int) ($subscription['plan_id'] ?? 0) === $planId && (string) ($subscription['status'] ?? '') === 'active') {
+                $hasActiveSubscribers = true;
+                break;
+            }
+        }
+
+        foreach ($plans as $index => $plan) {
+            if ((int) ($plan['id'] ?? 0) !== $planId) {
+                continue;
+            }
+
+            if ($hasActiveSubscribers) {
+                $plans[$index]['active'] = false;
+                $this->save('plans', $plans);
+
+                return ['ok' => true, 'message' => 'Plano desativado porque ainda possui assinantes ativos.'];
+            }
+
+            unset($plans[$index]);
+            $this->save('plans', array_values($plans));
+
+            return ['ok' => true, 'message' => 'Plano removido com sucesso.'];
+        }
+
+        return ['ok' => false, 'message' => 'Nao foi possivel remover o plano informado.'];
+    }
+
+    public function adminSaveLive(int $liveId, array $data): bool
+    {
+        if ($liveId <= 0) {
+            return false;
+        }
+
+        $lives = $this->liveSessions();
+        $changed = false;
+
+        foreach ($lives as &$live) {
+            if ((int) ($live['id'] ?? 0) !== $liveId) {
+                continue;
+            }
+
+            $live['title'] = trim((string) ($data['title'] ?? $live['title']));
+            $live['description'] = trim((string) ($data['description'] ?? $live['description']));
+            $live['status'] = in_array(($data['status'] ?? $live['status']), ['scheduled', 'live', 'ended'], true) ? (string) ($data['status'] ?? $live['status']) : (string) $live['status'];
+            $live['scheduled_for'] = trim((string) ($data['scheduled_for'] ?? $live['scheduled_for']));
+            $live['category'] = trim((string) ($data['category'] ?? $live['category'] ?? 'Chatting & Chill'));
+            $live['access_mode'] = in_array(($data['access_mode'] ?? $live['access_mode']), ['public', 'subscriber'], true) ? (string) ($data['access_mode'] ?? $live['access_mode']) : (string) $live['access_mode'];
+            $live['price_tokens'] = max(0, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? $live['price_tokens'] ?? 0));
+            $live['goal_tokens'] = max(0, (int) ($data['goal_luacoins'] ?? $data['goal_tokens'] ?? $live['goal_tokens'] ?? 0));
+            $live['viewer_count'] = max(0, (int) ($data['viewer_count'] ?? $live['viewer_count'] ?? 0));
+            $live['chat_enabled'] = ($data['chat_enabled'] ?? ($live['chat_enabled'] ? '1' : '0')) === '1';
+            $live['recording_enabled'] = ($data['recording_enabled'] ?? ($live['recording_enabled'] ? '1' : '0')) === '1';
+            $live['cover_url'] = trim((string) ($data['cover_url'] ?? $live['cover_url'] ?? ''));
+            $live['pinned_notice'] = trim((string) ($data['pinned_notice'] ?? $live['pinned_notice'] ?? ''));
+            $changed = true;
+            break;
+        }
+        unset($live);
+
+        if (! $changed) {
+            return false;
+        }
+
+        $this->save('live_sessions', $lives);
+
+        return true;
+    }
+
+    public function adminDeleteLive(int $liveId): bool
+    {
+        $lives = $this->liveSessions();
+        $before = count($lives);
+        $lives = array_values(array_filter($lives, static fn (array $live): bool => (int) ($live['id'] ?? 0) !== $liveId));
+
+        if (count($lives) === $before) {
+            return false;
+        }
+
+        $this->save('live_sessions', $lives);
+        $messages = array_values(array_filter($this->liveMessages(), static fn (array $message): bool => (int) ($message['live_id'] ?? 0) !== $liveId));
+        $this->save('live_messages', $messages);
+
+        return true;
     }
 
     public function reviewPayoutRequest(int $transactionId, string $status, string $adminNote = ''): bool
@@ -2673,6 +3152,21 @@ final class PlatformRepository
         $this->save('settings', $settings);
 
         return $settings;
+    }
+
+    private function emailInUse(string $email, int $exceptUserId = 0): bool
+    {
+        foreach ($this->users() as $user) {
+            if ((int) ($user['id'] ?? 0) === $exceptUserId) {
+                continue;
+            }
+
+            if (mb_strtolower((string) ($user['email'] ?? '')) === mb_strtolower($email)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function users(): array

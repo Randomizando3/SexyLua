@@ -85,6 +85,26 @@ final class AdminController extends Controller
         ], null);
     }
 
+    public function operations(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $filters = [
+            'q' => (string) $request->query('q', ''),
+            'creator_id' => (int) $request->query('creator_id', 0),
+            'content_status' => (string) $request->query('content_status', ''),
+            'live_status' => (string) $request->query('live_status', ''),
+        ];
+
+        $this->render('pages/admin/operations', [
+            'title' => 'Operacoes de Conteudo',
+            'data' => $this->app->repository->adminOperationsData($filters),
+            'sidebar_role' => 'admin',
+            'prototype' => [
+                'page' => 'admin.operations',
+            ],
+        ], null);
+    }
+
     public function settings(Request $request): void
     {
         $this->app->auth->requireRole('admin');
@@ -176,5 +196,87 @@ final class AdminController extends Controller
         );
 
         $this->redirect('/admin/finance', $ok ? 'Saque atualizado.' : 'Nao foi possivel atualizar o saque.', $ok ? 'success' : 'error');
+    }
+
+    public function adjustWallet(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/finance');
+        $ok = $this->app->repository->adminAdjustWalletBalance(
+            (int) ($this->user()['id'] ?? 0),
+            (int) $request->input('user_id', 0),
+            (int) $request->input('luacoins', 0),
+            (string) $request->input('direction', 'credit'),
+            (string) $request->input('note', '')
+        );
+
+        $this->redirect('/admin/finance', $ok ? 'Carteira atualizada.' : 'Nao foi possivel ajustar a carteira.', $ok ? 'success' : 'error');
+    }
+
+    public function reviewTopUp(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/finance');
+        $ok = $this->app->repository->reviewTopUpRequest(
+            (int) $request->input('transaction_id', 0),
+            (string) $request->input('status', 'approved'),
+            (string) $request->input('admin_note', '')
+        );
+
+        $this->redirect('/admin/finance', $ok ? 'Recarga atualizada.' : 'Nao foi possivel revisar a recarga.', $ok ? 'success' : 'error');
+    }
+
+    public function saveManagedContent(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/operations');
+        $ok = $this->app->repository->adminSaveContent((int) $request->input('content_id', 0), $request->all());
+
+        $this->redirect('/admin/operations', $ok ? 'Conteudo atualizado.' : 'Nao foi possivel salvar o conteudo.', $ok ? 'success' : 'error');
+    }
+
+    public function deleteManagedContent(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/operations');
+        $ok = $this->app->repository->adminDeleteContent((int) $request->input('content_id', 0));
+
+        $this->redirect('/admin/operations', $ok ? 'Conteudo removido.' : 'Nao foi possivel remover o conteudo.', $ok ? 'success' : 'error');
+    }
+
+    public function saveManagedPlan(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/operations');
+        $ok = $this->app->repository->adminSavePlan((int) $request->input('plan_id', 0), $request->all());
+
+        $this->redirect('/admin/operations', $ok ? 'Plano atualizado.' : 'Nao foi possivel salvar o plano.', $ok ? 'success' : 'error');
+    }
+
+    public function deleteManagedPlan(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/operations');
+        $result = $this->app->repository->adminDeletePlan((int) $request->input('plan_id', 0));
+
+        $this->redirect('/admin/operations', (string) ($result['message'] ?? 'Plano atualizado.'), ($result['ok'] ?? false) ? 'success' : 'error');
+    }
+
+    public function saveManagedLive(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/operations');
+        $ok = $this->app->repository->adminSaveLive((int) $request->input('live_id', 0), $request->all());
+
+        $this->redirect('/admin/operations', $ok ? 'Live atualizada.' : 'Nao foi possivel salvar a live.', $ok ? 'success' : 'error');
+    }
+
+    public function deleteManagedLive(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/operations');
+        $ok = $this->app->repository->adminDeleteLive((int) $request->input('live_id', 0));
+
+        $this->redirect('/admin/operations', $ok ? 'Live removida.' : 'Nao foi possivel remover a live.', $ok ? 'success' : 'error');
     }
 }

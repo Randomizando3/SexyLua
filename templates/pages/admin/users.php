@@ -67,6 +67,7 @@ $admin = $app->auth->user() ?? [];
         <a class="flex items-center gap-4 rounded-full bg-white px-4 py-3 font-bold text-primary" href="/admin/users"><span class="material-symbols-outlined">group</span><span>Usuarios</span></a>
         <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/moderation"><span class="material-symbols-outlined">gavel</span><span>Moderacao</span></a>
         <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/finance"><span class="material-symbols-outlined">payments</span><span>Financeiro</span></a>
+        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/operations"><span class="material-symbols-outlined">manufacturing</span><span>Operacoes</span></a>
         <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/settings"><span class="material-symbols-outlined">settings</span><span>Configuracoes</span></a>
     </nav>
 </aside>
@@ -76,7 +77,7 @@ $admin = $app->auth->user() ?? [];
         <div>
             <p class="text-xs font-bold uppercase tracking-[0.3em] text-primary">Administracao de acesso</p>
             <h2 class="mt-2 text-5xl font-extrabold tracking-tight">Gestao de <span class="italic text-primary">Usuarios</span></h2>
-            <p class="mt-4 max-w-2xl text-on-surface-variant">Filtre a base, ajuste papeis e status, e mantenha o ecossistema do SexyLua sob controle.</p>
+            <p class="mt-4 max-w-2xl text-on-surface-variant">Filtre a base, edite perfis completos, redefina senha, acompanhe carteira e mantenha o ecossistema do SexyLua sob controle.</p>
         </div>
         <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Total</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($summary['total'] ?? 0)) ?></p></article>
@@ -110,33 +111,122 @@ $admin = $app->auth->user() ?? [];
             <form action="/admin/users/update" class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm" method="post">
                 <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                 <input name="user_id" type="hidden" value="<?= e((string) ($user['id'] ?? 0)) ?>">
-                <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1.3fr_0.7fr_0.7fr_1fr_auto]">
-                    <div>
-                        <p class="text-lg font-bold"><?= e((string) ($user['name'] ?? 'Usuario')) ?></p>
-                        <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($user['email'] ?? '')) ?></p>
-                        <input class="mt-4 w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="headline" type="text" value="<?= e((string) ($user['headline'] ?? '')) ?>">
+                <div class="grid grid-cols-1 gap-6 2xl:grid-cols-[1.25fr_0.75fr]">
+                    <div class="space-y-5">
+                        <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nome</span>
+                                <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="name" type="text" value="<?= e((string) ($user['name'] ?? '')) ?>">
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">E-mail</span>
+                                <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="email" type="email" value="<?= e((string) ($user['email'] ?? '')) ?>">
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Cidade</span>
+                                <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="city" type="text" value="<?= e((string) ($user['city'] ?? '')) ?>">
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Headline</span>
+                                <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="headline" type="text" value="<?= e((string) ($user['headline'] ?? '')) ?>">
+                            </label>
+                            <label class="block space-y-2 md:col-span-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Bio</span>
+                                <textarea class="min-h-32 w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="bio"><?= e((string) ($user['bio'] ?? '')) ?></textarea>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Avatar URL</span>
+                                <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_url" type="text" value="<?= e((string) ($user['avatar_url'] ?? '')) ?>">
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Cover URL</span>
+                                <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_url" type="text" value="<?= e((string) ($user['cover_url'] ?? '')) ?>">
+                            </label>
+                            <label class="block space-y-2 md:col-span-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nova senha</span>
+                                <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password" type="password" placeholder="Preencha apenas se quiser redefinir a senha">
+                            </label>
+                        </div>
+
+                        <?php if ((string) ($user['role'] ?? '') === 'creator'): ?>
+                            <div class="rounded-3xl bg-surface-container-low p-5">
+                                <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Dados do criador</p>
+                                <div class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2">
+                                    <label class="block space-y-2">
+                                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Slug</span>
+                                        <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="slug" type="text" value="<?= e((string) ($user['slug'] ?? '')) ?>">
+                                    </label>
+                                    <label class="block space-y-2">
+                                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Mood</span>
+                                        <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="mood" type="text" value="<?= e((string) ($user['mood'] ?? '')) ?>">
+                                    </label>
+                                    <label class="block space-y-2">
+                                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Capa visual</span>
+                                        <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_style" type="text" value="<?= e((string) ($user['cover_style'] ?? '')) ?>">
+                                    </label>
+                                    <label class="block space-y-2">
+                                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Metodo de saque</span>
+                                        <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="payout_method" type="text" value="<?= e((string) ($user['payout_method'] ?? 'pix')) ?>">
+                                    </label>
+                                    <label class="block space-y-2 md:col-span-2">
+                                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Chave de pagamento</span>
+                                        <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="payout_key" type="text" value="<?= e((string) ($user['payout_key'] ?? '')) ?>">
+                                    </label>
+                                    <label class="block space-y-2">
+                                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Instagram</span>
+                                        <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="instagram" type="text" value="<?= e((string) ($user['instagram'] ?? '')) ?>">
+                                    </label>
+                                    <label class="block space-y-2">
+                                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Telegram</span>
+                                        <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="telegram" type="text" value="<?= e((string) ($user['telegram'] ?? '')) ?>">
+                                    </label>
+                                    <label class="block space-y-2 md:col-span-2">
+                                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Stream key</span>
+                                        <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="stream_key" type="text" value="<?= e((string) ($user['stream_key'] ?? '')) ?>">
+                                    </label>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
-                    <label class="block space-y-2">
-                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Papel</span>
-                        <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="role">
-                            <option value="subscriber" <?= (string) ($user['role'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Assinante</option>
-                            <option value="creator" <?= (string) ($user['role'] ?? '') === 'creator' ? 'selected' : '' ?>>Criador</option>
-                            <option value="admin" <?= (string) ($user['role'] ?? '') === 'admin' ? 'selected' : '' ?>>Admin</option>
-                        </select>
-                    </label>
-                    <label class="block space-y-2">
-                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Status</span>
-                        <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="status">
-                            <option value="active" <?= (string) ($user['status'] ?? '') === 'active' ? 'selected' : '' ?>>Ativo</option>
-                            <option value="suspended" <?= (string) ($user['status'] ?? '') === 'suspended' ? 'selected' : '' ?>>Suspenso</option>
-                        </select>
-                    </label>
-                    <div class="rounded-3xl bg-surface-container-low p-5">
-                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Criado em</p>
-                        <p class="mt-3 font-bold"><?= e(format_datetime((string) ($user['created_at'] ?? ''), 'd/m/Y')) ?></p>
-                    </div>
-                    <div class="flex items-end">
-                        <button class="w-full rounded-full bg-primary px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Salvar</button>
+
+                    <div class="space-y-5">
+                        <div class="rounded-3xl bg-surface-container-low p-5">
+                            <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Conta</p>
+                            <p class="mt-3 text-xl font-extrabold"><?= e((string) ($user['name'] ?? 'Usuario')) ?></p>
+                            <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($user['email'] ?? '')) ?></p>
+                            <div class="mt-5 grid grid-cols-2 gap-4">
+                                <div class="rounded-2xl bg-white p-4">
+                                    <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Carteira</p>
+                                    <p class="mt-2 text-lg font-extrabold text-primary"><?= e(token_amount((int) ($user['wallet_balance'] ?? 0))) ?></p>
+                                </div>
+                                <div class="rounded-2xl bg-white p-4">
+                                    <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Criado em</p>
+                                    <p class="mt-2 text-lg font-extrabold"><?= e(format_datetime((string) ($user['created_at'] ?? ''), 'd/m/Y')) ?></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Papel</span>
+                            <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="role">
+                                <option value="subscriber" <?= (string) ($user['role'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Assinante</option>
+                                <option value="creator" <?= (string) ($user['role'] ?? '') === 'creator' ? 'selected' : '' ?>>Criador</option>
+                                <option value="admin" <?= (string) ($user['role'] ?? '') === 'admin' ? 'selected' : '' ?>>Admin</option>
+                            </select>
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Status</span>
+                            <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="status">
+                                <option value="active" <?= (string) ($user['status'] ?? '') === 'active' ? 'selected' : '' ?>>Ativo</option>
+                                <option value="suspended" <?= (string) ($user['status'] ?? '') === 'suspended' ? 'selected' : '' ?>>Suspenso</option>
+                            </select>
+                        </label>
+
+                        <button class="w-full rounded-full bg-primary px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Salvar usuario</button>
+                        <a class="block rounded-full bg-surface-container-low px-6 py-4 text-center text-sm font-bold text-on-surface-variant" href="/admin/finance?q=<?= urlencode((string) ($user['email'] ?? '')) ?>">Ver no financeiro</a>
                     </div>
                 </div>
             </form>

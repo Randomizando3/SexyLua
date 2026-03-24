@@ -6,6 +6,8 @@ $summary = $data['summary'] ?? [];
 $filters = $data['filters'] ?? [];
 $transactions = $data['filtered_transactions'] ?? [];
 $pendingPayouts = $data['pending_payouts'] ?? [];
+$pendingTopUps = $data['pending_topups'] ?? [];
+$users = $data['users'] ?? [];
 $admin = $app->auth->user() ?? [];
 ?>
 <!DOCTYPE html>
@@ -69,6 +71,7 @@ $admin = $app->auth->user() ?? [];
         <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/users"><span class="material-symbols-outlined">group</span><span>Usuarios</span></a>
         <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/moderation"><span class="material-symbols-outlined">gavel</span><span>Moderacao</span></a>
         <a class="flex items-center gap-4 rounded-full bg-white px-4 py-3 font-bold text-primary" href="/admin/finance"><span class="material-symbols-outlined">payments</span><span>Financeiro</span></a>
+        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/operations"><span class="material-symbols-outlined">manufacturing</span><span>Operacoes</span></a>
         <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/settings"><span class="material-symbols-outlined">settings</span><span>Configuracoes</span></a>
     </nav>
     <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
@@ -83,7 +86,7 @@ $admin = $app->auth->user() ?? [];
         <div>
             <p class="text-xs font-bold uppercase tracking-[0.3em] text-primary">Fluxo de caixa</p>
             <h2 class="mt-2 text-5xl font-extrabold tracking-tight">Visao <span class="italic text-primary">Financeira</span></h2>
-            <p class="mt-4 max-w-2xl text-on-surface-variant">Acompanhe volume bruto, repasses, recargas e o funil de saques para operar a plataforma com mais seguranca.</p>
+            <p class="mt-4 max-w-2xl text-on-surface-variant">Acompanhe volume bruto, repasses, recargas, ajuste carteiras manualmente e opere o funil financeiro completo com mais seguranca.</p>
         </div>
         <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Volume</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e(token_amount((int) ($summary['gross_volume'] ?? 0))) ?></p></article>
@@ -99,9 +102,11 @@ $admin = $app->auth->user() ?? [];
         <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="type">
             <option value="">Todos os tipos</option>
             <option value="top_up" <?= (string) ($filters['type'] ?? '') === 'top_up' ? 'selected' : '' ?>>Recarga</option>
+            <option value="top_up_pending" <?= (string) ($filters['type'] ?? '') === 'top_up_pending' ? 'selected' : '' ?>>Recarga pendente</option>
             <option value="subscription" <?= (string) ($filters['type'] ?? '') === 'subscription' ? 'selected' : '' ?>>Assinatura</option>
             <option value="tip" <?= (string) ($filters['type'] ?? '') === 'tip' ? 'selected' : '' ?>>Gorjeta</option>
             <option value="payout" <?= (string) ($filters['type'] ?? '') === 'payout' ? 'selected' : '' ?>>Saque</option>
+            <option value="admin_" <?= (string) ($filters['type'] ?? '') === 'admin_' ? 'selected' : '' ?>>Ajuste manual</option>
         </select>
         <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="status">
             <option value="">Todos os status</option>
@@ -119,6 +124,78 @@ $admin = $app->auth->user() ?? [];
 
     <div class="grid grid-cols-1 gap-8 2xl:grid-cols-[0.95fr_1.05fr]">
         <section class="space-y-5">
+            <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
+                <div class="mb-6 flex items-center justify-between">
+                    <h3 class="text-2xl font-extrabold">Ajuste manual de carteira</h3>
+                    <span class="text-sm font-bold text-primary">LuaCoins</span>
+                </div>
+                <form action="/admin/finance/adjust-wallet" class="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_0.35fr_0.35fr]" method="post">
+                    <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                    <label class="block space-y-2 xl:col-span-3">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Usuario</span>
+                        <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="user_id">
+                            <?php foreach ($users as $user): ?>
+                                <option value="<?= e((string) ($user['id'] ?? 0)) ?>"><?= e((string) ($user['name'] ?? 'Usuario')) ?> • <?= e((string) ($user['email'] ?? '')) ?> • <?= e(token_amount((int) ($user['wallet_balance'] ?? 0))) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Direcao</span>
+                        <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="direction">
+                            <option value="credit">Creditar</option>
+                            <option value="debit">Debitar</option>
+                        </select>
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">LuaCoins</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="luacoins" step="1" type="number" value="50">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota interna</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="note" type="text" value="Ajuste manual do admin">
+                    </label>
+                    <button class="rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white xl:col-span-3" data-prototype-skip="1" type="submit">Aplicar ajuste</button>
+                </form>
+            </div>
+
+            <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
+                <div class="mb-6 flex items-center justify-between">
+                    <h3 class="text-2xl font-extrabold">Recargas aguardando decisao</h3>
+                    <span class="text-sm font-bold text-primary"><?= e((string) ($summary['pending_top_up_count'] ?? 0)) ?> pendentes</span>
+                </div>
+                <div class="space-y-4">
+                    <?php foreach ($pendingTopUps as $transaction): ?>
+                        <form action="/admin/finance/review-topup" class="rounded-3xl bg-surface-container-low p-5" method="post">
+                            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                            <input name="transaction_id" type="hidden" value="<?= e((string) ($transaction['id'] ?? 0)) ?>">
+                            <div class="flex flex-wrap items-start justify-between gap-4">
+                                <div>
+                                    <p class="text-lg font-bold"><?= e((string) ($transaction['user']['name'] ?? 'Assinante')) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($transaction['user']['email'] ?? '')) ?></p>
+                                    <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['provider'] ?? 'checkout')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
+                                </div>
+                                <strong class="text-2xl font-extrabold text-primary"><?= e(token_amount((int) ($transaction['amount'] ?? 0))) ?></strong>
+                            </div>
+                            <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[0.45fr_1fr]">
+                                <label class="block space-y-2">
+                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Status</span>
+                                    <select class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="status">
+                                        <option value="approved">Aprovar</option>
+                                        <option value="rejected">Rejeitar</option>
+                                    </select>
+                                </label>
+                                <label class="block space-y-2">
+                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota interna</span>
+                                    <textarea class="min-h-24 w-full rounded-3xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="admin_note" placeholder="Ex.: comprovante validado manualmente."><?= e((string) ($transaction['admin_note'] ?? '')) ?></textarea>
+                                </label>
+                            </div>
+                            <button class="mt-5 w-full rounded-full bg-primary px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Revisar recarga</button>
+                        </form>
+                    <?php endforeach; ?>
+                    <?php if ($pendingTopUps === []): ?><p class="rounded-3xl bg-surface-container-low p-6 text-sm text-on-surface-variant">Nenhuma recarga pendente agora.</p><?php endif; ?>
+                </div>
+            </div>
+
             <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                 <div class="mb-6 flex items-center justify-between">
                     <h3 class="text-2xl font-extrabold">Saques aguardando revisao</h3>
