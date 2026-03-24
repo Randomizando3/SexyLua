@@ -47,6 +47,9 @@ $admin = $app->auth->user() ?? [];
         .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; }
         body { background: #fbf9fb; color: #1b1c1d; font-family: "Manrope", sans-serif; }
         h1, h2, h3, h4 { font-family: "Plus Jakarta Sans", sans-serif; }
+        details.admin-user[open] .admin-user-chevron { transform: rotate(180deg); }
+        [data-modal-overlay] { display: none; }
+        [data-modal-overlay]:target { display: flex; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -106,9 +109,48 @@ $admin = $app->auth->user() ?? [];
         </div>
     </form>
 
+    <div class="mb-8 flex justify-end">
+        <a class="rounded-full bg-primary px-6 py-4 text-sm font-bold text-white shadow-sm" href="#create-user-modal">Novo usuario</a>
+    </div>
+
     <div class="space-y-5">
         <?php foreach ($users as $user): ?>
-            <form action="/admin/users/update" class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm" method="post">
+            <?php
+            $role = (string) ($user['role'] ?? 'subscriber');
+            $status = (string) ($user['status'] ?? 'active');
+            $roleLabel = $role === 'creator' ? 'Criador' : ($role === 'admin' ? 'Admin' : 'Assinante');
+            $statusLabel = $status === 'suspended' ? 'Suspenso' : 'Ativo';
+            $statusClass = $status === 'suspended' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
+            ?>
+            <details class="admin-user overflow-hidden rounded-3xl bg-surface-container-lowest shadow-sm">
+                <summary class="grid cursor-pointer list-none grid-cols-1 gap-4 px-6 py-5 marker:hidden lg:grid-cols-[minmax(0,1.4fr)_auto_auto_auto_auto] lg:items-center">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-sm font-extrabold text-primary"><?= e(avatar_initials((string) ($user['name'] ?? 'Usuario'))) ?></div>
+                            <div class="min-w-0">
+                                <p class="truncate text-lg font-extrabold"><?= e((string) ($user['name'] ?? 'Usuario')) ?></p>
+                                <p class="truncate text-sm text-on-surface-variant"><?= e((string) ($user['email'] ?? '')) ?></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-primary"><?= e($roleLabel) ?></span>
+                        <span class="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] <?= e($statusClass) ?>"><?= e($statusLabel) ?></span>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Carteira</p>
+                        <p class="mt-1 text-sm font-extrabold text-primary"><?= e(token_amount((int) ($user['wallet_balance'] ?? 0))) ?></p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Criado em</p>
+                        <p class="mt-1 text-sm font-bold"><?= e(format_datetime((string) ($user['created_at'] ?? ''), 'd/m/Y')) ?></p>
+                    </div>
+                    <div class="flex items-center justify-between gap-4 lg:justify-end">
+                        <p class="truncate text-sm text-on-surface-variant"><?= e((string) ($user['headline'] ?? 'Sem headline')) ?></p>
+                        <span class="admin-user-chevron material-symbols-outlined text-slate-400 transition-transform">expand_more</span>
+                    </div>
+                </summary>
+                <form action="/admin/users/update" class="border-t border-slate-100 p-6" method="post">
                 <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                 <input name="user_id" type="hidden" value="<?= e((string) ($user['id'] ?? 0)) ?>">
                 <div class="grid grid-cols-1 gap-6 2xl:grid-cols-[1.25fr_0.75fr]">
@@ -229,9 +271,119 @@ $admin = $app->auth->user() ?? [];
                         <a class="block rounded-full bg-surface-container-low px-6 py-4 text-center text-sm font-bold text-on-surface-variant" href="/admin/finance?q=<?= urlencode((string) ($user['email'] ?? '')) ?>">Ver no financeiro</a>
                     </div>
                 </div>
-            </form>
+                </form>
+            </details>
         <?php endforeach; ?>
         <?php if ($users === []): ?><p class="rounded-3xl bg-surface-container-low p-8 text-sm text-on-surface-variant">Nenhum usuario encontrado com esse filtro.</p><?php endif; ?>
+    </div>
+
+    <div class="fixed inset-0 z-[60] items-center justify-center bg-slate-900/40 p-6" data-modal-overlay id="create-user-modal">
+        <div class="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] bg-surface-container-lowest p-6 shadow-2xl md:p-8">
+            <div class="mb-6 flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-[0.3em] text-primary">Novo usuario</p>
+                    <h3 class="mt-2 text-3xl font-extrabold">Criar acesso manual</h3>
+                    <p class="mt-3 max-w-2xl text-sm text-on-surface-variant">Cadastre um novo assinante, criador ou admin pelo painel. Os campos do criador so serao usados quando o papel for Criador.</p>
+                </div>
+                <a class="rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface-variant" href="/admin/users">Fechar</a>
+            </div>
+
+            <form action="/admin/users/create" class="space-y-6" method="post">
+                <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nome</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="name" required type="text">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">E-mail</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="email" required type="email">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Senha inicial</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="password" required type="password">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Cidade</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="city" type="text">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Papel</span>
+                        <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="role">
+                            <option value="subscriber">Assinante</option>
+                            <option value="creator">Criador</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Status</span>
+                        <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="status">
+                            <option value="active">Ativo</option>
+                            <option value="suspended">Suspenso</option>
+                        </select>
+                    </label>
+                    <label class="block space-y-2 md:col-span-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Headline</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="headline" type="text">
+                    </label>
+                    <label class="block space-y-2 md:col-span-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Bio</span>
+                        <textarea class="min-h-28 w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="bio"></textarea>
+                    </label>
+                </div>
+
+                <div class="rounded-3xl bg-surface-container-low p-5">
+                    <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Dados visuais e do criador</p>
+                    <div class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2">
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Avatar URL</span>
+                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_url" type="text">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Cover URL</span>
+                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_url" type="text">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Slug</span>
+                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="slug" type="text">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Mood</span>
+                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="mood" type="text">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Capa visual</span>
+                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_style" type="text">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Metodo de saque</span>
+                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="payout_method" type="text" value="pix">
+                        </label>
+                        <label class="block space-y-2 md:col-span-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Chave de pagamento</span>
+                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="payout_key" type="text">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Instagram</span>
+                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="instagram" type="text">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Telegram</span>
+                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="telegram" type="text">
+                        </label>
+                        <label class="block space-y-2 md:col-span-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Stream key</span>
+                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="stream_key" type="text">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-3 md:flex-row md:justify-end">
+                    <a class="rounded-full bg-surface-container-low px-6 py-4 text-center text-sm font-bold text-on-surface-variant" href="/admin/users">Cancelar</a>
+                    <button class="rounded-full bg-primary px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Criar usuario</button>
+                </div>
+            </form>
+        </div>
     </div>
 </main>
 </body>

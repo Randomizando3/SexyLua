@@ -2544,6 +2544,76 @@ final class PlatformRepository
         return $changed || $profileChanged;
     }
 
+    public function createAdminManagedUser(array $data): bool
+    {
+        $name = trim((string) ($data['name'] ?? ''));
+        $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
+        $password = trim((string) ($data['password'] ?? ''));
+        $role = in_array(($data['role'] ?? 'subscriber'), ['subscriber', 'creator', 'admin'], true) ? (string) $data['role'] : 'subscriber';
+        $status = in_array(($data['status'] ?? 'active'), ['active', 'suspended'], true) ? (string) $data['status'] : 'active';
+
+        if ($name === '' || $email === '' || $password === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL) || $this->emailInUse($email)) {
+            return false;
+        }
+
+        $users = $this->users();
+        $userId = $this->store->nextId($users);
+        $headline = trim((string) ($data['headline'] ?? ''));
+        $bio = trim((string) ($data['bio'] ?? ''));
+        $city = trim((string) ($data['city'] ?? ''));
+        $avatarUrl = trim((string) ($data['avatar_url'] ?? ''));
+        $coverUrl = trim((string) ($data['cover_url'] ?? ''));
+
+        $users[] = [
+            'id' => $userId,
+            'name' => $name,
+            'email' => $email,
+            'password' => password_hash($password, PASSWORD_DEFAULT),
+            'role' => $role,
+            'status' => $status,
+            'headline' => $headline,
+            'bio' => $bio,
+            'city' => $city,
+            'avatar_url' => $avatarUrl,
+            'cover_url' => $coverUrl,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        $this->save('users', $users);
+
+        if ($role === 'creator') {
+            $profiles = $this->creatorProfiles();
+            $slug = trim((string) ($data['slug'] ?? ''));
+            $mood = trim((string) ($data['mood'] ?? ''));
+            $coverStyle = trim((string) ($data['cover_style'] ?? ''));
+            $payoutMethod = trim((string) ($data['payout_method'] ?? ''));
+            $payoutKey = trim((string) ($data['payout_key'] ?? ''));
+            $instagram = trim((string) ($data['instagram'] ?? ''));
+            $telegram = trim((string) ($data['telegram'] ?? ''));
+            $streamKey = trim((string) ($data['stream_key'] ?? ''));
+
+            $profiles[] = [
+                'id' => $this->store->nextId($profiles),
+                'user_id' => $userId,
+                'slug' => $this->uniqueSlug($slug !== '' ? $slug : $name, $userId),
+                'mood' => $mood !== '' ? $mood : 'Lua Nova',
+                'cover_style' => $coverStyle !== '' ? $coverStyle : 'rose-dawn',
+                'featured' => false,
+                'followers' => 0,
+                'rating' => 5.0,
+                'avatar_url' => $avatarUrl,
+                'cover_url' => $coverUrl,
+                'payout_method' => $payoutMethod !== '' ? $payoutMethod : 'pix',
+                'payout_key' => $payoutKey,
+                'instagram' => $instagram,
+                'telegram' => $telegram,
+                'stream_key' => $streamKey,
+            ];
+            $this->save('creator_profiles', $profiles);
+        }
+
+        return true;
+    }
+
     private function updateBasicUserProfile(int $userId, string $role, array $data): bool
     {
         $users = $this->users();

@@ -35,8 +35,8 @@ final class Router
         if ($handler === null) {
             http_response_code(404);
             $this->app->view->render('pages/public/not-found', [
-                'title' => 'P�gina n�o encontrada',
-                'description' => 'A rota solicitada n�o existe nesta lua.',
+                'title' => 'Página não encontrada',
+                'description' => 'A rota solicitada não existe nesta lua.',
             ], 'layouts/marketing');
 
             return;

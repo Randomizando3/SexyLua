@@ -80,6 +80,7 @@ $router->get('/admin/moderation', [AdminController::class, 'moderation']);
 $router->get('/admin/finance', [AdminController::class, 'finance']);
 $router->get('/admin/operations', [AdminController::class, 'operations']);
 $router->get('/admin/settings', [AdminController::class, 'settings']);
+$router->post('/admin/users/create', [AdminController::class, 'createUser']);
 $router->post('/admin/users/update', [AdminController::class, 'updateUser']);
 $router->post('/admin/moderation/review', [AdminController::class, 'reviewContent']);
 $router->post('/admin/finance/review-payout', [AdminController::class, 'reviewPayout']);

@@ -129,6 +129,15 @@ final class AdminController extends Controller
         $this->redirect('/admin/users', $ok ? 'Usuario atualizado.' : 'Nao foi possivel atualizar o usuario.', $ok ? 'success' : 'error');
     }
 
+    public function createUser(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/users');
+        $ok = $this->app->repository->createAdminManagedUser($request->all());
+
+        $this->redirect('/admin/users', $ok ? 'Usuario criado com sucesso.' : 'Nao foi possivel criar o usuario.', $ok ? 'success' : 'error');
+    }
+
     public function reviewContent(Request $request): void
     {
         $this->app->auth->requireRole('admin');
