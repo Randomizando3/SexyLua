@@ -184,9 +184,9 @@ final class CreatorController extends Controller
     {
         $this->app->auth->requireRole('creator');
         $this->validateCsrf($request, '/creator/memberships');
-        $plan = $this->app->repository->savePlan((int) $this->user()['id'], $request->all());
+        $this->app->repository->savePlan((int) $this->user()['id'], $request->all());
 
-        $this->redirect(path_with_query('/creator/memberships', ['plan' => (int) ($plan['id'] ?? 0)]), 'Plano salvo com sucesso.');
+        $this->redirect('/creator/memberships', 'Plano salvo com sucesso.');
     }
 
     public function deletePlan(Request $request): void
