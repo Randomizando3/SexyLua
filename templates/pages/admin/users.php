@@ -47,7 +47,7 @@ $admin = $app->auth->user() ?? [];
         .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; }
         body { background: #fbf9fb; color: #1b1c1d; font-family: "Manrope", sans-serif; }
         h1, h2, h3, h4 { font-family: "Plus Jakarta Sans", sans-serif; }
-        details.admin-user[open] .admin-user-chevron { transform: rotate(180deg); }
+        .admin-user-toggle[aria-expanded="true"] .admin-user-chevron { transform: rotate(180deg); }
         [data-modal-overlay] { display: none; }
         [data-modal-overlay]:target { display: flex; }
     </style>
@@ -113,7 +113,20 @@ $admin = $app->auth->user() ?? [];
         <a class="rounded-full bg-primary px-6 py-4 text-sm font-bold text-white shadow-sm" href="#create-user-modal">Novo usuario</a>
     </div>
 
-    <div class="space-y-5">
+    <section class="overflow-hidden rounded-3xl bg-surface-container-lowest shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="min-w-full border-collapse">
+                <thead class="bg-surface-container-low">
+                <tr class="text-left">
+                    <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Usuario</th>
+                    <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Papel</th>
+                    <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Status</th>
+                    <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Carteira</th>
+                    <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Cidade</th>
+                    <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Criado em</th>
+                    <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Acoes</th>
+                </tr>
+                </thead>
         <?php foreach ($users as $user): ?>
             <?php
             $role = (string) ($user['role'] ?? 'subscriber');
@@ -121,36 +134,42 @@ $admin = $app->auth->user() ?? [];
             $roleLabel = $role === 'creator' ? 'Criador' : ($role === 'admin' ? 'Admin' : 'Assinante');
             $statusLabel = $status === 'suspended' ? 'Suspenso' : 'Ativo';
             $statusClass = $status === 'suspended' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
+            $rowId = 'user-row-' . (int) ($user['id'] ?? 0);
             ?>
-            <details class="admin-user overflow-hidden rounded-3xl bg-surface-container-lowest shadow-sm">
-                <summary class="grid cursor-pointer list-none grid-cols-1 gap-4 px-6 py-5 marker:hidden lg:grid-cols-[minmax(0,1.4fr)_auto_auto_auto_auto] lg:items-center">
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-3">
-                            <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-sm font-extrabold text-primary"><?= e(avatar_initials((string) ($user['name'] ?? 'Usuario'))) ?></div>
+            <tbody class="border-t border-slate-100 first:border-t-0">
+                <tr class="align-top">
+                    <td class="px-6 py-5">
+                        <div class="flex min-w-[16rem] items-center gap-3">
+                            <div class="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-primary/10 text-sm font-extrabold text-primary"><?= e(avatar_initials((string) ($user['name'] ?? 'Usuario'))) ?></div>
                             <div class="min-w-0">
-                                <p class="truncate text-lg font-extrabold"><?= e((string) ($user['name'] ?? 'Usuario')) ?></p>
+                                <p class="truncate text-base font-extrabold"><?= e((string) ($user['name'] ?? 'Usuario')) ?></p>
                                 <p class="truncate text-sm text-on-surface-variant"><?= e((string) ($user['email'] ?? '')) ?></p>
+                                <p class="mt-1 truncate text-xs text-slate-400"><?= e((string) ($user['headline'] ?? 'Sem headline')) ?></p>
                             </div>
                         </div>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-primary"><?= e($roleLabel) ?></span>
-                        <span class="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] <?= e($statusClass) ?>"><?= e($statusLabel) ?></span>
-                    </div>
-                    <div>
-                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Carteira</p>
-                        <p class="mt-1 text-sm font-extrabold text-primary"><?= e(token_amount((int) ($user['wallet_balance'] ?? 0))) ?></p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Criado em</p>
-                        <p class="mt-1 text-sm font-bold"><?= e(format_datetime((string) ($user['created_at'] ?? ''), 'd/m/Y')) ?></p>
-                    </div>
-                    <div class="flex items-center justify-between gap-4 lg:justify-end">
-                        <p class="truncate text-sm text-on-surface-variant"><?= e((string) ($user['headline'] ?? 'Sem headline')) ?></p>
-                        <span class="admin-user-chevron material-symbols-outlined text-slate-400 transition-transform">expand_more</span>
-                    </div>
-                </summary>
-                <form action="/admin/users/update" class="border-t border-slate-100 p-6" method="post">
+                    </td>
+                    <td class="px-6 py-5">
+                        <span class="inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-primary"><?= e($roleLabel) ?></span>
+                    </td>
+                    <td class="px-6 py-5">
+                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] <?= e($statusClass) ?>"><?= e($statusLabel) ?></span>
+                    </td>
+                    <td class="px-6 py-5 text-sm font-extrabold text-primary"><?= e(token_amount((int) ($user['wallet_balance'] ?? 0))) ?></td>
+                    <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e((string) ($user['city'] ?? 'Sem cidade')) ?></td>
+                    <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e(format_datetime((string) ($user['created_at'] ?? ''), 'd/m/Y')) ?></td>
+                    <td class="px-6 py-5">
+                        <div class="flex min-w-[11rem] items-center gap-3">
+                            <button class="admin-user-toggle inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-primary/10 hover:text-primary" data-user-toggle aria-expanded="false" aria-controls="<?= e($rowId) ?>" type="button">
+                                <span>Editar</span>
+                                <span class="admin-user-chevron material-symbols-outlined text-slate-400 transition-transform">expand_more</span>
+                            </button>
+                            <a class="inline-flex rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface-variant" href="/admin/finance?q=<?= urlencode((string) ($user['email'] ?? '')) ?>">Financeiro</a>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="hidden bg-surface-container-low/60" data-user-panel id="<?= e($rowId) ?>">
+                    <td class="px-6 py-6" colspan="7">
+                <form action="/admin/users/update" method="post">
                 <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                 <input name="user_id" type="hidden" value="<?= e((string) ($user['id'] ?? 0)) ?>">
                 <div class="grid grid-cols-1 gap-6 2xl:grid-cols-[1.25fr_0.75fr]">
@@ -272,10 +291,14 @@ $admin = $app->auth->user() ?? [];
                     </div>
                 </div>
                 </form>
-            </details>
+                    </td>
+                </tr>
+            </tbody>
         <?php endforeach; ?>
-        <?php if ($users === []): ?><p class="rounded-3xl bg-surface-container-low p-8 text-sm text-on-surface-variant">Nenhum usuario encontrado com esse filtro.</p><?php endif; ?>
-    </div>
+            </table>
+        </div>
+        <?php if ($users === []): ?><p class="p-8 text-sm text-on-surface-variant">Nenhum usuario encontrado com esse filtro.</p><?php endif; ?>
+    </section>
 
     <div class="fixed inset-0 z-[60] items-center justify-center bg-slate-900/40 p-6" data-modal-overlay id="create-user-modal">
         <div class="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] bg-surface-container-lowest p-6 shadow-2xl md:p-8">
@@ -386,5 +409,25 @@ $admin = $app->auth->user() ?? [];
         </div>
     </div>
 </main>
+<script>
+    document.addEventListener('click', function (event) {
+        const toggle = event.target.closest('[data-user-toggle]');
+
+        if (! toggle) {
+            return;
+        }
+
+        const panelId = toggle.getAttribute('aria-controls');
+        const panel = panelId ? document.getElementById(panelId) : null;
+
+        if (! panel) {
+            return;
+        }
+
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        panel.classList.toggle('hidden', expanded);
+    });
+</script>
 </body>
 </html>
