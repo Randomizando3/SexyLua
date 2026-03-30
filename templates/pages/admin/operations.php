@@ -88,10 +88,10 @@ $admin = $app->auth->user() ?? [];
             <p class="mt-4 max-w-2xl text-on-surface-variant">Edite diretamente os ativos dos criadores sem sair do painel administrativo.</p>
         </div>
         <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Conteudos</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($summary['content_count'] ?? 0)) ?></p></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Planos</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($summary['plan_count'] ?? 0)) ?></p></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Lives</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($summary['live_count'] ?? 0)) ?></p></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Ao vivo</p><p class="mt-3 text-3xl font-extrabold text-emerald-600"><?= e((string) ($summary['live_now'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Conteudos</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['content_count'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Planos</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['plan_count'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Lives</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['live_count'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Ao vivo</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-emerald-600 md:text-3xl"><?= e((string) ($summary['live_now'] ?? 0)) ?></p></article>
         </div>
     </section>
 

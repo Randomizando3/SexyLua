@@ -82,8 +82,8 @@ $suggestedContent = $data['suggested_content'] ?? [];
             <p class="mt-4 max-w-2xl text-on-surface-variant">Monte seu radar pessoal de criadores, acompanhe lives e guarde os conteudos que merecem revisitacao.</p>
         </div>
         <div class="grid grid-cols-2 gap-4">
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Criadores</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) count($favoriteCreators)) ?></p></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Salvos</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) count($savedContent)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Criadores</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) count($favoriteCreators)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Salvos</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) count($savedContent)) ?></p></article>
         </div>
     </section>
 

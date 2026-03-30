@@ -83,10 +83,10 @@ $admin = $app->auth->user() ?? [];
             <p class="mt-4 max-w-2xl text-on-surface-variant">Filtre a base, edite perfis completos, redefina senha, acompanhe carteira e mantenha o ecossistema do SexyLua sob controle.</p>
         </div>
         <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Total</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($summary['total'] ?? 0)) ?></p></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Criadores</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($summary['creators'] ?? 0)) ?></p></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Assinantes</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($summary['subscribers'] ?? 0)) ?></p></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Suspensos</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($summary['suspended'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Total</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['total'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Criadores</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['creators'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Assinantes</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['subscribers'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Suspensos</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['suspended'] ?? 0)) ?></p></article>
         </div>
     </section>
 

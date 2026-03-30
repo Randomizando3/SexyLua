@@ -108,16 +108,16 @@ $summary = $data['summary'] ?? [];
         </div>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm">
-                <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Ativas</p>
-                <p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($summary['active_count'] ?? 0)) ?></p>
+                <p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Ativas</p>
+                <p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['active_count'] ?? 0)) ?></p>
             </article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm">
-                <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Disponiveis</p>
-                <p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($summary['available_count'] ?? 0)) ?></p>
+                <p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Disponiveis</p>
+                <p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['available_count'] ?? 0)) ?></p>
             </article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm">
-                <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Mensal</p>
-                <p class="mt-3 text-3xl font-extrabold text-primary"><?= e(token_amount((int) ($summary['monthly_spend'] ?? 0))) ?></p>
+                <p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Mensal</p>
+                <p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e(token_amount((int) ($summary['monthly_spend'] ?? 0))) ?></p>
             </article>
         </div>
     </section>

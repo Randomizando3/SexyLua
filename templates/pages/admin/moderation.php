@@ -87,9 +87,9 @@ $admin = $app->auth->user() ?? [];
             <p class="mt-4 max-w-2xl text-on-surface-variant">Revise conteudos pendentes, acompanhe feedbacks anteriores e mantenha a politica da plataforma aplicada em tempo real.</p>
         </div>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Pendentes</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($summary['pending'] ?? 0)) ?></p></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Aprovados</p><p class="mt-3 text-3xl font-extrabold text-emerald-600"><?= e((string) ($summary['approved'] ?? 0)) ?></p></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Rejeitados</p><p class="mt-3 text-3xl font-extrabold text-rose-700"><?= e((string) ($summary['rejected'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Pendentes</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['pending'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Aprovados</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-emerald-600 md:text-3xl"><?= e((string) ($summary['approved'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Rejeitados</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-rose-700 md:text-3xl"><?= e((string) ($summary['rejected'] ?? 0)) ?></p></article>
         </div>
     </section>
 
