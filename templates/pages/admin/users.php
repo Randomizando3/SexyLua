@@ -90,6 +90,10 @@ $admin = $app->auth->user() ?? [];
         </div>
     </section>
 
+    <div class="mb-4 flex justify-end">
+        <a class="rounded-full bg-primary px-6 py-4 text-sm font-bold text-white shadow-sm" href="#create-user-modal">Novo usuario</a>
+    </div>
+
     <form action="/admin/users" class="mb-8 grid grid-cols-1 gap-4 rounded-3xl bg-surface-container-lowest p-6 shadow-sm xl:grid-cols-[1fr_0.4fr_0.4fr_auto]" method="get">
         <input class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="q" placeholder="Buscar usuario..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
         <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="role">
@@ -108,10 +112,6 @@ $admin = $app->auth->user() ?? [];
             <a class="rounded-full bg-surface-container-low px-6 py-4 text-sm font-bold text-on-surface-variant" href="/admin/users">Reset</a>
         </div>
     </form>
-
-    <div class="mb-8 flex justify-end">
-        <a class="rounded-full bg-primary px-6 py-4 text-sm font-bold text-white shadow-sm" href="#create-user-modal">Novo usuario</a>
-    </div>
 
     <section class="overflow-hidden rounded-3xl bg-surface-container-lowest shadow-sm">
         <div class="overflow-x-auto">
