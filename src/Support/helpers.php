@@ -63,6 +63,27 @@ function luacoins_amount(int|float $amount): string
     return number_format((float) $amount, 0, ',', '.') . ' LuaCoins';
 }
 
+function luacoin_value(int|float $amount): string
+{
+    return number_format((float) $amount, 0, ',', '.');
+}
+
+function luacoin_icon(string $classes = 'h-5 w-5', string $alt = 'LuaCoin'): string
+{
+    return '<img alt="' . e($alt) . '" class="' . e($classes) . '" decoding="async" loading="lazy" src="' . e(asset('img/luacoin.png')) . '">';
+}
+
+function luacoin_amount_html(
+    int|float $amount,
+    string $wrapperClasses = 'inline-flex items-center gap-2 whitespace-nowrap',
+    string $valueClasses = '',
+    string $iconClasses = 'h-[1em] w-[1em] shrink-0'
+): string {
+    $valueClassAttr = trim($valueClasses) !== '' ? ' class="' . e($valueClasses) . '"' : '';
+
+    return '<span class="' . e($wrapperClasses) . '"><span' . $valueClassAttr . '>' . e(luacoin_value($amount)) . '</span>' . luacoin_icon($iconClasses) . '<span class="sr-only">LuaCoins</span></span>';
+}
+
 function token_amount(int|float $amount): string
 {
     return luacoins_amount($amount);

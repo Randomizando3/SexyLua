@@ -76,7 +76,7 @@ $coverUrl = media_url((string) ($subscriber['cover_url'] ?? ''));
     </nav>
     <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
         <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Saldo atual</p>
-        <h3 class="mt-3 text-3xl font-extrabold"><?= e(token_amount((int) ($wallet['balance'] ?? 0))) ?></h3>
+        <div class="mt-3 text-3xl font-extrabold"><?= luacoin_amount_html((int) ($wallet['balance'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-8 w-8 shrink-0') ?></div>
         <p class="mt-2 text-sm text-on-surface-variant">Atualize seu perfil e mantenha a conta pronta para novas assinaturas, mensagens e recargas.</p>
     </div>
 </aside>
@@ -99,7 +99,7 @@ $coverUrl = media_url((string) ($subscriber['cover_url'] ?? ''));
         <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Assinaturas</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($stats['subscriptions'] ?? 0)) ?></p></article>
         <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Favoritos</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($stats['favorites'] ?? 0)) ?></p></article>
         <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Salvos</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($stats['saved'] ?? 0)) ?></p></article>
-        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Saldo</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e(token_amount((int) ($stats['balance'] ?? 0))) ?></p></article>
+        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Saldo</p><div class="mt-3 text-3xl font-extrabold text-primary"><?= luacoin_amount_html((int) ($stats['balance'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
     </section>
 
     <div class="grid grid-cols-1 gap-8 2xl:grid-cols-[1.05fr_0.95fr]">

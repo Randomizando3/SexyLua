@@ -89,15 +89,15 @@ $paymentStatus = (string) ($_GET['payment_status'] ?? '');
         </div>
         <div class="signature-glow rounded-3xl px-6 py-5 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.2)]">
             <p class="text-xs font-bold uppercase tracking-[0.25em] text-white/70">Saldo disponivel</p>
-            <p class="mt-3 text-4xl font-extrabold"><?= e(token_amount($balance)) ?></p>
+            <div class="mt-3 text-4xl font-extrabold"><?= luacoin_amount_html($balance, 'inline-flex items-center gap-3 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div>
         </div>
     </section>
 
     <section class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Entradas</p><p class="mt-3 text-3xl font-extrabold text-emerald-600"><?= e(token_amount($inflow)) ?></p></article>
-        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Saidas</p><p class="mt-3 text-3xl font-extrabold text-rose-700"><?= e(token_amount($outflow)) ?></p></article>
-        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Recargas</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e(token_amount((int) ($summary['top_up_total'] ?? 0))) ?></p></article>
-        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Assinaturas</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e(token_amount((int) ($summary['subscription_spend'] ?? 0))) ?></p></article>
+        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Entradas</p><div class="mt-3 text-3xl font-extrabold text-emerald-600"><?= luacoin_amount_html($inflow, 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
+        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Saidas</p><div class="mt-3 text-3xl font-extrabold text-rose-700"><?= luacoin_amount_html($outflow, 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
+        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Recargas</p><div class="mt-3 text-3xl font-extrabold text-primary"><?= luacoin_amount_html((int) ($summary['top_up_total'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
+        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Assinaturas</p><div class="mt-3 text-3xl font-extrabold text-primary"><?= luacoin_amount_html((int) ($summary['subscription_spend'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
     </section>
 
     <?php if ($paymentStatus !== ''): ?>
@@ -125,8 +125,8 @@ $paymentStatus = (string) ($_GET['payment_status'] ?? '');
             <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                 <h3 class="text-2xl font-extrabold">Resumo de uso</h3>
                 <div class="mt-5 space-y-4 text-sm">
-                    <div class="rounded-3xl bg-surface-container-low p-5"><p class="text-on-surface-variant">Gasto com assinaturas</p><p class="mt-2 text-xl font-bold"><?= e(token_amount((int) ($summary['subscription_spend'] ?? 0))) ?></p></div>
-                    <div class="rounded-3xl bg-surface-container-low p-5"><p class="text-on-surface-variant">Gasto com gorjetas</p><p class="mt-2 text-xl font-bold"><?= e(token_amount((int) ($summary['tip_spend'] ?? 0))) ?></p></div>
+                    <div class="rounded-3xl bg-surface-container-low p-5"><p class="text-on-surface-variant">Gasto com assinaturas</p><div class="mt-2 text-xl font-bold"><?= luacoin_amount_html((int) ($summary['subscription_spend'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.95em] w-[0.95em] shrink-0') ?></div></div>
+                    <div class="rounded-3xl bg-surface-container-low p-5"><p class="text-on-surface-variant">Gasto com gorjetas</p><div class="mt-2 text-xl font-bold"><?= luacoin_amount_html((int) ($summary['tip_spend'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.95em] w-[0.95em] shrink-0') ?></div></div>
                 </div>
             </div>
         </section>

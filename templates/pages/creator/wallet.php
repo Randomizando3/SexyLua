@@ -34,10 +34,10 @@ include base_path('templates/partials/creator_topbar.php');
     <div class="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div><p class="text-xs font-bold uppercase tracking-[0.3em] text-[#D81B60]">Financeiro do criador</p><h2 class="headline mt-2 text-4xl font-extrabold">Carteira e saques</h2><p class="mt-3 max-w-3xl text-slate-500">Saldo em LuaCoins, receita por assinatura, gorjetas e solicitacoes de saque com chave de pagamento real do criador.</p></div>
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Saldo</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= e(token_amount($balance)) ?></p></div>
-            <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Assinaturas</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= e(token_amount((int) ($summary['subscription_income'] ?? 0))) ?></p></div>
-            <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Gorjetas</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= e(token_amount((int) ($summary['tips_income'] ?? 0))) ?></p></div>
-            <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Pendentes</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= e(token_amount((int) ($summary['pending_payouts'] ?? 0))) ?></p></div>
+            <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Saldo</p><div class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= luacoin_amount_html($balance, 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.95em] w-[0.95em] shrink-0') ?></div></div>
+            <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Assinaturas</p><div class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= luacoin_amount_html((int) ($summary['subscription_income'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.95em] w-[0.95em] shrink-0') ?></div></div>
+            <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Gorjetas</p><div class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= luacoin_amount_html((int) ($summary['tips_income'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.95em] w-[0.95em] shrink-0') ?></div></div>
+            <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Pendentes</p><div class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= luacoin_amount_html((int) ($summary['pending_payouts'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.95em] w-[0.95em] shrink-0') ?></div></div>
         </div>
     </div>
 
@@ -45,7 +45,7 @@ include base_path('templates/partials/creator_topbar.php');
         <section class="space-y-6">
             <div class="signature-glow rounded-3xl p-8 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)]">
                 <p class="text-xs font-bold uppercase tracking-[0.25em] text-white/70">Disponivel para saque</p>
-                <h3 class="headline mt-4 text-5xl font-extrabold"><?= e(token_amount($balance)) ?></h3>
+                <div class="headline mt-4 text-5xl font-extrabold"><?= luacoin_amount_html($balance, 'inline-flex items-center gap-3 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div>
                 <p class="mt-3 text-sm text-white/80">Aproximadamente <?= e(brl_amount((float) ($summary['available_brl'] ?? 0))) ?>, respeitando saque minimo de <?= e(luacoins_amount($minWithdrawal)) ?>.</p>
             </div>
             <form action="/creator/wallet/payout" class="rounded-3xl bg-white p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]" method="post">

@@ -76,7 +76,7 @@ $admin = $app->auth->user() ?? [];
     </nav>
     <div class="signature-glow mt-auto rounded-3xl p-5 text-white shadow-lg">
         <p class="text-xs font-bold uppercase tracking-[0.25em] text-white/70">Resultado da plataforma</p>
-        <p class="mt-3 text-3xl font-extrabold"><?= e(token_amount((int) ($metrics['platform_result'] ?? 0))) ?></p>
+        <div class="mt-3 text-3xl font-extrabold"><?= luacoin_amount_html((int) ($metrics['platform_result'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-8 w-8 shrink-0') ?></div>
     </div>
 </aside>
 
@@ -99,7 +99,7 @@ $admin = $app->auth->user() ?? [];
         <article class="rounded-3xl bg-surface-container-lowest p-5 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Assinantes</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($metrics['subscribers'] ?? 0)) ?></p></article>
         <article class="rounded-3xl bg-surface-container-lowest p-5 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Pendencias</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($metrics['pending_content'] ?? 0)) ?></p></article>
         <article class="rounded-3xl bg-surface-container-lowest p-5 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Lives ao vivo</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e((string) ($metrics['live_now'] ?? 0)) ?></p></article>
-        <article class="rounded-3xl bg-surface-container-lowest p-5 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Resultado</p><p class="mt-3 text-3xl font-extrabold text-primary"><?= e(token_amount((int) ($metrics['platform_result'] ?? 0))) ?></p></article>
+        <article class="rounded-3xl bg-surface-container-lowest p-5 shadow-sm"><p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Resultado</p><div class="mt-3 text-3xl font-extrabold text-primary"><?= luacoin_amount_html((int) ($metrics['platform_result'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
     </section>
 
     <div class="grid grid-cols-1 gap-8 2xl:grid-cols-[1.05fr_0.95fr]">

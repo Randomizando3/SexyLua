@@ -76,7 +76,7 @@ $admin = $app->auth->user() ?? [];
     </nav>
     <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
         <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Resultado da plataforma</p>
-        <h3 class="mt-3 text-3xl font-extrabold"><?= e(token_amount((int) ($summary['platform_result'] ?? 0))) ?></h3>
+        <h3 class="mt-3 text-3xl font-extrabold"><?= luacoin_amount_html((int) ($summary['platform_result'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-8 w-8 shrink-0') ?></h3>
         <p class="mt-2 text-sm text-on-surface-variant">Margem liquida aproximada entre consumo dos assinantes e repasse aos criadores.</p>
     </div>
 </aside>
@@ -89,9 +89,9 @@ $admin = $app->auth->user() ?? [];
             <p class="mt-4 max-w-2xl text-on-surface-variant">Acompanhe volume bruto, repasses, recargas, ajuste carteiras manualmente e opere o funil financeiro completo com mais seguranca.</p>
         </div>
         <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Volume</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e(token_amount((int) ($summary['gross_volume'] ?? 0))) ?></p></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Repasse</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-emerald-600 md:text-3xl"><?= e(token_amount((int) ($summary['creator_income'] ?? 0))) ?></p></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Resultado</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e(token_amount((int) ($summary['platform_result'] ?? 0))) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Volume</p><div class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= luacoin_amount_html((int) ($summary['gross_volume'] ?? 0), 'inline-flex items-center justify-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Repasse</p><div class="mt-2 text-[2rem] font-extrabold leading-tight text-emerald-600 md:text-3xl"><?= luacoin_amount_html((int) ($summary['creator_income'] ?? 0), 'inline-flex items-center justify-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Resultado</p><div class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= luacoin_amount_html((int) ($summary['platform_result'] ?? 0), 'inline-flex items-center justify-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Recargas</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['top_ups'] ?? 0)) ?></p></article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Saques pendentes</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-amber-600 md:text-3xl"><?= e((string) ($summary['pending_payout_count'] ?? 0)) ?></p></article>
         </div>
