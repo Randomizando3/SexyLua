@@ -89,7 +89,7 @@ include base_path('templates/partials/creator_topbar.php');
                                 <p class="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['type'] ?? 'mov')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
                             </div>
                             <div class="text-right">
-                                <p class="headline text-xl font-extrabold <?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?>"><?= $isIn ? '+' : '-' ?><?= e(token_amount((int) ($transaction['amount'] ?? 0))) ?></p>
+                                <p class="headline text-xl font-extrabold <?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?>"><?= $isIn ? '+' : '-' ?><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></p>
                                 <?php if ((string) ($transaction['payout_method'] ?? '') !== ''): ?><p class="mt-1 text-xs font-bold uppercase tracking-widest text-slate-400"><?= e((string) ($transaction['payout_method'] ?? '')) ?></p><?php endif; ?>
                             </div>
                         </div>

@@ -117,7 +117,7 @@ $summary = $data['summary'] ?? [];
             </article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm">
                 <p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Mensal</p>
-                <p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e(token_amount((int) ($summary['monthly_spend'] ?? 0))) ?></p>
+                <div class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= luacoin_amount_html((int) ($summary['monthly_spend'] ?? 0), 'inline-flex items-center justify-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div>
             </article>
         </div>
     </section>
@@ -151,7 +151,7 @@ $summary = $data['summary'] ?? [];
                                         <span class="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-700"><?= e((string) ($subscription['status'] ?? 'active')) ?></span>
                                     </div>
                                     <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
-                                    <p class="mt-3 text-sm text-on-surface-variant"><?= e((string) ($plan['name'] ?? 'Plano')) ?> • <?= e(token_amount((int) ($plan['price_tokens'] ?? 0))) ?></p>
+                                    <p class="mt-3 text-sm text-on-surface-variant"><?= e((string) ($plan['name'] ?? 'Plano')) ?> • <?= luacoin_amount_html((int) ($plan['price_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></p>
                                     <p class="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Renova em <?= e((string) ($subscription['days_to_renew'] ?? 0)) ?> dias</p>
                                 </div>
                             </div>
@@ -183,7 +183,7 @@ $summary = $data['summary'] ?? [];
                                 <h4 class="text-xl font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h4>
                                 <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
                             </div>
-                            <span class="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary"><?= e(token_amount((int) ($plan['price_tokens'] ?? 0))) ?></span>
+                            <span class="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary"><?= luacoin_amount_html((int) ($plan['price_tokens'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3 w-3 shrink-0') ?></span>
                         </div>
                         <p class="mt-4 text-lg font-bold"><?= e((string) ($plan['name'] ?? 'Plano')) ?></p>
                         <p class="mt-2 text-sm text-on-surface-variant"><?= e(excerpt((string) ($plan['description'] ?? ''), 120)) ?></p>

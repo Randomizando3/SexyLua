@@ -154,7 +154,7 @@ $admin = $app->auth->user() ?? [];
                     <td class="px-6 py-5">
                         <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] <?= e($statusClass) ?>"><?= e($statusLabel) ?></span>
                     </td>
-                    <td class="px-6 py-5 text-sm font-extrabold text-primary"><?= e(token_amount((int) ($user['wallet_balance'] ?? 0))) ?></td>
+                    <td class="px-6 py-5 text-sm font-extrabold text-primary"><?= luacoin_amount_html((int) ($user['wallet_balance'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></td>
                     <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e((string) ($user['city'] ?? 'Sem cidade')) ?></td>
                     <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e(format_datetime((string) ($user['created_at'] ?? ''), 'd/m/Y')) ?></td>
                     <td class="px-6 py-5">
@@ -261,7 +261,7 @@ $admin = $app->auth->user() ?? [];
                             <div class="mt-5 grid grid-cols-2 gap-4">
                                 <div class="rounded-2xl bg-white p-4">
                                     <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Carteira</p>
-                                    <p class="mt-2 text-lg font-extrabold text-primary"><?= e(token_amount((int) ($user['wallet_balance'] ?? 0))) ?></p>
+                                    <div class="mt-2 text-lg font-extrabold text-primary"><?= luacoin_amount_html((int) ($user['wallet_balance'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div>
                                 </div>
                                 <div class="rounded-2xl bg-white p-4">
                                     <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Criado em</p>

@@ -201,7 +201,7 @@ $coverUrl = media_url((string) ($subscriber['cover_url'] ?? ''));
                                     <p class="font-bold"><?= e((string) ($transaction['note'] ?? 'Movimentacao')) ?></p>
                                     <p class="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
                                 </div>
-                                <strong class="<?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?>"><?= $isIn ? '+' : '-' ?><?= e(token_amount((int) ($transaction['amount'] ?? 0))) ?></strong>
+                                <strong class="<?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?>"><?= $isIn ? '+' : '-' ?><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></strong>
                             </div>
                         </div>
                     <?php endforeach; ?>

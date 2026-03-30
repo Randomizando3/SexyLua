@@ -170,7 +170,7 @@ $recentMessagesCount = (int) ($data['recent_messages_count'] ?? 0);
                                 </div>
                                 <span class="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-700"><?= e((string) ($subscription['status'] ?? 'active')) ?></span>
                             </div>
-                            <p class="mt-4 text-sm text-on-surface-variant"><?= e((string) ($plan['name'] ?? 'Plano ativo')) ?> • <?= e(token_amount((int) ($plan['price_tokens'] ?? 0))) ?></p>
+                            <p class="mt-4 text-sm text-on-surface-variant"><?= e((string) ($plan['name'] ?? 'Plano ativo')) ?> • <?= luacoin_amount_html((int) ($plan['price_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></p>
                             <p class="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Renova em <?= e((string) ($subscription['days_to_renew'] ?? 0)) ?> dias</p>
                         </article>
                     <?php endforeach; ?>
@@ -239,7 +239,7 @@ $recentMessagesCount = (int) ($data['recent_messages_count'] ?? 0);
                                     <p class="font-bold"><?= e((string) ($transaction['note'] ?? 'Movimentacao')) ?></p>
                                     <p class="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['type'] ?? 'mov')) ?></p>
                                 </div>
-                                <strong class="<?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?>"><?= $isIn ? '+' : '-' ?><?= e(token_amount((int) ($transaction['amount'] ?? 0))) ?></strong>
+                                <strong class="<?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?>"><?= $isIn ? '+' : '-' ?><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></strong>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -258,7 +258,7 @@ $recentMessagesCount = (int) ($data['recent_messages_count'] ?? 0);
                     <?php foreach ($availablePlans as $plan): ?>
                         <article class="rounded-3xl bg-surface-container-low p-5">
                             <p class="text-lg font-bold"><?= e((string) ($plan['creator']['name'] ?? 'Criador')) ?></p>
-                            <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($plan['name'] ?? 'Plano')) ?> • <?= e(token_amount((int) ($plan['price_tokens'] ?? 0))) ?></p>
+                            <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($plan['name'] ?? 'Plano')) ?> • <?= luacoin_amount_html((int) ($plan['price_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></p>
                             <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($plan['description'] ?? ''), 90)) ?></p>
                         </article>
                     <?php endforeach; ?>

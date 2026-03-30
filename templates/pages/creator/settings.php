@@ -264,7 +264,7 @@ include base_path('templates/partials/creator_topbar.php');
                     <div class="mt-6 grid grid-cols-2 gap-4 text-sm">
                         <div class="rounded-2xl bg-white/10 p-4">
                             <p class="text-white/60">Saldo</p>
-                            <p class="mt-1 text-xl font-bold"><?= e(luacoins_amount((int) ($wallet['balance'] ?? 0))) ?></p>
+                            <div class="mt-1 text-xl font-bold"><?= luacoin_amount_html((int) ($wallet['balance'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div>
                         </div>
                         <div class="rounded-2xl bg-white/10 p-4">
                             <p class="text-white/60">LuaCoin em BRL</p>
@@ -278,11 +278,11 @@ include base_path('templates/partials/creator_topbar.php');
                     <div class="mt-5 space-y-4 text-sm">
                         <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
                             <span class="text-on-surface-variant">Saque minimo</span>
-                            <strong><?= e(luacoins_amount((int) ($platform['withdraw_min_luacoins'] ?? 50))) ?></strong>
+                            <strong><?= luacoin_amount_html((int) ($platform['withdraw_min_luacoins'] ?? 50), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></strong>
                         </div>
                         <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
                             <span class="text-on-surface-variant">Saque maximo</span>
-                            <strong><?= e(luacoins_amount((int) ($platform['withdraw_max_luacoins'] ?? 25000))) ?></strong>
+                            <strong><?= luacoin_amount_html((int) ($platform['withdraw_max_luacoins'] ?? 25000), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></strong>
                         </div>
                         <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
                             <span class="text-on-surface-variant">Proxima live</span>

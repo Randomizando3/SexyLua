@@ -143,7 +143,7 @@ include base_path('templates/partials/creator_topbar.php');
                         <p class="text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Resumo da semana</p>
                     </div>
                     <div class="text-left sm:text-right">
-                        <span class="text-3xl font-black tracking-tighter text-primary"><?= e(token_amount($walletBalance)) ?></span>
+                        <span class="text-3xl font-black tracking-tighter text-primary"><?= luacoin_amount_html($walletBalance, 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></span>
                         <p class="mt-1 flex items-center gap-1 text-xs font-bold text-emerald-600 sm:justify-end">
                             <span class="material-symbols-outlined text-xs">trending_up</span>
                             <?= e((string) count($incomingTransactions)) ?> entradas recentes
@@ -266,7 +266,7 @@ include base_path('templates/partials/creator_topbar.php');
                                         <span class="text-sm font-bold uppercase tracking-[0.25em]"><?= e((string) strtoupper(mb_substr((string) ($item['kind'] ?? 'conteúdo'), 0, 12))) ?></span>
                                     </div>
                                 <?php endif; ?>
-                                <div class="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 text-[10px] font-bold text-white"><?= e(token_amount((int) ($item['price_tokens'] ?? 0))) ?></div>
+                                <div class="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 text-[10px] font-bold text-white"><?= luacoin_amount_html((int) ($item['price_tokens'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3 w-3 shrink-0') ?></div>
                                 <div class="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
                                     <span class="text-xs font-bold text-white">Editar conteúdo</span>
                                 </div>

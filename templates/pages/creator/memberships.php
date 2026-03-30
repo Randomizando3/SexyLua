@@ -89,7 +89,7 @@ include base_path('templates/partials/creator_topbar.php');
 
         <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <article class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]"><p class="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400">Assinantes ativos</p><p class="mt-3 text-4xl font-extrabold text-[#ab1155]"><?= e((string) $activeSubscribers) ?></p><p class="mt-2 text-sm text-slate-500"><?= e((string) $subscriberCount) ?> membros na base</p></article>
-            <article class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]"><p class="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400">Recorr&ecirc;ncia</p><p class="mt-3 text-4xl font-extrabold text-[#ab1155]"><?= e(luacoins_amount($monthlyTokens)) ?></p><p class="mt-2 text-sm text-slate-500">Estimativa mensal dos planos ativos</p></article>
+            <article class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]"><p class="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400">Recorr&ecirc;ncia</p><div class="mt-3 text-4xl font-extrabold text-[#ab1155]"><?= luacoin_amount_html($monthlyTokens, 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div><p class="mt-2 text-sm text-slate-500">Estimativa mensal dos planos ativos</p></article>
             <article class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]"><p class="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400">Planos</p><p class="mt-3 text-4xl font-extrabold text-[#ab1155]"><?= e((string) $planCount) ?></p><p class="mt-2 text-sm text-slate-500">Ofertas dispon&iacute;veis hoje</p></article>
             <article class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]"><p class="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400">VIP e pausados</p><p class="mt-3 text-4xl font-extrabold text-[#ab1155]"><?= e((string) $vipCount) ?></p><p class="mt-2 text-sm text-slate-500"><?= e((string) $pausedCount) ?> pausados no filtro geral</p></article>
         </section>
@@ -144,7 +144,7 @@ include base_path('templates/partials/creator_topbar.php');
 
                             <div class="rounded-2xl bg-white px-5 py-4 text-sm">
                                 <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Mensalidade</p>
-                                <p class="mt-2 text-2xl font-extrabold text-[#ab1155]"><?= e(token_amount((int) ($plan['price_tokens'] ?? 0))) ?></p>
+                                <div class="mt-2 text-2xl font-extrabold text-[#ab1155]"><?= luacoin_amount_html((int) ($plan['price_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div>
                                 <p class="mt-2 font-semibold text-[#5a4044]"><?= e((string) ($plan['subscriber_count'] ?? 0)) ?> assinantes</p>
                             </div>
 

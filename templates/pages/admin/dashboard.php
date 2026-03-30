@@ -125,7 +125,7 @@ $admin = $app->auth->user() ?? [];
                             <div class="flex items-center justify-between gap-4">
                                 <div>
                                     <p class="text-lg font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
-                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($creator['subscriber_count'] ?? 0)) ?> assinantes • <?= e(token_amount((int) ($creator['wallet_balance'] ?? 0))) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($creator['subscriber_count'] ?? 0)) ?> assinantes • <?= luacoin_amount_html((int) ($creator['wallet_balance'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></p>
                                 </div>
                                 <span class="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary"><?= e((string) ($creator['followers'] ?? 0)) ?> fans</span>
                             </div>
@@ -168,7 +168,7 @@ $admin = $app->auth->user() ?? [];
                     <?php foreach ($pendingPayouts as $transaction): ?>
                         <article class="rounded-3xl bg-surface-container-low p-5">
                             <p class="text-lg font-bold"><?= e((string) ($transaction['user']['name'] ?? 'Criador')) ?></p>
-                            <p class="mt-1 text-sm text-on-surface-variant"><?= e(token_amount((int) ($transaction['amount'] ?? 0))) ?> • <?= e((string) ($transaction['payout_method'] ?? 'pix')) ?></p>
+                            <p class="mt-1 text-sm text-on-surface-variant"><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?> • <?= e((string) ($transaction['payout_method'] ?? 'pix')) ?></p>
                         </article>
                     <?php endforeach; ?>
                     <?php if ($pendingPayouts === []): ?><p class="rounded-3xl bg-surface-container-low p-6 text-sm text-on-surface-variant">Nenhum saque pendente agora.</p><?php endif; ?>

@@ -325,7 +325,11 @@ $mercadoPagoWebhookUrl = (string) ($settings['mercadopago_webhook_url'] ?? webho
                         </div>
                         <div class="rounded-3xl bg-surface-container-low p-5">
                             <p class="text-sm text-on-surface-variant">Faixa de saque</p>
-                            <p class="mt-2 text-2xl font-extrabold text-primary"><?= e(luacoins_amount((int) ($settings['withdraw_min_luacoins'] ?? 50))) ?> a <?= e(luacoins_amount((int) ($settings['withdraw_max_luacoins'] ?? 25000))) ?></p>
+                            <div class="mt-2 flex flex-wrap items-center gap-2 text-2xl font-extrabold text-primary">
+                                <?= luacoin_amount_html((int) ($settings['withdraw_min_luacoins'] ?? 50), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?>
+                                <span class="text-lg font-bold text-on-surface-variant">a</span>
+                                <?= luacoin_amount_html((int) ($settings['withdraw_max_luacoins'] ?? 25000), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?>
+                            </div>
                         </div>
                         <div class="rounded-3xl bg-surface-container-low p-5">
                             <p class="text-sm text-on-surface-variant">Webhook pronto</p>

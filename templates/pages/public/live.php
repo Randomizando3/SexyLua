@@ -178,7 +178,7 @@ if ($canWatch && $hasReplay && $liveStatus !== 'live') {
                         </div>
                         <div class="rounded-2xl bg-surface-container-low p-4">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Meta</p>
-                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e(token_amount((int) ($live['goal_tokens'] ?? 0))) ?></p>
+                            <div class="mt-2 text-sm font-bold text-slate-700"><?= luacoin_amount_html((int) ($live['goal_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></div>
                         </div>
                     </div>
                     <?php if ($hasReplay): ?>
@@ -240,7 +240,7 @@ if ($canWatch && $hasReplay && $liveStatus !== 'live') {
                             <div class="flex flex-col items-center">
                                 <div class="signature-glow flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white"><?= e(avatar_initials((string) ($supporter['user']['name'] ?? 'Fan'))) ?></div>
                                 <span class="mt-2 text-[10px] font-bold text-[#ab1155]"><?= e((string) ($supporter['user']['name'] ?? 'Fan')) ?></span>
-                                <span class="text-[10px] text-slate-500"><?= e(token_amount((int) ($supporter['amount'] ?? 0))) ?></span>
+                                <span class="text-[10px] text-slate-500"><?= luacoin_amount_html((int) ($supporter['amount'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3 w-3 shrink-0') ?></span>
                             </div>
                         <?php endforeach; ?>
                         <?php if ($topSupporters === []): ?><p class="text-sm text-slate-500">Sem ranking ainda.</p><?php endif; ?>
@@ -252,7 +252,7 @@ if ($canWatch && $hasReplay && $liveStatus !== 'live') {
                         <?php foreach (array_slice($recentTips, 0, 4) as $tip): ?>
                             <div class="flex items-center justify-between rounded-full bg-white px-4 py-2 text-xs">
                                 <span class="font-bold text-on-surface"><?= e((string) ($tip['sender']['name'] ?? 'Fan')) ?></span>
-                                <span class="font-black text-[#ab1155]"><?= e(token_amount((int) ($tip['amount'] ?? 0))) ?></span>
+                                <span class="font-black text-[#ab1155]"><?= luacoin_amount_html((int) ($tip['amount'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3.5 w-3.5 shrink-0') ?></span>
                             </div>
                         <?php endforeach; ?>
                         <?php if ($recentTips === []): ?><p class="text-sm text-slate-500">Sem gorjetas recentes.</p><?php endif; ?>

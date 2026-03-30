@@ -127,7 +127,7 @@ $admin = $app->auth->user() ?? [];
             <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                 <div class="mb-6 flex items-center justify-between">
                     <h3 class="text-2xl font-extrabold">Ajuste manual de carteira</h3>
-                    <span class="text-sm font-bold text-primary">LuaCoins</span>
+                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10"><?= luacoin_icon('h-5 w-5') ?></span>
                 </div>
                 <form action="/admin/finance/adjust-wallet" class="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_0.35fr_0.35fr]" method="post">
                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
@@ -174,7 +174,7 @@ $admin = $app->auth->user() ?? [];
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($transaction['user']['email'] ?? '')) ?></p>
                                     <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['provider'] ?? 'checkout')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
                                 </div>
-                                <strong class="text-2xl font-extrabold text-primary"><?= e(token_amount((int) ($transaction['amount'] ?? 0))) ?></strong>
+                                <strong class="text-2xl font-extrabold text-primary"><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></strong>
                             </div>
                             <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[0.45fr_1fr]">
                                 <label class="block space-y-2">
@@ -199,7 +199,7 @@ $admin = $app->auth->user() ?? [];
             <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                 <div class="mb-6 flex items-center justify-between">
                     <h3 class="text-2xl font-extrabold">Saques aguardando revisao</h3>
-                    <span class="text-sm font-bold text-primary"><?= e(token_amount((int) ($summary['pending_payout_tokens'] ?? 0))) ?></span>
+                    <span class="text-sm font-bold text-primary"><?= luacoin_amount_html((int) ($summary['pending_payout_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></span>
                 </div>
                 <div class="space-y-4">
                     <?php foreach ($pendingPayouts as $transaction): ?>
@@ -212,7 +212,7 @@ $admin = $app->auth->user() ?? [];
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($transaction['user']['email'] ?? '')) ?></p>
                                     <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['payout_method'] ?? 'pix')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
                                 </div>
-                                <strong class="text-2xl font-extrabold text-primary"><?= e(token_amount((int) ($transaction['amount'] ?? 0))) ?></strong>
+                                <strong class="text-2xl font-extrabold text-primary"><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></strong>
                             </div>
                             <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[0.45fr_1fr]">
                                 <label class="block space-y-2">
@@ -266,7 +266,7 @@ $admin = $app->auth->user() ?? [];
                                 <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($user['name'] ?? 'Usuario')) ?><?php if (($creator['name'] ?? '') !== ''): ?> • <?= e((string) ($creator['name'] ?? '')) ?><?php endif; ?></p>
                                 <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['type'] ?? 'mov')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
                             </div>
-                            <strong class="<?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?> text-xl font-extrabold"><?= $isIn ? '+' : '-' ?><?= e(token_amount((int) ($transaction['amount'] ?? 0))) ?></strong>
+                            <strong class="<?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?> text-xl font-extrabold"><?= $isIn ? '+' : '-' ?><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></strong>
                         </div>
                     </article>
                 <?php endforeach; ?>
