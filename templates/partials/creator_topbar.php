@@ -25,13 +25,11 @@ $creatorTopbarAction = is_array($creatorTopbarAction ?? null) ? $creatorTopbarAc
                 <?= e((string) ($creatorTopbarAction['label'] ?? 'Abrir')) ?>
             </a>
         <?php endif; ?>
-        <div class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white/10 font-bold">
-            <?php $creatorAvatarUrl = media_url((string) ($creatorShellCreator['avatar_url'] ?? '')); ?>
-            <?php if ($creatorAvatarUrl !== ''): ?>
-                <img alt="Avatar do criador" class="h-full w-full object-cover" src="<?= e($creatorAvatarUrl) ?>">
-            <?php else: ?>
-                <?= e(avatar_initials((string) ($creatorShellCreator['name'] ?? 'Criador'))) ?>
-            <?php endif; ?>
-        </div>
+        <?php
+        $accountMenuUser = $creatorShellCreator;
+        $accountMenuSettingsHref = '/creator/settings';
+        $accountMenuLabel = 'Perfil do criador';
+        require BASE_PATH . '/templates/partials/account_menu.php';
+        ?>
     </div>
 </header>

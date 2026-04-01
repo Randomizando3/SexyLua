@@ -68,22 +68,17 @@ $recentMessagesCount = (int) ($data['recent_messages_count'] ?? 0);
     </style>
 </head>
 <body class="min-h-screen">
-<header class="fixed top-0 z-50 flex h-16 w-full items-center justify-between bg-[#D81B60] px-6 font-['Plus_Jakarta_Sans'] font-bold tracking-wide text-white shadow-lg shadow-[#D81B60]/20">
-    <div class="flex items-center gap-4">
-        <?= brand_logo_white('h-8 w-auto') ?>
-        <span class="hidden border-l border-white/20 pl-4 text-xs uppercase tracking-widest opacity-80 md:block">Subscriber Club</span>
-    </div>
-    <nav class="hidden items-center gap-6 text-sm md:flex">
-        <a class="border-b-2 border-white py-1" href="/subscriber">Inicio</a>
-        <a class="opacity-80 transition-opacity hover:opacity-100" href="/subscriber/subscriptions">Assinaturas</a>
-        <a class="opacity-80 transition-opacity hover:opacity-100" href="/subscriber/messages">Mensagens</a>
-        <a class="opacity-80 transition-opacity hover:opacity-100" href="/explore">Explorar</a>
-    </nav>
-    <div class="flex items-center gap-3">
-        <a class="rounded-full border border-white/20 px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-white/10" href="/subscriber/wallet">Carteira</a>
-        <div class="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 font-bold"><?= e(avatar_initials((string) ($subscriber['name'] ?? 'Assinante'))) ?></div>
-    </div>
-</header>
+<?php
+$subscriberTopbarUser = $subscriber;
+$subscriberTopbarAction = ['href' => '/subscriber/wallet', 'label' => 'Carteira'];
+$subscriberTopbarNav = [
+    ['href' => '/subscriber', 'label' => 'Inicio', 'active' => true],
+    ['href' => '/subscriber/subscriptions', 'label' => 'Assinaturas'],
+    ['href' => '/subscriber/messages', 'label' => 'Mensagens'],
+    ['href' => '/explore', 'label' => 'Explorar'],
+];
+require BASE_PATH . '/templates/partials/subscriber_topbar.php';
+?>
 
 <aside class="fixed left-0 top-16 hidden h-[calc(100vh-64px)] w-64 flex-col bg-[#f5f3f5] p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:flex">
     <nav class="space-y-2">
