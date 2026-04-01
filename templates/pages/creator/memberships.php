@@ -361,15 +361,28 @@ include base_path('templates/partials/creator_topbar.php');
             </button>
         </div>
 
-        <form action="/creator/memberships/message" class="mt-8 space-y-5" method="post" data-member-message-form>
+        <form action="/creator/memberships/message" class="mt-8 space-y-5" enctype="multipart/form-data" method="post" data-member-message-form>
             <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
             <input name="redirect" type="hidden" value="<?= e($redirectBase) ?>">
             <input name="subscriber_id" type="hidden" value="" data-member-message-field="subscriber_id">
 
             <label class="block space-y-2">
                 <span class="text-sm font-semibold text-[#5a4044]">Mensagem</span>
-                <textarea class="min-h-[180px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4 shadow-sm focus:ring-2 focus:ring-[#ab1155]/20" data-member-message-field="body" name="body" placeholder="Escreva uma mensagem para este assinante..." required></textarea>
+                <textarea class="min-h-[180px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4 shadow-sm focus:ring-2 focus:ring-[#ab1155]/20" data-member-message-field="body" name="body" placeholder="Escreva uma mensagem, descrição do anexo ou descrição do microconteúdo..."></textarea>
             </label>
+
+            <div class="grid gap-4 md:grid-cols-2">
+                <label class="block space-y-2">
+                    <span class="text-sm font-semibold text-[#5a4044]">Anexo opcional</span>
+                    <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm,.pdf,.doc,.docx,.txt,.zip,.rar,.7z" class="w-full rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-[#ab1155]/20" name="attachment_file" type="file">
+                </label>
+                <label class="block space-y-2">
+                    <span class="text-sm font-semibold text-[#5a4044]">Microconteúdo (LuaCoins)</span>
+                    <input class="w-full rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-[#ab1155]/20" min="0" name="unlock_price" placeholder="0" type="number" value="0">
+                </label>
+            </div>
+
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#5a4044]">Se houver preço, o anexo entra no chat como microconteúdo e o assinante precisa pagar em LuaCoins para liberar.</p>
 
             <div class="flex flex-wrap gap-3">
                 <button class="signature-glow rounded-full px-7 py-4 text-sm font-bold text-white shadow-[0px_20px_40px_rgba(171,17,85,0.2)]" data-prototype-skip="1" type="submit">Enviar mensagem</button>
@@ -460,6 +473,8 @@ include base_path('templates/partials/creator_topbar.php');
         const title = modal.querySelector('[data-member-message-title]');
         const subscriberField = form.querySelector('[data-member-message-field="subscriber_id"]');
         const bodyField = form.querySelector('[data-member-message-field="body"]');
+        const priceField = form.querySelector('input[name="unlock_price"]');
+        const fileField = form.querySelector('input[name="attachment_file"]');
 
         const openModal = (payload) => {
             if (subscriberField instanceof HTMLInputElement) {
@@ -468,6 +483,12 @@ include base_path('templates/partials/creator_topbar.php');
             if (bodyField instanceof HTMLTextAreaElement) {
                 bodyField.value = '';
                 bodyField.focus();
+            }
+            if (priceField instanceof HTMLInputElement) {
+                priceField.value = '0';
+            }
+            if (fileField instanceof HTMLInputElement) {
+                fileField.value = '';
             }
             if (title) {
                 title.textContent = `Mensagem para ${payload.subscriber_name || 'assinante'}`;

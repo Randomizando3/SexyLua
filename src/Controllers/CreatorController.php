@@ -266,7 +266,28 @@ final class CreatorController extends Controller
         $this->app->auth->requireRole('creator');
         $redirect = (string) $request->input('redirect', '/creator/memberships');
         $this->validateCsrf($request, $redirect);
-        $result = $this->app->repository->sendMessageToSubscriber((int) $this->user()['id'], (int) $request->input('subscriber_id', 0), (string) $request->input('body', ''));
+        $options = [
+            'unlock_price' => (int) $request->input('unlock_price', 0),
+        ];
+
+        if ($request->hasFile('attachment_file')) {
+            $attachment = store_private_uploaded_file(
+                $request->file('attachment_file'),
+                'messages/creator',
+                ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm', 'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z'],
+                52428800
+            );
+            if ($attachment !== null) {
+                $options['attachment'] = $attachment;
+            }
+        }
+
+        $result = $this->app->repository->sendMessageToSubscriber(
+            (int) $this->user()['id'],
+            (int) $request->input('subscriber_id', 0),
+            (string) $request->input('body', ''),
+            $options
+        );
 
         $this->redirect($redirect, $result['message'] ?? 'Nao foi possivel enviar a mensagem.', (bool) ($result['ok'] ?? false) ? 'success' : 'error');
     }
