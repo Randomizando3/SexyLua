@@ -17,6 +17,11 @@ function public_path(string $path = ''): string
     return base_path('public' . ($path !== '' ? '/' . ltrim($path, '/') : ''));
 }
 
+function private_path(string $path = ''): string
+{
+    return base_path('storage/private' . ($path !== '' ? '/' . ltrim($path, '/') : ''));
+}
+
 function e(?string $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
@@ -170,6 +175,30 @@ function public_media_file_bytes(?string $value): int
     return $bytes === false ? 0 : max(0, (int) $bytes);
 }
 
+function private_media_local_path(?string $value): ?string
+{
+    $value = trim((string) $value);
+
+    if ($value === '' || preg_match('#^https?://#i', $value) === 1) {
+        return null;
+    }
+
+    return private_path(ltrim($value, '/'));
+}
+
+function private_media_file_bytes(?string $value): int
+{
+    $path = private_media_local_path($value);
+
+    if ($path === null || ! is_file($path)) {
+        return 0;
+    }
+
+    $bytes = @filesize($path);
+
+    return $bytes === false ? 0 : max(0, (int) $bytes);
+}
+
 function delete_public_media_file(?string $value): void
 {
     $path = public_media_local_path($value);
@@ -177,6 +206,47 @@ function delete_public_media_file(?string $value): void
     if ($path !== null && is_file($path)) {
         @unlink($path);
     }
+}
+
+function delete_private_media_file(?string $value): void
+{
+    $path = private_media_local_path($value);
+
+    if ($path !== null && is_file($path)) {
+        @unlink($path);
+    }
+}
+
+function uploaded_asset_kind(string $extension, ?string $mimeType = null): string
+{
+    $extension = strtolower(trim($extension));
+    $mimeType = strtolower(trim((string) $mimeType));
+
+    if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'], true) || str_starts_with($mimeType, 'image/')) {
+        return 'image';
+    }
+
+    if (in_array($extension, ['mp4', 'mov', 'webm', 'm4v', 'mpeg', 'mpg'], true) || str_starts_with($mimeType, 'video/')) {
+        return 'video';
+    }
+
+    return 'document';
+}
+
+function detect_uploaded_mime_type(string $path, string $fallback = 'application/octet-stream'): string
+{
+    if (is_file($path) && function_exists('finfo_open')) {
+        $finfo = @finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo !== false) {
+            $mime = @finfo_file($finfo, $path);
+            @finfo_close($finfo);
+            if (is_string($mime) && trim($mime) !== '') {
+                return trim($mime);
+            }
+        }
+    }
+
+    return $fallback;
 }
 
 function human_file_size(int $bytes, int $precision = 1): string
@@ -293,6 +363,53 @@ function store_uploaded_file(?array $file, string $folder, array $allowedExtensi
     }
 
     return '/' . str_replace('\\', '/', $relativeDir . '/' . $filename);
+}
+
+function store_private_uploaded_file(?array $file, string $folder, array $allowedExtensions = [], int $maxBytes = 52428800): ?array
+{
+    if (! is_array($file) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        return null;
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    $originalName = (string) ($file['name'] ?? '');
+    $size = (int) ($file['size'] ?? 0);
+
+    if ($tmpName === '' || ! is_uploaded_file($tmpName) || $size <= 0 || $size > $maxBytes) {
+        return null;
+    }
+
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+    if ($allowedExtensions !== [] && ! in_array($extension, $allowedExtensions, true)) {
+        return null;
+    }
+
+    $folder = trim(preg_replace('/[^a-z0-9\\/_-]+/i', '-', $folder) ?? 'uploads', '/');
+    $relativeDir = 'uploads/' . ($folder !== '' ? $folder : 'misc');
+    $targetDir = private_path($relativeDir);
+
+    if (! is_dir($targetDir)) {
+        mkdir($targetDir, 0777, true);
+    }
+
+    $filename = date('YmdHis') . '-' . bin2hex(random_bytes(6)) . ($extension !== '' ? '.' . $extension : '');
+    $targetPath = $targetDir . DIRECTORY_SEPARATOR . $filename;
+
+    if (! move_uploaded_file($tmpName, $targetPath)) {
+        return null;
+    }
+
+    $mimeType = detect_uploaded_mime_type($targetPath, (string) ($file['type'] ?? 'application/octet-stream'));
+
+    return [
+        'path' => str_replace('\\', '/', $relativeDir . '/' . $filename),
+        'original_name' => $originalName !== '' ? $originalName : $filename,
+        'mime_type' => $mimeType,
+        'extension' => $extension,
+        'size' => $size,
+        'kind' => uploaded_asset_kind($extension, $mimeType),
+    ];
 }
 
 function prototype_apply(string $html, array $payload): string

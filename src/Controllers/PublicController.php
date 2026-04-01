@@ -95,6 +95,35 @@ final class PublicController extends Controller
         ], null);
     }
 
+    public function messageAsset(Request $request): void
+    {
+        if ($this->app->auth->guest()) {
+            $this->redirect('/login', 'Entre para acessar este anexo.', 'error');
+        }
+
+        $scope = (string) $request->query('scope', 'message');
+        $asset = $scope === 'announcement'
+            ? $this->app->repository->findSecureAnnouncementAttachment((int) $request->query('id', 0), (int) ($this->user()['id'] ?? 0))
+            : $this->app->repository->findSecureConversationMessageAttachment((int) $request->query('id', 0), (int) ($this->user()['id'] ?? 0));
+
+        $path = private_media_local_path((string) ($asset['path'] ?? ''));
+        if ($asset === null || $path === null || ! is_file($path)) {
+            http_response_code(404);
+            echo 'Anexo nao encontrado.';
+            exit;
+        }
+
+        $mimeType = (string) ($asset['mime_type'] ?? 'application/octet-stream');
+        $displayName = str_replace(["\r", "\n"], '', (string) ($asset['display_name'] ?? $asset['original_name'] ?? basename($path)));
+        $disposition = (string) ($asset['kind'] ?? 'document') === 'document' ? 'attachment' : 'inline';
+
+        header('Content-Type: ' . $mimeType);
+        header('Content-Length: ' . (string) filesize($path));
+        header('Content-Disposition: ' . $disposition . '; filename="' . addslashes($displayName) . '"');
+        readfile($path);
+        exit;
+    }
+
     public function help(Request $request): void
     {
         $this->render('pages/public/help', [
@@ -174,6 +203,20 @@ final class PublicController extends Controller
         $conversationId = $this->app->repository->startConversation((int) $this->user()['id'], $creatorId, (string) $request->input('body', 'Oi! Gostaria de conversar sobre seus conteudos.'));
 
         $this->redirect(path_with_query('/subscriber/messages', ['conversation' => $conversationId]), 'Conversa iniciada.');
+    }
+
+    public function unlockMessage(Request $request): void
+    {
+        if ($this->app->auth->guest()) {
+            $this->redirect('/login', 'Entre para desbloquear este conteudo.', 'error');
+        }
+
+        $this->app->auth->requireRole('subscriber');
+        $redirect = (string) $request->input('redirect', '/subscriber/messages');
+        $this->validateCsrf($request, $redirect);
+        $result = $this->app->repository->unlockConversationMessage((int) $request->input('message_id', 0), (int) ($this->user()['id'] ?? 0));
+
+        $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel desbloquear este conteudo.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
     }
 
     public function postTip(Request $request): void

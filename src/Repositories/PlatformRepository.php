@@ -26,6 +26,7 @@ final class PlatformRepository
         'saved_items',
         'conversations',
         'messages',
+        'message_unlocks',
         'notifications',
         'announcements',
         'live_messages',
@@ -500,6 +501,9 @@ final class PlatformRepository
     public function conversationsData(int $subscriberId, ?int $conversationId = null, array $filters = []): array
     {
         $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $announcementId = max(0, (int) ($filters['announcement'] ?? 0));
+        $subscriber = $this->findUserById($subscriberId) ?? [];
+        $announcements = $this->announcementsForUser($subscriber, 12, '/subscriber/messages');
         $conversations = $this->conversationList($subscriberId);
         $filteredConversations = array_values(array_filter($conversations, static function (array $conversation) use ($query): bool {
             if ($query === '') {
@@ -530,25 +534,23 @@ final class PlatformRepository
         $messages = [];
 
         if ($selected) {
-            $messages = array_values(array_filter($this->messages(), static fn (array $message): bool => (int) ($message['conversation_id'] ?? 0) === (int) ($selected['id'] ?? 0)));
-            $messages = $this->sortByDate($messages, 'created_at');
-            $messages = array_map(function (array $message): array {
-                $message['sender'] = $this->findUserById((int) ($message['sender_id'] ?? 0));
-
-                return $message;
-            }, $messages);
+            $messages = $this->messagesForConversation((int) ($selected['id'] ?? 0), $subscriberId);
         }
 
         return [
-            'subscriber' => $this->findUserById($subscriberId),
+            'subscriber' => $subscriber,
+            'announcements' => $announcements,
+            'selected_announcement' => $this->findAnnouncementForUser($announcementId, $subscriber),
             'conversations' => $conversations,
             'filtered_conversations' => $filteredConversations,
             'selected_conversation' => $selected,
             'messages' => $messages,
             'filters' => [
                 'q' => $query,
+                'announcement' => $announcementId,
             ],
             'summary' => [
+                'announcement_count' => count($announcements),
                 'conversation_count' => count($conversations),
                 'visible_count' => count($filteredConversations),
             ],
@@ -558,6 +560,10 @@ final class PlatformRepository
     public function creatorConversationsData(int $creatorId, ?int $conversationId = null, array $filters = []): array
     {
         $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $announcementId = max(0, (int) ($filters['announcement'] ?? 0));
+        $creator = $this->findCreatorBySlugOrId(null, $creatorId) ?? [];
+        $creatorUser = $this->findUserById($creatorId) ?? $creator;
+        $announcements = $this->announcementsForUser($creatorUser, 12, '/creator/messages');
         $conversations = $this->creatorConversationList($creatorId);
         $filteredConversations = array_values(array_filter($conversations, static function (array $conversation) use ($query): bool {
             if ($query === '') {
@@ -588,19 +594,24 @@ final class PlatformRepository
         $messages = [];
 
         if ($selected !== null) {
-            $messages = $this->messagesForConversation((int) ($selected['id'] ?? 0));
+            $messages = $this->messagesForConversation((int) ($selected['id'] ?? 0), $creatorId);
         }
 
         return [
-            'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
+            'creator' => $creator,
+            'announcements' => $announcements,
+            'selected_announcement' => $this->findAnnouncementForUser($announcementId, $creatorUser),
             'conversations' => $conversations,
             'filtered_conversations' => $filteredConversations,
             'selected_conversation' => $selected,
             'messages' => $messages,
+            'available_plans' => array_values(array_filter($this->plans(), static fn (array $plan): bool => (int) ($plan['creator_id'] ?? 0) === $creatorId && (bool) ($plan['active'] ?? false))),
             'filters' => [
                 'q' => $query,
+                'announcement' => $announcementId,
             ],
             'summary' => [
+                'announcement_count' => count($announcements),
                 'conversation_count' => count($conversations),
                 'visible_count' => count($filteredConversations),
             ],
@@ -629,7 +640,7 @@ final class PlatformRepository
         }));
 
         return [
-            'announcements' => $filtered,
+            'announcements' => array_map(fn (array $announcement): array => $this->decorateAnnouncementForAdmin($announcement), $filtered),
             'recent_announcements' => array_slice($announcements, 0, 8),
             'filters' => [
                 'q' => $query,
@@ -1136,18 +1147,58 @@ final class PlatformRepository
         return true;
     }
 
-    public function sendConversationMessage(int $conversationId, int $senderId, string $body): bool
+    public function sendConversationMessage(int $conversationId, int $senderId, string $body, array $options = []): bool
     {
         $body = trim($body);
-
-        if ($body === '') {
-            return false;
-        }
+        $attachment = $this->normalizeConversationAttachment(is_array($options['attachment'] ?? null) ? $options['attachment'] : null);
 
         $conversation = $this->findConversationById($conversationId);
 
         if (! $conversation) {
             return false;
+        }
+
+        $isConversationParticipant = in_array($senderId, [
+            (int) ($conversation['subscriber_id'] ?? 0),
+            (int) ($conversation['creator_id'] ?? 0),
+        ], true);
+
+        if (! $isConversationParticipant || ($body === '' && $attachment === null)) {
+            return false;
+        }
+
+        $requiredPlanId = 0;
+        $unlockPrice = 0;
+        if ($senderId === (int) ($conversation['creator_id'] ?? 0)) {
+            $requiredPlanId = max(0, (int) ($options['required_plan_id'] ?? 0));
+            $unlockPrice = max(0, (int) ($options['unlock_price'] ?? 0));
+
+            if ($requiredPlanId > 0) {
+                $plan = $this->findPlanById($requiredPlanId);
+                if (! $plan || (int) ($plan['creator_id'] ?? 0) !== (int) ($conversation['creator_id'] ?? 0)) {
+                    $requiredPlanId = 0;
+                }
+            }
+
+            if ($unlockPrice > 0) {
+                $requiredPlanId = 0;
+            }
+        }
+
+        if ($attachment === null) {
+            $requiredPlanId = 0;
+            $unlockPrice = 0;
+        }
+
+        $messageType = 'text';
+        if ($attachment !== null) {
+            if ($unlockPrice > 0) {
+                $messageType = 'instant_content';
+            } elseif ($requiredPlanId > 0) {
+                $messageType = 'private_attachment';
+            } else {
+                $messageType = 'attachment';
+            }
         }
 
         $messages = $this->messages();
@@ -1156,6 +1207,10 @@ final class PlatformRepository
             'conversation_id' => $conversationId,
             'sender_id' => $senderId,
             'body' => $body,
+            'message_type' => $messageType,
+            'required_plan_id' => $requiredPlanId,
+            'unlock_price' => $unlockPrice,
+            'attachment' => $attachment,
             'created_at' => date('Y-m-d H:i:s'),
         ];
         $messageId = (int) (($messages[array_key_last($messages)] ?? [])['id'] ?? 0);
@@ -1183,7 +1238,7 @@ final class PlatformRepository
             $recipientId,
             'message',
             'Nova mensagem de ' . (string) ($sender['name'] ?? 'Conta'),
-            excerpt($body, 90),
+            excerpt($body !== '' ? $body : $this->messageNotificationPreview($messageType, $attachment, $unlockPrice, $requiredPlanId), 90),
             $recipientHref,
             [
                 'conversation_id' => $conversationId,
@@ -1253,12 +1308,13 @@ final class PlatformRepository
         return ['ok' => true, 'message' => 'Gorjeta enviada com sucesso.'];
     }
 
-    public function sendMessageToSubscriber(int $creatorId, int $subscriberId, string $body): array
+    public function sendMessageToSubscriber(int $creatorId, int $subscriberId, string $body, array $options = []): array
     {
         $body = trim($body);
+        $attachment = $this->normalizeConversationAttachment(is_array($options['attachment'] ?? null) ? $options['attachment'] : null);
         $subscriber = $this->findUserById($subscriberId);
 
-        if ($body === '') {
+        if ($body === '' && $attachment === null) {
             return ['ok' => false, 'message' => 'Escreva a mensagem antes de enviar.'];
         }
 
@@ -1280,7 +1336,7 @@ final class PlatformRepository
 
         $conversation = $this->findConversationByPair($subscriberId, $creatorId);
         if ($conversation !== null) {
-            $ok = $this->sendConversationMessage((int) ($conversation['id'] ?? 0), $creatorId, $body);
+            $ok = $this->sendConversationMessage((int) ($conversation['id'] ?? 0), $creatorId, $body, $options);
 
             return [
                 'ok' => $ok,
@@ -1299,12 +1355,115 @@ final class PlatformRepository
         ];
         $this->save('conversations', $conversations);
 
-        $ok = $this->sendConversationMessage($conversationId, $creatorId, $body);
+        $ok = $this->sendConversationMessage($conversationId, $creatorId, $body, $options);
 
         return [
             'ok' => $ok,
             'message' => $ok ? 'Mensagem enviada ao assinante.' : 'Nao foi possivel enviar a mensagem.',
             'conversation_id' => $conversationId,
+        ];
+    }
+
+    public function unlockConversationMessage(int $messageId, int $subscriberId): array
+    {
+        $message = $this->findMessageById($messageId);
+
+        if ($message === null) {
+            return ['ok' => false, 'message' => 'Conteudo nao encontrado.'];
+        }
+
+        $conversation = $this->findConversationById((int) ($message['conversation_id'] ?? 0));
+        if ($conversation === null || (int) ($conversation['subscriber_id'] ?? 0) !== $subscriberId) {
+            return ['ok' => false, 'message' => 'Voce nao tem acesso a este conteudo.'];
+        }
+
+        $unlockPrice = max(0, (int) ($message['unlock_price'] ?? 0));
+        $attachment = $this->normalizeConversationAttachment(is_array($message['attachment'] ?? null) ? $message['attachment'] : null);
+        if ($unlockPrice <= 0 || $attachment === null) {
+            return ['ok' => false, 'message' => 'Este item nao exige desbloqueio em LuaCoins.'];
+        }
+
+        if ($this->hasConversationMessageUnlock($messageId, $subscriberId)) {
+            return ['ok' => true, 'message' => 'Conteudo ja desbloqueado.'];
+        }
+
+        $creatorId = (int) ($conversation['creator_id'] ?? 0);
+        if ($creatorId <= 0) {
+            return ['ok' => false, 'message' => 'Criador nao encontrado para este conteudo.'];
+        }
+
+        if ($this->walletBalance($subscriberId) < $unlockPrice) {
+            return ['ok' => false, 'message' => 'Saldo insuficiente para desbloquear este conteudo.'];
+        }
+
+        $description = trim((string) ($message['body'] ?? 'Conteudo instantaneo no chat'));
+        $this->chargeSubscriberAndCreditCreator($subscriberId, $creatorId, $unlockPrice, 'instant_content', $description);
+
+        $unlocks = $this->messageUnlocks();
+        $unlocks[] = [
+            'id' => $this->store->nextId($unlocks),
+            'message_id' => $messageId,
+            'user_id' => $subscriberId,
+            'amount' => $unlockPrice,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        $this->save('message_unlocks', $unlocks);
+
+        $subscriber = $this->findUserById($subscriberId);
+        $this->notifyUser(
+            $creatorId,
+            'sale',
+            'Conteudo instantaneo desbloqueado',
+            (string) ($subscriber['name'] ?? 'Assinante') . ' desbloqueou seu conteudo por ' . $unlockPrice . ' LuaCoins.',
+            path_with_query('/creator/messages', ['conversation' => (int) ($conversation['id'] ?? 0)]),
+            [
+                'message_id' => $messageId,
+                'conversation_id' => (int) ($conversation['id'] ?? 0),
+                'amount' => $unlockPrice,
+            ]
+        );
+
+        return ['ok' => true, 'message' => 'Conteudo desbloqueado com sucesso.'];
+    }
+
+    public function findSecureConversationMessageAttachment(int $messageId, int $viewerId): ?array
+    {
+        $user = $this->findUserById($viewerId);
+        $message = $this->findMessageById($messageId);
+
+        if ($user === null || $message === null) {
+            return null;
+        }
+
+        $conversation = $this->findConversationById((int) ($message['conversation_id'] ?? 0));
+        $attachment = $this->normalizeConversationAttachment(is_array($message['attachment'] ?? null) ? $message['attachment'] : null);
+
+        if ($conversation === null || $attachment === null || ! $this->viewerCanAccessConversationMessage($message, $conversation, $viewerId, (string) ($user['role'] ?? ''))) {
+            return null;
+        }
+
+        return $attachment + [
+            'display_name' => (string) ($attachment['original_name'] ?? 'anexo'),
+        ];
+    }
+
+    public function findSecureAnnouncementAttachment(int $announcementId, int $viewerId): ?array
+    {
+        $user = $this->findUserById($viewerId);
+        $announcement = $this->findAnnouncementById($announcementId);
+
+        if ($user === null || $announcement === null || ! $this->announcementMatchesUser($announcement, $user)) {
+            return null;
+        }
+
+        $attachment = $this->normalizeAnnouncementAttachment(is_array($announcement['attachment'] ?? null) ? $announcement['attachment'] : null);
+
+        if ($attachment === null) {
+            return null;
+        }
+
+        return $attachment + [
+            'display_name' => (string) ($attachment['original_name'] ?? 'anexo'),
         ];
     }
 
@@ -2963,6 +3122,7 @@ final class PlatformRepository
             ? (string) ($data['audience'] ?? 'all')
             : 'all';
         $href = trim((string) ($data['href'] ?? ''));
+        $attachment = $this->normalizeAnnouncementAttachment(is_array($data['attachment'] ?? null) ? $data['attachment'] : null);
 
         if ($title === '' || $body === '') {
             return ['ok' => false, 'message' => 'Preencha o titulo e a mensagem do comunicado.'];
@@ -2990,6 +3150,7 @@ final class PlatformRepository
             'body' => $body,
             'audience' => $audience,
             'href' => $href,
+            'attachment' => $attachment,
             'recipient_count' => count($targets),
             'created_at' => $createdAt,
         ];
@@ -2998,9 +3159,9 @@ final class PlatformRepository
         foreach ($targets as $target) {
             $targetRole = (string) ($target['role'] ?? 'subscriber');
             $targetHref = $href !== '' ? $href : match ($targetRole) {
-                'creator' => '/creator',
-                'subscriber' => '/subscriber',
-                'admin' => '/admin',
+                'creator' => path_with_query('/creator/messages', ['announcement' => $announcementId]),
+                'subscriber' => path_with_query('/subscriber/messages', ['announcement' => $announcementId]),
+                'admin' => path_with_query('/admin/messages'),
                 default => '/',
             };
 
@@ -4021,6 +4182,11 @@ final class PlatformRepository
         return $this->readCollection('messages');
     }
 
+    private function messageUnlocks(): array
+    {
+        return $this->readCollection('message_unlocks');
+    }
+
     private function notifications(): array
     {
         return $this->readCollection('notifications');
@@ -4986,9 +5152,14 @@ final class PlatformRepository
             $messages = array_values(array_filter($this->messages(), static fn (array $message): bool => (int) $message['conversation_id'] === (int) $conversation['id']));
             $messages = $this->sortByDate($messages, 'created_at');
             $lastMessage = $messages[0] ?? null;
+            $subscription = $this->activeSubscriptionFor((int) ($conversation['subscriber_id'] ?? 0), (int) ($conversation['creator_id'] ?? 0));
+            if (is_array($subscription)) {
+                $subscription['plan'] = $this->findPlanById((int) ($subscription['plan_id'] ?? 0));
+            }
 
             return $conversation + [
                 'creator' => $creator,
+                'subscription' => $subscription,
                 'latest_message' => $lastMessage,
                 'last_message' => $lastMessage,
             ];
@@ -5005,25 +5176,247 @@ final class PlatformRepository
             $messages = array_values(array_filter($this->messages(), static fn (array $message): bool => (int) ($message['conversation_id'] ?? 0) === (int) ($conversation['id'] ?? 0)));
             $messages = $this->sortByDate($messages, 'created_at');
             $lastMessage = $messages[0] ?? null;
+            $subscription = $this->activeSubscriptionFor((int) ($conversation['subscriber_id'] ?? 0), (int) ($conversation['creator_id'] ?? 0));
+            if (is_array($subscription)) {
+                $subscription['plan'] = $this->findPlanById((int) ($subscription['plan_id'] ?? 0));
+            }
 
             return $conversation + [
                 'subscriber' => $subscriber,
+                'subscription' => $subscription,
                 'latest_message' => $lastMessage,
                 'last_message' => $lastMessage,
             ];
         }, $rows);
     }
 
-    private function messagesForConversation(int $conversationId): array
+    private function messagesForConversation(int $conversationId, int $viewerId = 0): array
     {
+        $conversation = $this->findConversationById($conversationId);
         $messages = array_values(array_filter($this->messages(), static fn (array $message): bool => (int) ($message['conversation_id'] ?? 0) === $conversationId));
         $messages = $this->sortByDate($messages, 'created_at');
 
-        return array_map(function (array $message): array {
+        return array_map(function (array $message) use ($viewerId, $conversation): array {
             $message['sender'] = $this->findUserById((int) ($message['sender_id'] ?? 0));
+            if (is_array($conversation)) {
+                $message = $this->decorateConversationMessage($message, $conversation, $viewerId);
+            }
 
             return $message;
         }, $messages);
+    }
+
+    private function announcementsForUser(array $user, int $limit = 12, string $baseHref = ''): array
+    {
+        if (! is_array($user) || (int) ($user['id'] ?? 0) <= 0) {
+            return [];
+        }
+
+        $announcements = array_values(array_filter($this->announcements(), fn (array $announcement): bool => $this->announcementMatchesUser($announcement, $user)));
+        $announcements = $this->sortByDate($announcements, 'created_at');
+
+        return array_map(
+            fn (array $announcement): array => $this->decorateAnnouncementForUser($announcement, $user, $baseHref),
+            array_slice($announcements, 0, max(1, $limit))
+        );
+    }
+
+    private function findAnnouncementForUser(int $announcementId, array $user, string $baseHref = ''): ?array
+    {
+        if ($announcementId <= 0) {
+            return null;
+        }
+
+        $announcement = $this->findAnnouncementById($announcementId);
+        if ($announcement === null || ! $this->announcementMatchesUser($announcement, $user)) {
+            return null;
+        }
+
+        return $this->decorateAnnouncementForUser($announcement, $user, $baseHref);
+    }
+
+    private function decorateAnnouncementForUser(array $announcement, array $user, string $baseHref = ''): array
+    {
+        $attachment = $this->normalizeAnnouncementAttachment(is_array($announcement['attachment'] ?? null) ? $announcement['attachment'] : null);
+
+        return $announcement + [
+            'href' => $baseHref !== '' ? path_with_query($baseHref, ['announcement' => (int) ($announcement['id'] ?? 0)]) : (string) ($announcement['href'] ?? ''),
+            'attachment' => $attachment !== null ? $attachment + [
+                'href' => path_with_query('/messages/asset', ['scope' => 'announcement', 'id' => (int) ($announcement['id'] ?? 0)]),
+            ] : null,
+        ];
+    }
+
+    private function decorateAnnouncementForAdmin(array $announcement): array
+    {
+        $attachment = $this->normalizeAnnouncementAttachment(is_array($announcement['attachment'] ?? null) ? $announcement['attachment'] : null);
+
+        return $announcement + [
+            'attachment' => $attachment !== null ? $attachment + [
+                'href' => path_with_query('/messages/asset', ['scope' => 'announcement', 'id' => (int) ($announcement['id'] ?? 0)]),
+            ] : null,
+        ];
+    }
+
+    private function decorateConversationMessage(array $message, array $conversation, int $viewerId): array
+    {
+        $viewer = $viewerId > 0 ? $this->findUserById($viewerId) : null;
+        $viewerRole = (string) ($viewer['role'] ?? '');
+        $attachment = $this->normalizeConversationAttachment(is_array($message['attachment'] ?? null) ? $message['attachment'] : null);
+        $requiredPlanId = max(0, (int) ($message['required_plan_id'] ?? 0));
+        $requiredPlan = $requiredPlanId > 0 ? $this->findPlanById($requiredPlanId) : null;
+        $unlockPrice = max(0, (int) ($message['unlock_price'] ?? 0));
+        $isUnlocked = $viewerId > 0 && $this->hasConversationMessageUnlock((int) ($message['id'] ?? 0), $viewerId);
+        $hasAccess = $this->viewerCanAccessConversationMessage($message, $conversation, $viewerId, $viewerRole);
+
+        return $message + [
+            'attachment' => $attachment !== null ? $attachment + [
+                'href' => $hasAccess ? path_with_query('/messages/asset', ['scope' => 'message', 'id' => (int) ($message['id'] ?? 0)]) : null,
+            ] : null,
+            'required_plan' => $requiredPlan,
+            'required_plan_name' => (string) ($requiredPlan['name'] ?? ''),
+            'unlock_price' => $unlockPrice,
+            'is_unlocked' => $isUnlocked,
+            'can_access_attachment' => $hasAccess,
+            'is_locked_attachment' => $attachment !== null && ! $hasAccess,
+            'lock_reason' => $unlockPrice > 0
+                ? 'Desbloqueie este conteudo com LuaCoins para visualizar.'
+                : ($requiredPlan !== null ? 'Conteudo liberado apenas para o plano ' . (string) ($requiredPlan['name'] ?? 'selecionado') . '.' : 'Conteudo exclusivo.'),
+        ];
+    }
+
+    private function viewerCanAccessConversationMessage(array $message, array $conversation, int $viewerId, string $viewerRole = ''): bool
+    {
+        if ($viewerId <= 0) {
+            return false;
+        }
+
+        if ($viewerRole === 'admin') {
+            return true;
+        }
+
+        $subscriberId = (int) ($conversation['subscriber_id'] ?? 0);
+        $creatorId = (int) ($conversation['creator_id'] ?? 0);
+
+        if (! in_array($viewerId, [$subscriberId, $creatorId], true)) {
+            return false;
+        }
+
+        if ((int) ($message['sender_id'] ?? 0) === $viewerId) {
+            return true;
+        }
+
+        $attachment = $this->normalizeConversationAttachment(is_array($message['attachment'] ?? null) ? $message['attachment'] : null);
+        if ($attachment === null) {
+            return true;
+        }
+
+        $unlockPrice = max(0, (int) ($message['unlock_price'] ?? 0));
+        if ($unlockPrice > 0) {
+            return $viewerId === $creatorId || $this->hasConversationMessageUnlock((int) ($message['id'] ?? 0), $viewerId);
+        }
+
+        $requiredPlanId = max(0, (int) ($message['required_plan_id'] ?? 0));
+        if ($requiredPlanId > 0) {
+            $subscription = $this->activeSubscriptionFor($subscriberId, $creatorId);
+
+            return $viewerId === $creatorId || ((int) ($subscription['plan_id'] ?? 0) === $requiredPlanId);
+        }
+
+        return true;
+    }
+
+    private function hasConversationMessageUnlock(int $messageId, int $userId): bool
+    {
+        foreach ($this->messageUnlocks() as $unlock) {
+            if ((int) ($unlock['message_id'] ?? 0) === $messageId && (int) ($unlock['user_id'] ?? 0) === $userId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function announcementMatchesUser(array $announcement, array $user): bool
+    {
+        if ((string) ($user['status'] ?? 'active') !== 'active') {
+            return false;
+        }
+
+        $audience = (string) ($announcement['audience'] ?? 'all');
+        if ($audience === 'all') {
+            return true;
+        }
+
+        return (string) ($user['role'] ?? '') === $audience;
+    }
+
+    private function normalizeConversationAttachment(?array $attachment): ?array
+    {
+        if (! is_array($attachment) || trim((string) ($attachment['path'] ?? '')) === '') {
+            return null;
+        }
+
+        $path = trim((string) ($attachment['path'] ?? ''));
+        $extension = strtolower(trim((string) ($attachment['extension'] ?? pathinfo($path, PATHINFO_EXTENSION))));
+        $mimeType = trim((string) ($attachment['mime_type'] ?? 'application/octet-stream'));
+        $kind = (string) ($attachment['kind'] ?? uploaded_asset_kind($extension, $mimeType));
+
+        return [
+            'path' => $path,
+            'original_name' => trim((string) ($attachment['original_name'] ?? basename($path))),
+            'mime_type' => $mimeType,
+            'extension' => $extension,
+            'size' => max(0, (int) ($attachment['size'] ?? private_media_file_bytes($path))),
+            'kind' => in_array($kind, ['image', 'video', 'document'], true) ? $kind : 'document',
+        ];
+    }
+
+    private function normalizeAnnouncementAttachment(?array $attachment): ?array
+    {
+        return $this->normalizeConversationAttachment($attachment);
+    }
+
+    private function messageNotificationPreview(string $messageType, ?array $attachment, int $unlockPrice, int $requiredPlanId): string
+    {
+        if ($attachment === null) {
+            return 'Nova mensagem recebida.';
+        }
+
+        if ($unlockPrice > 0) {
+            return 'Conteudo instantaneo enviado por ' . $unlockPrice . ' LuaCoins.';
+        }
+
+        if ($requiredPlanId > 0) {
+            return 'Conteudo exclusivo enviado no chat.';
+        }
+
+        return match ($messageType) {
+            'attachment' => 'Novo anexo enviado no chat.',
+            default => 'Nova mensagem recebida.',
+        };
+    }
+
+    private function findAnnouncementById(int $announcementId): ?array
+    {
+        foreach ($this->announcements() as $announcement) {
+            if ((int) ($announcement['id'] ?? 0) === $announcementId) {
+                return $announcement;
+            }
+        }
+
+        return null;
+    }
+
+    private function findMessageById(int $messageId): ?array
+    {
+        foreach ($this->messages() as $message) {
+            if ((int) ($message['id'] ?? 0) === $messageId) {
+                return $message;
+            }
+        }
+
+        return null;
     }
 
     private function notificationFeedForUser(array $user, int $limit = 6): array
@@ -5074,8 +5467,19 @@ final class PlatformRepository
                 ];
             }, $announcements);
         } elseif ($role === 'creator') {
+            $announcements = array_map(function (array $announcement): array {
+                return [
+                    'id' => 'announcement-' . (int) ($announcement['id'] ?? 0),
+                    'marker' => $this->feedMarker((string) ($announcement['created_at'] ?? ''), (int) ($announcement['id'] ?? 0)),
+                    'title' => (string) ($announcement['title'] ?? 'Comunicado'),
+                    'body' => excerpt((string) ($announcement['body'] ?? ''), 80),
+                    'href' => path_with_query('/creator/messages', ['announcement' => (int) ($announcement['id'] ?? 0)]),
+                    'icon' => 'campaign',
+                    'time' => format_datetime((string) ($announcement['created_at'] ?? ''), 'd/m H:i'),
+                ];
+            }, array_slice($this->announcementsForUser($user, 2, '/creator/messages'), 0, 2));
             $conversations = array_slice($this->creatorConversationList((int) ($user['id'] ?? 0)), 0, $limit);
-            $items = array_map(function (array $conversation): array {
+            $conversationItems = array_map(function (array $conversation): array {
                 $lastMessage = $conversation['latest_message'] ?? null;
 
                 return [
@@ -5091,9 +5495,21 @@ final class PlatformRepository
                     'time' => format_datetime((string) ($lastMessage['created_at'] ?? $conversation['updated_at'] ?? ''), 'd/m H:i'),
                 ];
             }, $conversations);
+            $items = array_slice(array_values($this->sortFeedItemsByMarker(array_merge($announcements, $conversationItems))), 0, $limit);
         } else {
+            $announcements = array_map(function (array $announcement): array {
+                return [
+                    'id' => 'announcement-' . (int) ($announcement['id'] ?? 0),
+                    'marker' => $this->feedMarker((string) ($announcement['created_at'] ?? ''), (int) ($announcement['id'] ?? 0)),
+                    'title' => (string) ($announcement['title'] ?? 'Comunicado'),
+                    'body' => excerpt((string) ($announcement['body'] ?? ''), 80),
+                    'href' => path_with_query('/subscriber/messages', ['announcement' => (int) ($announcement['id'] ?? 0)]),
+                    'icon' => 'campaign',
+                    'time' => format_datetime((string) ($announcement['created_at'] ?? ''), 'd/m H:i'),
+                ];
+            }, array_slice($this->announcementsForUser($user, 2, '/subscriber/messages'), 0, 2));
             $conversations = array_slice($this->conversationList((int) ($user['id'] ?? 0)), 0, $limit);
-            $items = array_map(function (array $conversation): array {
+            $conversationItems = array_map(function (array $conversation): array {
                 $lastMessage = $conversation['latest_message'] ?? null;
 
                 return [
@@ -5109,12 +5525,20 @@ final class PlatformRepository
                     'time' => format_datetime((string) ($lastMessage['created_at'] ?? $conversation['updated_at'] ?? ''), 'd/m H:i'),
                 ];
             }, $conversations);
+            $items = array_slice(array_values($this->sortFeedItemsByMarker(array_merge($announcements, $conversationItems))), 0, $limit);
         }
 
         return [
             'items' => $items,
             'latest_marker' => (int) ($items[0]['marker'] ?? 0),
         ];
+    }
+
+    private function sortFeedItemsByMarker(array $items): array
+    {
+        usort($items, static fn (array $left, array $right): int => ((int) ($right['marker'] ?? 0)) <=> ((int) ($left['marker'] ?? 0)));
+
+        return $items;
     }
 
     private function adminNotificationFeed(int $limit = 6): array
@@ -5228,6 +5652,7 @@ final class PlatformRepository
             'subscription' => 'workspace_premium',
             'wallet' => 'account_balance_wallet',
             'tip' => 'local_fire_department',
+            'sale' => 'paid',
             'payout' => 'payments',
             'moderation' => 'gavel',
             'announcement' => 'campaign',

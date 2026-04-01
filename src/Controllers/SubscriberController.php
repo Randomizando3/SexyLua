@@ -68,6 +68,7 @@ final class SubscriberController extends Controller
             $request->query('conversation') !== null ? (int) $request->query('conversation') : null,
             [
                 'q' => (string) $request->query('q', ''),
+                'announcement' => (int) $request->query('announcement', 0),
             ]
         );
 
@@ -187,7 +188,21 @@ final class SubscriberController extends Controller
         $conversationId = (int) $request->input('conversation_id', 0);
         $redirect = path_with_query('/subscriber/messages', ['conversation' => $conversationId]);
         $this->validateCsrf($request, $redirect);
-        $ok = $this->app->repository->sendConversationMessage($conversationId, (int) $this->user()['id'], (string) $request->input('body'));
+        $options = [];
+
+        if ($request->hasFile('attachment_file')) {
+            $attachment = store_private_uploaded_file(
+                $request->file('attachment_file'),
+                'messages/subscriber',
+                ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm', 'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z'],
+                52428800
+            );
+            if ($attachment !== null) {
+                $options['attachment'] = $attachment;
+            }
+        }
+
+        $ok = $this->app->repository->sendConversationMessage($conversationId, (int) $this->user()['id'], (string) $request->input('body'), $options);
 
         $this->redirect($redirect, $ok ? 'Mensagem enviada.' : 'Nao foi possivel enviar a mensagem.', $ok ? 'success' : 'error');
     }

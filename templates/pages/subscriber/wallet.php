@@ -34,6 +34,7 @@ if ($selectedTopUpPixCode === '' && $selectedTopUp !== null) {
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <?php if ($selectedTopUpPixCode !== ''): ?><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script><?php endif; ?>
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -73,17 +74,9 @@ if ($selectedTopUpPixCode === '' && $selectedTopUp !== null) {
 $subscriberTopbarUser = $user;
 $subscriberTopbarAction = ['href' => '/subscriber/subscriptions', 'label' => 'Assinaturas'];
 require BASE_PATH . '/templates/partials/subscriber_topbar.php';
+$subscriberSidebarCurrent = 'wallet';
+require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
 ?>
-
-<aside class="fixed left-0 top-16 hidden h-[calc(100vh-64px)] w-64 flex-col bg-[#f5f3f5] p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:flex">
-    <nav class="space-y-2">
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber"><span class="material-symbols-outlined">home</span><span>Inicio</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/subscriptions"><span class="material-symbols-outlined">stars</span><span>Minhas Assinaturas</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/favorites"><span class="material-symbols-outlined">favorite</span><span>Favoritos</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/messages"><span class="material-symbols-outlined">chat</span><span>Mensagens</span></a>
-        <a class="flex items-center gap-4 rounded-full bg-white px-4 py-3 font-bold text-primary" href="/subscriber/wallet"><span class="material-symbols-outlined">account_balance_wallet</span><span>Carteira</span></a>
-    </nav>
-</aside>
 
 <main class="min-h-screen px-6 pb-10 pt-24 lg:ml-64 lg:px-10">
     <section class="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
@@ -119,7 +112,7 @@ require BASE_PATH . '/templates/partials/subscriber_topbar.php';
                 <div>
                     <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Recarga PIX</p>
                     <h3 class="mt-3 text-3xl font-extrabold">Pagamento via SyncPay</h3>
-                    <p class="mt-2 max-w-2xl text-sm text-on-surface-variant">Use o codigo PIX abaixo para pagar e depois atualize o status. A liberacao das LuaCoins acontece quando a transacao for aprovada.</p>
+                    <p class="mt-2 max-w-2xl text-sm text-on-surface-variant">Use o codigo PIX abaixo para pagar. A liberacao das LuaCoins acontece somente quando a SyncPay confirmar o pagamento pelo sistema.</p>
                 </div>
                 <div class="flex flex-wrap gap-3">
                     <span class="rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] <?= $selectedTopUpStatus === 'approved' ? 'bg-emerald-100 text-emerald-700' : ($selectedTopUpStatus === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700') ?>">
@@ -147,21 +140,40 @@ require BASE_PATH . '/templates/partials/subscriber_topbar.php';
             </div>
 
             <div class="mt-6 rounded-3xl bg-surface-container-low p-6">
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
                     <div>
-                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Codigo PIX copia e cola</p>
-                        <p class="mt-2 text-sm text-on-surface-variant">Cole no banco, app ou carteira de pagamento para concluir a recarga.</p>
-                    </div>
-                    <?php if ($selectedTopUpPixCode !== ''): ?>
-                        <button class="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-700" data-copy-target="syncpay-pix-code" type="button">Copiar codigo</button>
-                    <?php endif; ?>
-                </div>
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Codigo PIX copia e cola</p>
+                                <p class="mt-2 text-sm text-on-surface-variant">Cole no banco, app ou carteira de pagamento para concluir a recarga.</p>
+                            </div>
+                            <?php if ($selectedTopUpPixCode !== ''): ?>
+                                <button class="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-700" data-copy-target="syncpay-pix-code" type="button">Copiar codigo</button>
+                            <?php endif; ?>
+                        </div>
 
-                <?php if ($selectedTopUpPixCode !== ''): ?>
-                    <textarea class="mt-4 min-h-36 w-full rounded-3xl border-none bg-white px-5 py-4 text-sm text-slate-700 shadow-sm focus:ring-2 focus:ring-primary/20" id="syncpay-pix-code" readonly><?= e($selectedTopUpPixCode) ?></textarea>
-                <?php else: ?>
-                    <p class="mt-4 rounded-2xl bg-white px-5 py-4 text-sm text-on-surface-variant">O codigo PIX ainda nao foi retornado pela SyncPay. Atualize o status em alguns segundos.</p>
-                <?php endif; ?>
+                        <?php if ($selectedTopUpPixCode !== ''): ?>
+                            <textarea class="mt-4 min-h-36 w-full rounded-3xl border-none bg-white px-5 py-4 text-sm text-slate-700 shadow-sm focus:ring-2 focus:ring-primary/20" id="syncpay-pix-code" readonly><?= e($selectedTopUpPixCode) ?></textarea>
+                            <p class="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">Enquanto o status estiver pendente, essas LuaCoins ainda nao entram no saldo. O credito so acontece apos a confirmacao da SyncPay.</p>
+                        <?php else: ?>
+                            <p class="mt-4 rounded-2xl bg-white px-5 py-4 text-sm text-on-surface-variant">O codigo PIX ainda nao foi retornado pela SyncPay. Atualize o status em alguns segundos.</p>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="rounded-3xl bg-white p-5 shadow-sm">
+                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">QR Code PIX</p>
+                        <?php if ($selectedTopUpPixCode !== ''): ?>
+                            <div class="mt-4 flex items-center justify-center rounded-3xl bg-surface-container-low p-4">
+                                <div class="h-[220px] w-[220px]" data-syncpay-qrcode data-syncpay-pix="<?= e($selectedTopUpPixCode) ?>"></div>
+                            </div>
+                            <p class="mt-4 text-sm text-on-surface-variant">Abra o app do seu banco e escaneie o QR Code para pagar a recarga.</p>
+                        <?php else: ?>
+                            <div class="mt-4 flex min-h-[220px] items-center justify-center rounded-3xl bg-surface-container-low p-4 text-center text-sm text-on-surface-variant">
+                                O QR Code vai aparecer aqui assim que a SyncPay retornar o PIX.
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
         </section>
     <?php endif; ?>
@@ -277,6 +289,37 @@ require BASE_PATH . '/templates/partials/subscriber_topbar.php';
             }, 1800);
         });
     });
+
+    document.querySelectorAll('[data-syncpay-qrcode]').forEach(function (element) {
+        var pixCode = element.getAttribute('data-syncpay-pix') || '';
+        if (!pixCode || typeof QRCode === 'undefined') {
+            return;
+        }
+
+        element.innerHTML = '';
+        new QRCode(element, {
+            text: pixCode,
+            width: 220,
+            height: 220,
+            colorDark: '#1b1c1d',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    });
+
+    <?php if ($selectedTopUp !== null && $selectedTopUpStatus === 'pending'): ?>
+    (function () {
+        var refreshed = false;
+        window.setInterval(function () {
+            if (refreshed || document.hidden) {
+                return;
+            }
+
+            refreshed = true;
+            window.location.href = <?= json_encode(path_with_query('/subscriber/wallet', ['topup' => (int) ($selectedTopUp['id'] ?? 0), 'refresh' => 1])) ?>;
+        }, 12000);
+    })();
+    <?php endif; ?>
 </script>
 </body>
 </html>

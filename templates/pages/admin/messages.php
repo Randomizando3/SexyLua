@@ -89,7 +89,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                 <h3 class="text-2xl font-extrabold">Novo comunicado</h3>
                 <p class="mt-2 text-sm text-on-surface-variant">Essas mensagens entram como notificacao para o publico escolhido.</p>
             </div>
-            <form action="/admin/messages/send" class="space-y-4" method="post">
+            <form action="/admin/messages/send" class="space-y-4" enctype="multipart/form-data" method="post">
                 <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                 <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="title" placeholder="Titulo do comunicado" required type="text">
                 <textarea class="min-h-[180px] w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="body" placeholder="Mensagem para a plataforma..." required></textarea>
@@ -102,6 +102,10 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     </select>
                     <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="href" placeholder="Link opcional de destino" type="text">
                 </div>
+                <label class="block space-y-2">
+                    <span class="text-sm font-semibold text-on-surface-variant">Anexo opcional</span>
+                    <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm,.pdf,.doc,.docx,.txt,.zip,.rar,.7z" class="w-full rounded-2xl border-none bg-surface-container-low px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="attachment_file" type="file">
+                </label>
                 <button class="rounded-full bg-primary px-6 py-4 text-sm font-bold text-white shadow-lg shadow-primary/20" type="submit">Enviar comunicado</button>
             </form>
         </section>
@@ -130,6 +134,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <tr>
                         <th class="px-5 py-4">Titulo</th>
                         <th class="px-5 py-4">Publico</th>
+                        <th class="px-5 py-4">Anexo</th>
                         <th class="px-5 py-4">Destinatarios</th>
                         <th class="px-5 py-4">Criado em</th>
                     </tr>
@@ -151,12 +156,22 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                 <p class="mt-1 max-w-xl text-slate-500"><?= e(excerpt((string) ($announcement['body'] ?? ''), 120)) ?></p>
                             </td>
                             <td class="px-5 py-4 align-top"><?= e($audienceLabel) ?></td>
+                            <td class="px-5 py-4 align-top">
+                                <?php if (is_array($announcement['attachment'] ?? null)): ?>
+                                    <a class="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-2 text-xs font-bold text-primary" href="<?= e((string) (($announcement['attachment']['href'] ?? '#'))) ?>" target="_blank">
+                                        <span class="material-symbols-outlined text-base"><?= e((string) (($announcement['attachment']['kind'] ?? 'document') === 'image' ? 'image' : (($announcement['attachment']['kind'] ?? 'document') === 'video' ? 'play_circle' : 'description'))) ?></span>
+                                        Anexo
+                                    </a>
+                                <?php else: ?>
+                                    <span class="text-slate-400">-</span>
+                                <?php endif; ?>
+                            </td>
                             <td class="px-5 py-4 align-top"><?= e((string) ($announcement['recipient_count'] ?? 0)) ?></td>
                             <td class="px-5 py-4 align-top"><?= e(format_datetime((string) ($announcement['created_at'] ?? ''))) ?></td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($announcements === []): ?>
-                        <tr><td class="px-5 py-8 text-slate-500" colspan="4">Nenhum comunicado enviado ainda.</td></tr>
+                        <tr><td class="px-5 py-8 text-slate-500" colspan="5">Nenhum comunicado enviado ainda.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>

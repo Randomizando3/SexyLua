@@ -69,6 +69,7 @@ final class CreatorController extends Controller
             $conversationId,
             [
                 'q' => (string) $request->query('q', ''),
+                'announcement' => (int) $request->query('announcement', 0),
             ]
         );
 
@@ -276,7 +277,24 @@ final class CreatorController extends Controller
         $conversationId = (int) $request->input('conversation_id', 0);
         $redirect = path_with_query('/creator/messages', ['conversation' => $conversationId]);
         $this->validateCsrf($request, $redirect);
-        $ok = $this->app->repository->sendConversationMessage($conversationId, (int) ($this->user()['id'] ?? 0), (string) $request->input('body', ''));
+        $options = [
+            'required_plan_id' => (int) $request->input('required_plan_id', 0),
+            'unlock_price' => (int) $request->input('unlock_price', 0),
+        ];
+
+        if ($request->hasFile('attachment_file')) {
+            $attachment = store_private_uploaded_file(
+                $request->file('attachment_file'),
+                'messages/creator',
+                ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm', 'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z'],
+                52428800
+            );
+            if ($attachment !== null) {
+                $options['attachment'] = $attachment;
+            }
+        }
+
+        $ok = $this->app->repository->sendConversationMessage($conversationId, (int) ($this->user()['id'] ?? 0), (string) $request->input('body', ''), $options);
 
         $this->redirect($redirect, $ok ? 'Mensagem enviada.' : 'Nao foi possivel enviar a mensagem.', $ok ? 'success' : 'error');
     }

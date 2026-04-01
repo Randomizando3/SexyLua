@@ -78,37 +78,18 @@ $subscriberTopbarNav = [
     ['href' => '/explore', 'label' => 'Explorar'],
 ];
 require BASE_PATH . '/templates/partials/subscriber_topbar.php';
+$subscriberSidebarCurrent = 'dashboard';
+ob_start();
 ?>
-
-<aside class="fixed left-0 top-16 hidden h-[calc(100vh-64px)] w-64 flex-col bg-[#f5f3f5] p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:flex">
-    <nav class="space-y-2">
-        <a class="flex items-center gap-4 rounded-full bg-white px-4 py-3 font-bold text-primary" href="/subscriber">
-            <span class="material-symbols-outlined">home</span>
-            <span>Inicio</span>
-        </a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/subscriptions">
-            <span class="material-symbols-outlined">stars</span>
-            <span>Minhas Assinaturas</span>
-        </a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/favorites">
-            <span class="material-symbols-outlined">favorite</span>
-            <span>Favoritos</span>
-        </a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/messages">
-            <span class="material-symbols-outlined">chat</span>
-            <span>Mensagens</span>
-        </a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/wallet">
-            <span class="material-symbols-outlined">account_balance_wallet</span>
-            <span>Carteira</span>
-        </a>
-    </nav>
-    <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
-        <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Saldo atual</p>
-        <div class="mt-3 text-3xl font-extrabold"><?= luacoin_amount_html($walletBalance, 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-8 w-8 shrink-0') ?></div>
-        <p class="mt-2 text-sm text-on-surface-variant">Use suas LuaCoins para renovar planos, enviar gorjetas e entrar em experiencias especiais.</p>
-    </div>
-</aside>
+<div class="rounded-3xl bg-white p-5 shadow-sm">
+    <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Saldo atual</p>
+    <div class="mt-3 text-3xl font-extrabold"><?= luacoin_amount_html($walletBalance, 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-8 w-8 shrink-0') ?></div>
+    <p class="mt-2 text-sm text-on-surface-variant">Use suas LuaCoins para renovar planos, enviar gorjetas e entrar em experiencias especiais.</p>
+</div>
+<?php
+$subscriberSidebarFooter = (string) ob_get_clean();
+require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
+?>
 
 <main class="min-h-screen px-6 pb-10 pt-24 lg:ml-64 lg:px-10">
     <section class="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">

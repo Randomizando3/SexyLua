@@ -160,7 +160,21 @@ final class AdminController extends Controller
     {
         $this->app->auth->requireRole('admin');
         $this->validateCsrf($request, '/admin/messages');
-        $result = $this->app->repository->sendAdminAnnouncement((int) ($this->user()['id'] ?? 0), $request->all());
+        $payload = $request->all();
+
+        if ($request->hasFile('attachment_file')) {
+            $attachment = store_private_uploaded_file(
+                $request->file('attachment_file'),
+                'messages/admin',
+                ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm', 'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z'],
+                52428800
+            );
+            if ($attachment !== null) {
+                $payload['attachment'] = $attachment;
+            }
+        }
+
+        $result = $this->app->repository->sendAdminAnnouncement((int) ($this->user()['id'] ?? 0), $payload);
 
         $this->redirect('/admin/messages', (string) ($result['message'] ?? 'Nao foi possivel enviar o comunicado.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
     }

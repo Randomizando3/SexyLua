@@ -57,17 +57,9 @@ $suggestedContent = $data['suggested_content'] ?? [];
 $subscriberTopbarUser = $subscriber;
 $subscriberTopbarAction = ['href' => '/explore', 'label' => 'Explorar'];
 require BASE_PATH . '/templates/partials/subscriber_topbar.php';
+$subscriberSidebarCurrent = 'favorites';
+require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
 ?>
-
-<aside class="fixed left-0 top-16 hidden h-[calc(100vh-64px)] w-64 flex-col bg-[#f5f3f5] p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:flex">
-    <nav class="space-y-2">
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber"><span class="material-symbols-outlined">home</span><span>Inicio</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/subscriptions"><span class="material-symbols-outlined">stars</span><span>Minhas Assinaturas</span></a>
-        <a class="flex items-center gap-4 rounded-full bg-white px-4 py-3 font-bold text-primary" href="/subscriber/favorites"><span class="material-symbols-outlined">favorite</span><span>Favoritos</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/messages"><span class="material-symbols-outlined">chat</span><span>Mensagens</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/wallet"><span class="material-symbols-outlined">account_balance_wallet</span><span>Carteira</span></a>
-    </nav>
-</aside>
 
 <main class="min-h-screen px-6 pb-10 pt-24 lg:ml-64 lg:px-10">
     <section class="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">

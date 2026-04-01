@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 $subscriber = $data['subscriber'] ?? [];
+$announcements = $data['announcements'] ?? [];
+$selectedAnnouncement = $data['selected_announcement'] ?? null;
 $conversations = $data['filtered_conversations'] ?? $data['conversations'] ?? [];
 $selectedConversation = $data['selected_conversation'] ?? null;
 $messages = $data['messages'] ?? [];
@@ -55,17 +57,9 @@ $filters = $data['filters'] ?? [];
 $subscriberTopbarUser = $subscriber;
 $subscriberTopbarAction = ['href' => '/subscriber/favorites', 'label' => 'Favoritos'];
 require BASE_PATH . '/templates/partials/subscriber_topbar.php';
+$subscriberSidebarCurrent = 'messages';
+require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
 ?>
-
-<aside class="fixed left-0 top-16 hidden h-[calc(100vh-64px)] w-64 flex-col bg-[#f5f3f5] p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:flex">
-    <nav class="space-y-2">
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber"><span class="material-symbols-outlined">home</span><span>Inicio</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/subscriptions"><span class="material-symbols-outlined">stars</span><span>Minhas Assinaturas</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/favorites"><span class="material-symbols-outlined">favorite</span><span>Favoritos</span></a>
-        <a class="flex items-center gap-4 rounded-full bg-white px-4 py-3 font-bold text-primary" href="/subscriber/messages"><span class="material-symbols-outlined">chat</span><span>Mensagens</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/subscriber/wallet"><span class="material-symbols-outlined">account_balance_wallet</span><span>Carteira</span></a>
-    </nav>
-</aside>
 
 <main class="min-h-screen px-6 pb-10 pt-24 lg:ml-64 lg:px-10">
     <section class="mb-8">
@@ -79,6 +73,23 @@ require BASE_PATH . '/templates/partials/subscriber_topbar.php';
             <form action="/subscriber/messages" class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm" method="get">
                 <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="q" placeholder="Buscar conversa..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
             </form>
+            <?php if ($announcements !== []): ?>
+                <section class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm">
+                    <div class="mb-4 flex items-center gap-3">
+                        <span class="material-symbols-outlined text-primary">campaign</span>
+                        <h3 class="text-lg font-extrabold">Comunicados da plataforma</h3>
+                    </div>
+                    <div class="space-y-3">
+                        <?php foreach ($announcements as $announcement): ?>
+                            <?php $announcementActive = $selectedAnnouncement && (int) ($selectedAnnouncement['id'] ?? 0) === (int) ($announcement['id'] ?? 0); ?>
+                            <a class="block rounded-3xl p-4 transition-colors <?= $announcementActive ? 'bg-primary text-white' : 'bg-surface-container-low hover:bg-surface-container-lowest' ?>" href="<?= e('/subscriber/messages?announcement=' . (int) ($announcement['id'] ?? 0)) ?>">
+                                <p class="font-bold"><?= e((string) ($announcement['title'] ?? 'Comunicado')) ?></p>
+                                <p class="mt-2 text-sm <?= $announcementActive ? 'text-white/80' : 'text-on-surface-variant' ?>"><?= e(excerpt((string) ($announcement['body'] ?? ''), 80)) ?></p>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
+            <?php endif; ?>
             <div class="space-y-4">
                 <?php foreach ($conversations as $conversation): ?>
                     <?php $active = $selectedConversation && (int) ($selectedConversation['id'] ?? 0) === (int) ($conversation['id'] ?? 0); ?>
@@ -97,7 +108,28 @@ require BASE_PATH . '/templates/partials/subscriber_topbar.php';
         </section>
 
         <section class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
-            <?php if ($selectedConversation): ?>
+            <?php if ($selectedAnnouncement): ?>
+                <div class="space-y-6">
+                    <div class="flex items-center gap-4 border-b border-slate-200 pb-6">
+                        <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <span class="material-symbols-outlined">campaign</span>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-extrabold"><?= e((string) ($selectedAnnouncement['title'] ?? 'Comunicado')) ?></h3>
+                            <p class="text-sm text-on-surface-variant">Mensagem geral da plataforma</p>
+                        </div>
+                    </div>
+                    <div class="rounded-3xl bg-surface-container-low p-6">
+                        <p class="text-sm leading-relaxed text-on-surface"><?= nl2br(e((string) ($selectedAnnouncement['body'] ?? ''))) ?></p>
+                        <?php if (is_array($selectedAnnouncement['attachment'] ?? null)): ?>
+                            <a class="mt-5 inline-flex items-center gap-3 rounded-full bg-white px-5 py-3 text-sm font-bold text-primary shadow-sm" href="<?= e((string) (($selectedAnnouncement['attachment']['href'] ?? '#'))) ?>" target="_blank">
+                                <span class="material-symbols-outlined"><?= e((string) (($selectedAnnouncement['attachment']['kind'] ?? 'document') === 'image' ? 'image' : (($selectedAnnouncement['attachment']['kind'] ?? 'document') === 'video' ? 'play_circle' : 'description'))) ?></span>
+                                <?= e((string) ($selectedAnnouncement['attachment']['original_name'] ?? 'Abrir anexo')) ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php elseif ($selectedConversation): ?>
                 <div class="flex items-center gap-4 border-b border-slate-200 pb-6">
                     <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($selectedConversation['creator']['name'] ?? 'Criador'))) ?></div>
                     <div>
@@ -110,16 +142,62 @@ require BASE_PATH . '/templates/partials/subscriber_topbar.php';
                         <?php $isMine = (int) ($message['sender_id'] ?? 0) === (int) ($subscriber['id'] ?? 0); ?>
                         <div class="flex <?= $isMine ? 'justify-end' : 'justify-start' ?>">
                             <div class="max-w-[78%] rounded-3xl px-5 py-4 <?= $isMine ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface' ?>">
-                                <p class="text-sm leading-relaxed"><?= e((string) ($message['body'] ?? '')) ?></p>
+                                <?php if (trim((string) ($message['body'] ?? '')) !== ''): ?>
+                                    <p class="text-sm leading-relaxed"><?= nl2br(e((string) ($message['body'] ?? ''))) ?></p>
+                                <?php endif; ?>
+                                <?php $attachment = is_array($message['attachment'] ?? null) ? $message['attachment'] : null; ?>
+                                <?php if ($attachment): ?>
+                                    <div class="mt-4">
+                                        <?php if ((bool) ($message['can_access_attachment'] ?? false)): ?>
+                                            <?php if ((string) ($attachment['kind'] ?? 'document') === 'image'): ?>
+                                                <a class="block overflow-hidden rounded-2xl border border-white/10" href="<?= e((string) ($attachment['href'] ?? '#')) ?>" target="_blank">
+                                                    <img alt="<?= e((string) ($attachment['original_name'] ?? 'Imagem')) ?>" class="max-h-72 w-full object-cover" src="<?= e((string) ($attachment['href'] ?? '')) ?>">
+                                                </a>
+                                            <?php else: ?>
+                                                <a class="flex items-center gap-3 rounded-2xl bg-white/90 px-4 py-3 text-sm font-bold text-slate-800" href="<?= e((string) ($attachment['href'] ?? '#')) ?>" target="_blank">
+                                                    <span class="material-symbols-outlined"><?= e((string) (($attachment['kind'] ?? 'document') === 'video' ? 'play_circle' : 'description')) ?></span>
+                                                    <?= e((string) ($attachment['original_name'] ?? 'Abrir anexo')) ?>
+                                                </a>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <div class="rounded-2xl border border-dashed border-slate-300 bg-white/80 p-4 text-slate-700">
+                                                <div class="flex items-start gap-3">
+                                                    <span class="material-symbols-outlined text-primary">lock</span>
+                                                    <div class="min-w-0 flex-1">
+                                                        <p class="font-bold"><?= e(((int) ($message['unlock_price'] ?? 0)) > 0 ? 'Conteudo instantaneo' : 'Conteudo privado') ?></p>
+                                                        <p class="mt-1 text-sm text-slate-500"><?= e((string) ($message['lock_reason'] ?? 'Conteudo bloqueado')) ?></p>
+                                                        <?php if ((int) ($message['unlock_price'] ?? 0) > 0): ?>
+                                                            <form action="/messages/unlock" class="mt-3 flex flex-wrap items-center gap-3" method="post">
+                                                                <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                                                <input name="message_id" type="hidden" value="<?= e((string) ($message['id'] ?? 0)) ?>">
+                                                                <input name="redirect" type="hidden" value="<?= e('/subscriber/messages?conversation=' . (int) ($selectedConversation['id'] ?? 0)) ?>">
+                                                                <span class="rounded-full bg-primary/10 px-3 py-2 text-xs font-bold text-primary"><?= luacoin_amount_html((int) ($message['unlock_price'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-3.5 w-3.5 shrink-0') ?></span>
+                                                                <button class="rounded-full bg-primary px-4 py-2 text-xs font-bold text-white" type="submit">Desbloquear</button>
+                                                            </form>
+                                                        <?php elseif ((string) ($message['required_plan_name'] ?? '') !== ''): ?>
+                                                            <span class="mt-3 inline-flex rounded-full bg-primary/10 px-3 py-2 text-xs font-bold text-primary"><?= e((string) ($message['required_plan_name'] ?? 'Plano')) ?></span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
                                 <p class="mt-2 text-[10px] font-bold uppercase tracking-[0.25em] <?= $isMine ? 'text-white/70' : 'text-slate-400' ?>"><?= e(format_datetime((string) ($message['created_at'] ?? ''), 'd/m H:i')) ?></p>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
-                <form action="/subscriber/messages/send" class="mt-6 space-y-4" method="post">
+                <form action="/subscriber/messages/send" class="mt-6 space-y-4" enctype="multipart/form-data" method="post">
                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                     <input name="conversation_id" type="hidden" value="<?= e((string) ($selectedConversation['id'] ?? 0)) ?>">
-                    <textarea class="min-h-[140px] w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="body" placeholder="Escreva sua mensagem..." required></textarea>
+                    <textarea class="min-h-[140px] w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="body" placeholder="Escreva sua mensagem ou envie um anexo..."></textarea>
+                    <div class="rounded-3xl bg-surface-container-low p-4">
+                        <label class="block space-y-2">
+                            <span class="text-sm font-semibold text-on-surface-variant">Anexo opcional</span>
+                            <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm,.pdf,.doc,.docx,.txt,.zip,.rar,.7z" class="w-full rounded-2xl border-none bg-white px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="attachment_file" type="file">
+                        </label>
+                    </div>
                     <button class="w-full rounded-full bg-primary px-5 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Enviar mensagem</button>
                 </form>
             <?php else: ?>
