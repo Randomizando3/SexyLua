@@ -60,6 +60,10 @@ $syncPayWebhookUrl = (string) ($settings['syncpay_webhook_url'] ?? webhook_url($
     </div>
     <div class="flex items-center gap-3">
         <a class="rounded-full border border-white/20 px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-white/10" href="/admin">Dashboard</a>
+        <form action="/logout" method="post">
+            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+            <button class="rounded-full border border-white/20 px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-white/10" type="submit">Sair</button>
+        </form>
         <div class="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 font-bold"><?= e(avatar_initials((string) ($admin['name'] ?? 'Admin'))) ?></div>
     </div>
 </header>
