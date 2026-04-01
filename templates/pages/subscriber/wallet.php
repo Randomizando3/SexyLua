@@ -216,14 +216,39 @@ if ($selectedTopUpPixCode === '' && $selectedTopUp !== null) {
                 <h3 class="text-2xl font-extrabold">Historico financeiro</h3>
                 <div class="mt-6 space-y-4">
                     <?php foreach ($transactions as $transaction): ?>
-                        <?php $isIn = (string) ($transaction['direction'] ?? 'in') === 'in'; ?>
+                        <?php
+                        $isIn = (string) ($transaction['direction'] ?? 'in') === 'in';
+                        $countsForBalance = (bool) ($transaction['counts_for_balance'] ?? false);
+                        $transactionStatus = strtolower((string) ($transaction['status'] ?? 'completed'));
+                        $statusLabel = match ($transactionStatus) {
+                            'approved', 'completed', 'paid' => 'Aprovado',
+                            'pending', 'processing', 'created' => 'Pendente',
+                            'failed', 'rejected', 'cancelled', 'canceled', 'expired' => 'Falhou',
+                            default => ucfirst($transactionStatus),
+                        };
+                        $statusClass = match ($transactionStatus) {
+                            'approved', 'completed', 'paid' => 'bg-emerald-100 text-emerald-700',
+                            'pending', 'processing', 'created' => 'bg-amber-100 text-amber-700',
+                            'failed', 'rejected', 'cancelled', 'canceled', 'expired' => 'bg-rose-100 text-rose-700',
+                            default => 'bg-slate-200 text-slate-700',
+                        };
+                        $amountClass = $countsForBalance
+                            ? ($isIn ? 'text-emerald-600' : 'text-rose-700')
+                            : 'text-slate-500';
+                        $amountPrefix = $countsForBalance
+                            ? ($isIn ? '+' : '-')
+                            : '';
+                        ?>
                         <div class="rounded-3xl bg-surface-container-low p-5">
                             <div class="flex items-center justify-between gap-4">
                                 <div>
                                     <p class="font-bold"><?= e((string) ($transaction['note'] ?? 'Movimentacao')) ?></p>
                                     <p class="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['type'] ?? 'mov')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
                                 </div>
-                                <strong class="<?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?>"><?= $isIn ? '+' : '-' ?><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></strong>
+                                <div class="text-right">
+                                    <span class="inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] <?= $statusClass ?>"><?= e($statusLabel) ?></span>
+                                    <strong class="mt-2 block <?= $amountClass ?>"><?= e($amountPrefix) ?><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></strong>
+                                </div>
                             </div>
                         </div>
                     <?php endforeach; ?>

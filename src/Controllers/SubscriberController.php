@@ -221,16 +221,12 @@ final class SubscriberController extends Controller
                 'document' => $document,
                 'name' => (string) ($this->user()['name'] ?? 'Assinante SexyLua'),
                 'email' => (string) ($this->user()['email'] ?? ''),
+                'description' => 'Recarga de ' . $luacoins . ' LuaCoins',
                 'ip' => (string) $request->server('REMOTE_ADDR', ''),
-                'postback_url' => webhook_url($this->app->config, $settings, '/webhook/syncpay'),
-                'external_reference' => (string) ($topUp['external_reference'] ?? ''),
+                'webhook_url' => path_with_query(webhook_url($this->app->config, $settings, '/webhook/syncpay'), [
+                    'topup' => (int) ($topUp['id'] ?? 0),
+                ]),
                 'pix_expires_in_days' => (int) ($settings['syncpay_pix_expires_in_days'] ?? 2),
-                'metadata' => [
-                    'topup_transaction_id' => (int) ($topUp['id'] ?? 0),
-                    'user_id' => (int) $this->user()['id'],
-                    'luacoins' => $luacoins,
-                    'external_reference' => (string) ($topUp['external_reference'] ?? ''),
-                ],
             ]);
 
             $this->app->repository->attachWalletTopUpCheckout((int) ($topUp['id'] ?? 0), $checkout);
@@ -239,10 +235,7 @@ final class SubscriberController extends Controller
                 'payment_status' => 'pending',
             ]), 'PIX gerado com sucesso. Copie o codigo e conclua o pagamento na sua carteira.', 'success');
         } catch (\Throwable $exception) {
-            $this->app->repository->syncSyncPayWalletTopUp((int) ($topUp['id'] ?? 0), [
-                'status' => 'failed',
-                'message' => $exception->getMessage(),
-            ]);
+            $this->app->repository->discardWalletTopUpRequest((int) $this->user()['id'], (int) ($topUp['id'] ?? 0));
 
             $this->redirect('/subscriber/wallet', 'Nao foi possivel gerar o PIX na SyncPay: ' . $exception->getMessage(), 'error');
         }

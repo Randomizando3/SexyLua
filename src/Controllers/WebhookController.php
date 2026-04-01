@@ -26,11 +26,15 @@ final class WebhookController extends Controller
             $this->json(['ok' => false, 'message' => 'Authorization do webhook SyncPay invalido.'], 401);
         }
 
-        $transactionId = (int) (
+        $transactionId = (int) $request->query('topup', 0);
+
+        if ($transactionId <= 0) {
+            $transactionId = (int) (
             $payload['metadata']['topup_transaction_id']
             ?? $payload['data']['metadata']['topup_transaction_id']
             ?? 0
-        );
+            );
+        }
 
         if ($transactionId <= 0) {
             $externalReference = (string) (

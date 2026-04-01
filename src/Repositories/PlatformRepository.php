@@ -555,13 +555,21 @@ final class PlatformRepository
 
     public function walletData(int $userId, array $filters = []): array
     {
-        $transactions = $this->walletTransactionsFor($userId);
+        $transactions = array_map(function (array $transaction): array {
+            $transaction['counts_for_balance'] = $this->transactionCountsForBalance($transaction);
+
+            return $transaction;
+        }, $this->walletTransactionsFor($userId));
         $inflow = 0;
         $outflow = 0;
         $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
         $type = trim((string) ($filters['type'] ?? ''));
 
         foreach ($transactions as $transaction) {
+            if (! (bool) ($transaction['counts_for_balance'] ?? false)) {
+                continue;
+            }
+
             if (($transaction['direction'] ?? 'in') === 'in') {
                 $inflow += (int) ($transaction['amount'] ?? 0);
             } else {
@@ -583,7 +591,7 @@ final class PlatformRepository
             return str_contains($haystack, $query);
         }));
         $topUpTotal = array_reduce(
-            array_filter($transactions, static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'top_up'),
+            array_filter($transactions, static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'top_up' && (bool) ($transaction['counts_for_balance'] ?? false)),
             static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0),
             0
         );
@@ -670,6 +678,35 @@ final class PlatformRepository
         return $transaction;
     }
 
+    public function discardWalletTopUpRequest(int $userId, int $transactionId): bool
+    {
+        $transactions = $this->walletTransactions();
+        $before = count($transactions);
+        $transactions = array_values(array_filter($transactions, static function (array $transaction) use ($userId, $transactionId): bool {
+            if ((int) ($transaction['id'] ?? 0) !== $transactionId) {
+                return true;
+            }
+
+            if ((int) ($transaction['user_id'] ?? 0) !== $userId) {
+                return true;
+            }
+
+            if ((string) ($transaction['type'] ?? '') !== 'top_up_pending') {
+                return true;
+            }
+
+            return false;
+        }));
+
+        if (count($transactions) === $before) {
+            return false;
+        }
+
+        $this->save('wallet_transactions', $transactions);
+
+        return true;
+    }
+
     public function attachWalletTopUpCheckout(int $transactionId, array $checkout): bool
     {
         $transactions = $this->walletTransactions();
@@ -682,11 +719,11 @@ final class PlatformRepository
 
             $transaction['checkout_url'] = (string) ($checkout['checkout_url'] ?? $checkout['init_point'] ?? $transaction['checkout_url'] ?? '');
             $transaction['sandbox_checkout_url'] = (string) ($checkout['sandbox_checkout_url'] ?? $checkout['sandbox_init_point'] ?? $transaction['sandbox_checkout_url'] ?? '');
-            $transaction['provider_checkout_id'] = (string) ($checkout['client_id'] ?? $checkout['id'] ?? $transaction['provider_checkout_id'] ?? '');
-            $transaction['provider_payment_id'] = (string) ($checkout['idTransaction'] ?? $checkout['idtransaction'] ?? $transaction['provider_payment_id'] ?? '');
+            $transaction['provider_checkout_id'] = (string) ($checkout['data']['identifier'] ?? $checkout['identifier'] ?? $checkout['client_id'] ?? $checkout['id'] ?? $transaction['provider_checkout_id'] ?? '');
+            $transaction['provider_payment_id'] = (string) ($checkout['data']['identifier'] ?? $checkout['identifier'] ?? $checkout['idTransaction'] ?? $checkout['idtransaction'] ?? $transaction['provider_payment_id'] ?? '');
             $transaction['provider_status'] = $this->normalizeSyncPayStatus((string) ($checkout['status_transaction'] ?? $checkout['status'] ?? $transaction['provider_status'] ?? 'pending'));
             $transaction['provider_status_raw'] = trim((string) ($checkout['status_transaction'] ?? $checkout['status'] ?? $transaction['provider_status_raw'] ?? ''));
-            $transaction['pix_code'] = (string) ($checkout['paymentCode'] ?? $checkout['paymentcode'] ?? $transaction['pix_code'] ?? '');
+            $transaction['pix_code'] = (string) ($checkout['data']['pix_code'] ?? $checkout['pix_code'] ?? $checkout['paymentCode'] ?? $checkout['paymentcode'] ?? $transaction['pix_code'] ?? '');
             $transaction['pix_code_base64'] = (string) ($checkout['paymentCodeBase64'] ?? $checkout['paymentcodebase64'] ?? $transaction['pix_code_base64'] ?? '');
             $transaction['provider_payload'] = $checkout + (array) ($transaction['provider_payload'] ?? []);
             $changed = true;
@@ -714,7 +751,11 @@ final class PlatformRepository
         );
         $status = $this->normalizeSyncPayStatus($rawStatus);
         $paymentId = (string) (
-            $payment['data']['idtransaction']
+            $payment['data']['reference_id']
+            ?? $payment['reference_id']
+            ?? $payment['data']['identifier']
+            ?? $payment['identifier']
+            ?? $payment['data']['idtransaction']
             ?? $payment['data']['idTransaction']
             ?? $payment['idTransaction']
             ?? $payment['data']['id']
@@ -736,7 +777,9 @@ final class PlatformRepository
             ?? date('Y-m-d H:i:s')
         );
         $pixCode = (string) (
-            $payment['data']['paymentcode']
+            $payment['data']['pix_code']
+            ?? $payment['pix_code']
+            ?? $payment['data']['paymentcode']
             ?? $payment['paymentCode']
             ?? $payment['paymentcode']
             ?? ''

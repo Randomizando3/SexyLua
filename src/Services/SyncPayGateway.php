@@ -25,7 +25,7 @@ final class SyncPayGateway
 
     public function canFetchTransactionStatus(): bool
     {
-        return $this->apiKey() !== '';
+        return ($this->clientId() !== '' && $this->clientSecret() !== '') || $this->apiKey() !== '';
     }
 
     public function createWalletTopUpCharge(array $payload): array
@@ -39,37 +39,24 @@ final class SyncPayGateway
             throw new RuntimeException('Informe um CPF ou CNPJ valido para gerar o PIX.');
         }
 
-        $metadata = $payload['metadata'] ?? [];
-        if (is_array($metadata)) {
-            $metadata = (string) json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $amount = round((float) ($payload['amount'] ?? 0), 2);
+        if ($amount <= 0) {
+            throw new RuntimeException('Informe um valor valido para gerar o PIX.');
         }
 
         $body = array_filter([
-            'name' => trim((string) ($payload['name'] ?? 'SexyLua User')),
-            'email' => trim((string) ($payload['email'] ?? '')),
-            'cpf' => $document,
-            'document' => $document,
-            'phone' => preg_replace('/\D+/', '', (string) ($payload['phone'] ?? '')),
-            'paymentMethod' => 'PIX',
-            'amount' => round((float) ($payload['amount'] ?? 0), 2),
-            'traceable' => true,
-            'metadata' => $metadata,
-            'postbackUrl' => trim((string) ($payload['postback_url'] ?? '')),
-            'externaRef' => trim((string) ($payload['external_reference'] ?? '')),
-            'externalreference' => trim((string) ($payload['external_reference'] ?? '')),
-            'ip' => trim((string) ($payload['ip'] ?? '')),
-            'pix' => [
-                'expiresInDays' => max(1, (int) ($payload['pix_expires_in_days'] ?? $this->pixExpiresInDays())),
-            ],
-            'customer' => array_filter([
+            'amount' => $amount,
+            'description' => trim((string) ($payload['description'] ?? 'Recarga de LuaCoins SexyLua')),
+            'webhook_url' => trim((string) ($payload['webhook_url'] ?? $payload['postback_url'] ?? '')),
+            'client' => array_filter([
                 'name' => trim((string) ($payload['name'] ?? 'SexyLua User')),
+                'cpf' => $document,
                 'email' => trim((string) ($payload['email'] ?? '')),
-                'document' => $document,
                 'phone' => preg_replace('/\D+/', '', (string) ($payload['phone'] ?? '')),
             ], static fn (mixed $value): bool => $value !== '' && $value !== null),
         ], static fn (mixed $value): bool => $value !== '' && $value !== null && $value !== []);
 
-        $response = $this->request('POST', '/v1/gateway/api', $body);
+        $response = $this->request('POST', '/api/partner/v1/cash-in', $body);
 
         return is_array($response) ? $response : [];
     }
@@ -81,8 +68,12 @@ final class SyncPayGateway
             throw new RuntimeException('Transacao SyncPay invalida.');
         }
 
-        if (! $this->canFetchTransactionStatus()) {
-            throw new RuntimeException('Consulta de status exige a API Key da SyncPay.');
+        if ($this->clientId() !== '' && $this->clientSecret() !== '') {
+            return $this->request('GET', '/api/partner/v1/transaction/' . rawurlencode($transactionId));
+        }
+
+        if ($this->apiKey() === '') {
+            throw new RuntimeException('Consulta de status exige credenciais validas da SyncPay.');
         }
 
         $url = $this->baseUrl() . '/s1/getTransaction/api/getTransactionStatus.php?id_transaction=' . rawurlencode($transactionId);
