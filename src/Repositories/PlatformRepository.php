@@ -11,9 +11,10 @@ final class PlatformRepository
 {
     private const LIVE_PRESENCE_TIMEOUT_SECONDS = 90;
     private const LIVE_SIGNAL_TIMEOUT_SECONDS = 180;
-    private const LIVE_DEFAULT_SEGMENT_DURATION_SECONDS = 6;
+    private const LIVE_DEFAULT_SEGMENT_DURATION_SECONDS = 10;
     private const LIVE_SEGMENT_RETENTION_COUNT = 30;
     private const LIVE_DEFAULT_BITRATE_KBPS = 1200;
+    private const CREATOR_CONTENT_STORAGE_LIMIT_BYTES = 524288000;
     private const SEEDED_COLLECTIONS = [
         'users',
         'creator_profiles',
@@ -150,16 +151,34 @@ final class PlatformRepository
 
     public function homepageData(): array
     {
-        $creators = array_values(array_filter($this->creators(), static fn (array $creator): bool => (bool) ($creator['featured'] ?? false)));
+        $allCreators = $this->creators();
+        usort($allCreators, static fn (array $left, array $right): int => [
+            $right['featured'] ? 1 : 0,
+            (int) ($right['subscriber_count'] ?? 0),
+            (int) ($right['content_count'] ?? 0),
+        ] <=> [
+            $left['featured'] ? 1 : 0,
+            (int) ($left['subscriber_count'] ?? 0),
+            (int) ($left['content_count'] ?? 0),
+        ]);
+
+        $creators = array_values(array_filter($allCreators, static fn (array $creator): bool => (bool) ($creator['featured'] ?? false)));
+        if ($creators === []) {
+            $creators = $allCreators;
+        }
+
         $liveNow = array_values(array_filter($this->livesWithCreators(), static fn (array $live): bool => $live['status'] === 'live'));
-        $featuredContent = array_values(array_filter($this->contentsWithCreators(), static fn (array $item): bool => $item['status'] === 'approved'));
+        $upcomingLives = array_values(array_filter($this->livesWithCreators(), static fn (array $live): bool => $live['status'] === 'scheduled'));
+        $upcomingLives = $this->sortByDate($upcomingLives, 'scheduled_for');
+        $featuredContent = array_values(array_filter($this->contentsWithCreators(), fn (array $item): bool => $item['status'] === 'approved' && ! $this->contentIsExpired($item)));
 
         return [
             'featured_creators' => array_slice($creators, 0, 5),
             'live_now' => array_slice($liveNow, 0, 4),
+            'upcoming_lives' => array_slice($upcomingLives, 0, 4),
             'featured_content' => array_slice($featuredContent, 0, 6),
             'stats' => [
-                'creators' => count($this->creators()),
+                'creators' => count($allCreators),
                 'live_now' => count($liveNow),
                 'approved_content' => count($featuredContent),
                 'subscribers' => count(array_filter($this->users(), static fn (array $user): bool => $user['role'] === 'subscriber' && $user['status'] === 'active')),
@@ -185,7 +204,7 @@ final class PlatformRepository
         }));
 
         $content = array_values(array_filter($this->contentsWithCreators(), function (array $item) use ($query, $kind): bool {
-            if ($item['status'] !== 'approved') {
+            if ($item['status'] !== 'approved' || $this->contentIsExpired($item)) {
                 return false;
             }
 
@@ -244,7 +263,7 @@ final class PlatformRepository
         }
 
         $plans = array_values(array_filter($this->plansWithCreators(), static fn (array $plan): bool => (int) $plan['creator_id'] === $creatorId && (bool) $plan['active']));
-        $content = array_values(array_filter($this->contentsWithCreators(), static fn (array $item): bool => (int) $item['creator_id'] === $creatorId && $item['status'] === 'approved'));
+        $content = array_values(array_filter($this->contentsWithCreators(), fn (array $item): bool => (int) $item['creator_id'] === $creatorId && $item['status'] === 'approved' && ! $this->contentIsExpired($item)));
         $relatedCreators = array_values(array_filter($this->creators(), static fn (array $item): bool => (int) $item['id'] !== $creatorId));
 
         return [
@@ -268,57 +287,24 @@ final class PlatformRepository
 
         $access = $this->accessStateForLive($live, $viewerId);
         $decoratedLive = $this->hydrateLiveRuntime($this->decorateLive($live));
-        $messages = array_values(array_filter($this->liveMessages(), static fn (array $message): bool => (int) $message['live_id'] === $liveId));
-        $messages = $this->sortByDate($messages, 'created_at');
-        $messages = array_map(function (array $message): array {
-            $sender = $this->findUserById((int) $message['sender_id']);
-            $message['sender'] = $sender;
-
-            return $message;
-        }, $messages);
-
-        $related = array_values(array_filter($this->livesWithCreators(), static fn (array $item): bool => (int) $item['id'] !== $liveId));
-        $tipTransactions = array_values(array_filter($this->walletTransactions(), static fn (array $transaction): bool => $transaction['type'] === 'tip' && (int) ($transaction['creator_id'] ?? 0) === (int) $decoratedLive['creator_id']));
-        $tipTransactions = $this->sortByDate($tipTransactions, 'created_at');
-        $tipTransactions = array_map(function (array $transaction): array {
-            $transaction['sender'] = $this->findUserById((int) $transaction['user_id']);
-
-            return $transaction;
-        }, $tipTransactions);
-
-        $supporters = [];
-
-        foreach ($tipTransactions as $transaction) {
-            $senderId = (int) ($transaction['sender']['id'] ?? 0);
-
-            if ($senderId === 0) {
-                continue;
-            }
-
-            if (! isset($supporters[$senderId])) {
-                $supporters[$senderId] = [
-                    'user' => $transaction['sender'],
-                    'amount' => 0,
-                ];
-            }
-
-            $supporters[$senderId]['amount'] += (int) $transaction['amount'];
-        }
-
-        usort($supporters, static fn (array $left, array $right): int => $right['amount'] <=> $left['amount']);
+        $messages = $this->liveChatMessagesFor($liveId, 20);
+        $related = array_values(array_filter($this->livesWithCreators(), static fn (array $item): bool => (int) ($item['id'] ?? 0) !== $liveId));
+        $engagement = $this->liveEngagementData($decoratedLive);
 
         return [
             'live' => $decoratedLive,
-            'messages' => array_slice($messages, -20),
+            'messages' => $messages,
             'related_lives' => array_slice($related, 0, 5),
-            'recent_tips' => array_slice($tipTransactions, 0, 5),
-            'top_supporters' => array_slice($supporters, 0, 3),
+            'recent_tips' => $engagement['recent_tips'],
+            'top_supporters' => $engagement['top_supporters'],
             'can_watch' => (bool) ($access['granted'] ?? false),
             'requires_login' => (bool) ($access['requires_login'] ?? false),
             'requires_subscription' => (bool) ($access['requires_subscription'] ?? false),
-            'can_chat' => $viewerId !== null && (bool) ($access['granted'] ?? false) && (bool) ($decoratedLive['chat_enabled'] ?? false),
+            'can_chat' => $this->canUserChatInLive($decoratedLive, $viewerId),
             'can_tip' => $viewerId !== null && (bool) ($access['granted'] ?? false),
             'stream' => $this->publicLiveStreamState($liveId),
+            'priority_tip_tiers' => $this->priorityTipTiersForLive($decoratedLive),
+            'priority_alert' => $this->latestPriorityAlertForLive($liveId),
         ];
     }
 
@@ -331,8 +317,7 @@ final class PlatformRepository
             $body === ''
             || ! $live
             || ! $this->findUserById($userId)
-            || ! (bool) ($live['chat_enabled'] ?? false)
-            || ! (bool) ($this->accessStateForLive($live, $userId)['granted'] ?? false)
+            || ! $this->canUserChatInLive($live, $userId)
         ) {
             return false;
         }
@@ -344,6 +329,7 @@ final class PlatformRepository
             'sender_id' => $userId,
             'body' => $body,
             'created_at' => date('Y-m-d H:i:s'),
+            'kind' => 'chat',
         ];
         $this->save('live_messages', $messages);
 
@@ -652,7 +638,7 @@ final class PlatformRepository
         return true;
     }
 
-    public function createWalletTopUpRequest(int $userId, int $luacoins, string $provider = 'mercadopago'): ?array
+    public function createWalletTopUpRequest(int $userId, int $luacoins, string $provider = 'syncpay'): ?array
     {
         if ($luacoins <= 0 || ! $this->findUserById($userId)) {
             return null;
@@ -694,9 +680,15 @@ final class PlatformRepository
                 continue;
             }
 
-            $transaction['checkout_url'] = (string) ($checkout['init_point'] ?? $transaction['checkout_url'] ?? '');
-            $transaction['sandbox_checkout_url'] = (string) ($checkout['sandbox_init_point'] ?? $transaction['sandbox_checkout_url'] ?? '');
-            $transaction['provider_checkout_id'] = (string) ($checkout['id'] ?? $transaction['provider_checkout_id'] ?? '');
+            $transaction['checkout_url'] = (string) ($checkout['checkout_url'] ?? $checkout['init_point'] ?? $transaction['checkout_url'] ?? '');
+            $transaction['sandbox_checkout_url'] = (string) ($checkout['sandbox_checkout_url'] ?? $checkout['sandbox_init_point'] ?? $transaction['sandbox_checkout_url'] ?? '');
+            $transaction['provider_checkout_id'] = (string) ($checkout['client_id'] ?? $checkout['id'] ?? $transaction['provider_checkout_id'] ?? '');
+            $transaction['provider_payment_id'] = (string) ($checkout['idTransaction'] ?? $checkout['idtransaction'] ?? $transaction['provider_payment_id'] ?? '');
+            $transaction['provider_status'] = $this->normalizeSyncPayStatus((string) ($checkout['status_transaction'] ?? $checkout['status'] ?? $transaction['provider_status'] ?? 'pending'));
+            $transaction['provider_status_raw'] = trim((string) ($checkout['status_transaction'] ?? $checkout['status'] ?? $transaction['provider_status_raw'] ?? ''));
+            $transaction['pix_code'] = (string) ($checkout['paymentCode'] ?? $checkout['paymentcode'] ?? $transaction['pix_code'] ?? '');
+            $transaction['pix_code_base64'] = (string) ($checkout['paymentCodeBase64'] ?? $checkout['paymentcodebase64'] ?? $transaction['pix_code_base64'] ?? '');
+            $transaction['provider_payload'] = $checkout + (array) ($transaction['provider_payload'] ?? []);
             $changed = true;
             break;
         }
@@ -709,12 +701,61 @@ final class PlatformRepository
         return $changed;
     }
 
-    public function syncMercadoPagoWalletTopUp(int $transactionId, array $payment): bool
+    public function syncSyncPayWalletTopUp(int $transactionId, array $payment): bool
     {
         $transactions = $this->walletTransactions();
         $changed = false;
-        $status = strtolower(trim((string) ($payment['status'] ?? 'pending')));
-        $detail = trim((string) ($payment['status_detail'] ?? ''));
+        $rawStatus = (string) (
+            $payment['data']['status']
+            ?? $payment['status_transaction']
+            ?? $payment['status']
+            ?? $payment['situacao']
+            ?? 'pending'
+        );
+        $status = $this->normalizeSyncPayStatus($rawStatus);
+        $paymentId = (string) (
+            $payment['data']['idtransaction']
+            ?? $payment['data']['idTransaction']
+            ?? $payment['idTransaction']
+            ?? $payment['data']['id']
+            ?? $payment['id']
+            ?? ''
+        );
+        $externalReference = (string) (
+            $payment['data']['externalreference']
+            ?? $payment['externalreference']
+            ?? $payment['data']['external_reference']
+            ?? $payment['external_reference']
+            ?? ''
+        );
+        $approvedAt = (string) (
+            $payment['data']['updated_at']
+            ?? $payment['updated_at']
+            ?? $payment['data']['data_registro']
+            ?? $payment['data_registro']
+            ?? date('Y-m-d H:i:s')
+        );
+        $pixCode = (string) (
+            $payment['data']['paymentcode']
+            ?? $payment['paymentCode']
+            ?? $payment['paymentcode']
+            ?? ''
+        );
+        $pixCodeBase64 = (string) (
+            $payment['data']['paymentCodeBase64']
+            ?? $payment['paymentCodeBase64']
+            ?? $payment['paymentcodebase64']
+            ?? ''
+        );
+        $amountPaid = (float) (
+            $payment['data']['deposito_liquido']
+            ?? $payment['deposito_liquido']
+            ?? $payment['data']['final_amount']
+            ?? $payment['final_amount']
+            ?? $payment['data']['amount']
+            ?? $payment['amount']
+            ?? 0
+        );
 
         foreach ($transactions as &$transaction) {
             if ((int) ($transaction['id'] ?? 0) !== $transactionId) {
@@ -725,28 +766,31 @@ final class PlatformRepository
                 return true;
             }
 
-            $transaction['provider'] = 'mercadopago';
-            $transaction['provider_payment_id'] = (string) ($payment['id'] ?? '');
+            $transaction['provider'] = 'syncpay';
+            $transaction['provider_payment_id'] = $paymentId !== '' ? $paymentId : (string) ($transaction['provider_payment_id'] ?? '');
             $transaction['provider_status'] = $status;
-            $transaction['provider_status_detail'] = $detail;
-            $transaction['provider_payload'] = [
-                'status' => $status,
-                'status_detail' => $detail,
-                'external_reference' => (string) ($payment['external_reference'] ?? ''),
-                'date_approved' => (string) ($payment['date_approved'] ?? ''),
-                'transaction_amount' => (float) ($payment['transaction_amount'] ?? 0),
-            ];
+            $transaction['provider_status_raw'] = trim($rawStatus);
+            $transaction['provider_payload'] = $payment;
+            $transaction['pix_code'] = $pixCode !== '' ? $pixCode : (string) ($transaction['pix_code'] ?? '');
+            $transaction['pix_code_base64'] = $pixCodeBase64 !== '' ? $pixCodeBase64 : (string) ($transaction['pix_code_base64'] ?? '');
+            if ($externalReference !== '') {
+                $transaction['external_reference'] = $externalReference;
+            }
+            if ($amountPaid > 0) {
+                $transaction['amount_brl_paid'] = round($amountPaid, 2);
+            }
 
-            if (in_array($status, ['approved', 'authorized'], true)) {
+            if (in_array($status, ['approved', 'paid', 'completed'], true)) {
                 $transaction['type'] = 'top_up';
                 $transaction['status'] = 'approved';
-                $transaction['note'] = 'Recarga Mercado Pago aprovada';
-                $transaction['approved_at'] = (string) ($payment['date_approved'] ?? date('Y-m-d H:i:s'));
-            } elseif (in_array($status, ['rejected', 'cancelled', 'refunded', 'charged_back'], true)) {
+                $transaction['note'] = 'Recarga SyncPay aprovada';
+                $transaction['approved_at'] = $approvedAt;
+            } elseif (in_array($status, ['rejected', 'cancelled', 'canceled', 'expired', 'failed', 'refunded', 'charged_back'], true)) {
                 $transaction['status'] = $status;
-                $transaction['note'] = 'Recarga Mercado Pago nao aprovada';
+                $transaction['note'] = 'Recarga SyncPay nao aprovada';
             } else {
                 $transaction['status'] = $status !== '' ? $status : 'pending';
+                $transaction['note'] = 'Recarga de LuaCoins aguardando pagamento';
             }
 
             $changed = true;
@@ -759,6 +803,28 @@ final class PlatformRepository
         }
 
         return $changed;
+    }
+
+    public function findWalletTransactionForUser(int $userId, int $transactionId): ?array
+    {
+        foreach ($this->walletTransactionsFor($userId) as $transaction) {
+            if ((int) ($transaction['id'] ?? 0) === $transactionId) {
+                return $transaction;
+            }
+        }
+
+        return null;
+    }
+
+    public function latestPendingWalletTopUpForUser(int $userId): ?array
+    {
+        foreach ($this->walletTransactionsFor($userId) as $transaction) {
+            if ((string) ($transaction['type'] ?? '') === 'top_up_pending' && (string) ($transaction['status'] ?? 'pending') === 'pending') {
+                return $transaction;
+            }
+        }
+
+        return null;
     }
 
     public function subscribeToPlan(int $subscriberId, int $planId): array
@@ -923,7 +989,7 @@ final class PlatformRepository
         return $conversationId;
     }
 
-    public function tipCreator(int $subscriberId, int $creatorId, int $amount, string $note = 'Gorjeta enviada'): array
+    public function tipCreator(int $subscriberId, int $creatorId, int $amount, string $note = 'Gorjeta enviada', int $liveId = 0): array
     {
         if ($amount <= 0) {
             return ['ok' => false, 'message' => 'Informe uma quantidade valida de LuaCoins.'];
@@ -933,9 +999,70 @@ final class PlatformRepository
             return ['ok' => false, 'message' => 'Saldo insuficiente para enviar a gorjeta.'];
         }
 
-        $this->chargeSubscriberAndCreditCreator($subscriberId, $creatorId, $amount, 'tip', $note);
+        $this->chargeSubscriberAndCreditCreator($subscriberId, $creatorId, $amount, 'tip', $note, $liveId);
+        if ($liveId > 0) {
+            $live = $this->findLiveById($liveId);
+            if ($live && (int) ($live['creator_id'] ?? 0) === $creatorId) {
+                $this->appendPriorityTipMessage($live, $subscriberId, $amount);
+            }
+        }
 
         return ['ok' => true, 'message' => 'Gorjeta enviada com sucesso.'];
+    }
+
+    public function sendMessageToSubscriber(int $creatorId, int $subscriberId, string $body): array
+    {
+        $body = trim($body);
+        $subscriber = $this->findUserById($subscriberId);
+
+        if ($body === '') {
+            return ['ok' => false, 'message' => 'Escreva a mensagem antes de enviar.'];
+        }
+
+        if (! $subscriber || (string) ($subscriber['role'] ?? '') !== 'subscriber') {
+            return ['ok' => false, 'message' => 'Assinante nao encontrado.'];
+        }
+
+        $hasSubscription = false;
+        foreach ($this->subscriptions() as $subscription) {
+            if ((int) ($subscription['creator_id'] ?? 0) === $creatorId && (int) ($subscription['subscriber_id'] ?? 0) === $subscriberId) {
+                $hasSubscription = true;
+                break;
+            }
+        }
+
+        if (! $hasSubscription) {
+            return ['ok' => false, 'message' => 'Este assinante nao faz parte da sua base.'];
+        }
+
+        $conversation = $this->findConversationByPair($subscriberId, $creatorId);
+        if ($conversation !== null) {
+            $ok = $this->sendConversationMessage((int) ($conversation['id'] ?? 0), $creatorId, $body);
+
+            return [
+                'ok' => $ok,
+                'message' => $ok ? 'Mensagem enviada ao assinante.' : 'Nao foi possivel enviar a mensagem.',
+                'conversation_id' => (int) ($conversation['id'] ?? 0),
+            ];
+        }
+
+        $conversations = $this->conversations();
+        $conversationId = $this->store->nextId($conversations);
+        $conversations[] = [
+            'id' => $conversationId,
+            'subscriber_id' => $subscriberId,
+            'creator_id' => $creatorId,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+        $this->save('conversations', $conversations);
+
+        $ok = $this->sendConversationMessage($conversationId, $creatorId, $body);
+
+        return [
+            'ok' => $ok,
+            'message' => $ok ? 'Mensagem enviada ao assinante.' : 'Nao foi possivel enviar a mensagem.',
+            'conversation_id' => $conversationId,
+        ];
     }
 
     public function creatorDashboardData(int $creatorId): array
@@ -945,7 +1072,7 @@ final class PlatformRepository
         $plans = array_values(array_filter($this->plansWithCreators(), static fn (array $plan): bool => (int) $plan['creator_id'] === $creatorId));
         $wallet = $this->creatorWalletData($creatorId);
 
-        $approved = count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'approved'));
+        $approved = count(array_filter($contents, fn (array $item): bool => $item['status'] === 'approved' && ! $this->contentIsExpired($item)));
         $pending = count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'pending'));
         $subscribers = count(array_filter($this->subscriptions(), static fn (array $item): bool => (int) $item['creator_id'] === $creatorId && $item['status'] === 'active'));
 
@@ -968,6 +1095,10 @@ final class PlatformRepository
     {
         $contents = array_values(array_filter($this->contentsWithCreators(), static fn (array $item): bool => (int) $item['creator_id'] === $creatorId));
         $contents = $this->sortByDate($contents, 'created_at');
+        $plans = array_values(array_filter(
+            $this->plansWithCreators(),
+            static fn (array $plan): bool => (int) ($plan['creator_id'] ?? 0) === $creatorId && (bool) ($plan['active'] ?? false)
+        ));
         $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
         $status = trim((string) ($filters['status'] ?? ''));
         $kind = trim((string) ($filters['kind'] ?? ''));
@@ -1002,16 +1133,13 @@ final class PlatformRepository
         }
 
         $estimatedViews = array_reduce($contents, static fn (int $carry, array $item): int => $carry + ((int) ($item['saved_count'] ?? 0) * 42), 0);
-        $storageUnits = array_reduce($contents, static function (float $carry, array $item): float {
-            $bodyUnits = mb_strlen((string) ($item['body'] ?? '')) / 9000;
-            $mediaUnits = (string) ($item['media_url'] ?? '') !== '' ? 0.7 : 0.15;
-            $thumbUnits = (string) ($item['thumbnail_url'] ?? '') !== '' ? 0.1 : 0;
-
-            return $carry + $bodyUnits + $mediaUnits + $thumbUnits;
-        }, 0.0);
+        $storageUsedBytes = $this->creatorContentUsageBytes($creatorId);
+        $storageLimitBytes = $this->creatorContentStorageLimitBytes();
+        $storageRemainingBytes = max(0, $storageLimitBytes - $storageUsedBytes);
 
         return [
             'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
+            'plans' => $plans,
             'items' => $contents,
             'filtered_items' => $filtered,
             'selected_item' => $selectedItem,
@@ -1019,6 +1147,7 @@ final class PlatformRepository
                 'q' => $query,
                 'status' => $status,
                 'kind' => $kind,
+                'edit' => $editId,
             ],
             'counts' => [
                 'approved' => count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'approved')),
@@ -1030,7 +1159,12 @@ final class PlatformRepository
             'summary' => [
                 'total_posts' => count($contents),
                 'estimated_views' => $estimatedViews,
-                'storage_gb' => max(0.2, round($storageUnits, 1)),
+                'storage_used_bytes' => $storageUsedBytes,
+                'storage_limit_bytes' => $storageLimitBytes,
+                'storage_remaining_bytes' => $storageRemainingBytes,
+                'storage_used_mb' => round($storageUsedBytes / (1024 * 1024), 1),
+                'storage_limit_mb' => round($storageLimitBytes / (1024 * 1024), 0),
+                'storage_percent' => $storageLimitBytes > 0 ? min(100, round(($storageUsedBytes / $storageLimitBytes) * 100, 1)) : 0,
             ],
         ];
     }
@@ -1047,6 +1181,16 @@ final class PlatformRepository
         $status = in_array(($data['status'] ?? 'draft'), ['draft', 'pending', 'approved', 'rejected', 'archived'], true) ? $data['status'] : 'draft';
         $visibility = in_array(($data['visibility'] ?? 'public'), ['public', 'subscriber', 'premium'], true) ? $data['visibility'] : 'public';
         $kind = in_array(($data['kind'] ?? 'gallery'), ['gallery', 'video', 'audio', 'article', 'live_teaser'], true) ? $data['kind'] : 'gallery';
+        $mediaUrl = trim((string) ($data['media_url'] ?? ''));
+        $thumbnailUrl = trim((string) ($data['thumbnail_url'] ?? ''));
+        $planId = max(0, (int) ($data['plan_id'] ?? 0));
+        $plan = $planId > 0 ? $this->findPlanById($planId) : null;
+
+        if (! $plan || (int) ($plan['creator_id'] ?? 0) !== $creatorId) {
+            $planId = 0;
+            $plan = null;
+        }
+
         $payload = [
             'title' => trim((string) ($data['title'] ?? 'Novo conteudo')),
             'excerpt' => trim((string) ($data['excerpt'] ?? 'Descricao rapida do conteudo.')),
@@ -1055,10 +1199,42 @@ final class PlatformRepository
             'status' => $status,
             'kind' => $kind,
             'duration' => trim((string) ($data['duration'] ?? '')),
-            'media_url' => trim((string) ($data['media_url'] ?? '')),
-            'thumbnail_url' => trim((string) ($data['thumbnail_url'] ?? '')),
+            'plan_id' => $planId,
+            'price_tokens' => $plan ? (int) ($plan['price_tokens'] ?? 0) : max(0, (int) ($data['price_tokens'] ?? $data['price_luacoins'] ?? 0)),
+            'media_url' => $mediaUrl,
+            'thumbnail_url' => $thumbnailUrl,
+            'media_bytes' => max(0, (int) ($data['media_bytes'] ?? ($mediaUrl !== '' ? \public_media_file_bytes($mediaUrl) : 0))),
+            'thumbnail_bytes' => max(0, (int) ($data['thumbnail_bytes'] ?? ($thumbnailUrl !== '' ? \public_media_file_bytes($thumbnailUrl) : 0))),
             'updated_at' => date('Y-m-d H:i:s'),
         ];
+
+        $currentItem = null;
+        if ($contentId > 0) {
+            foreach ($items as $item) {
+                if ((int) ($item['id'] ?? 0) === $contentId && (int) ($item['creator_id'] ?? 0) === $creatorId) {
+                    $currentItem = $item;
+                    break;
+                }
+            }
+        }
+
+        $projectedItem = array_merge($currentItem ?? [
+            'creator_id' => $creatorId,
+            'created_at' => date('Y-m-d H:i:s'),
+            'saved_count' => 0,
+        ], $payload);
+        $projectedUsageBytes = $this->creatorContentUsageBytes($creatorId, $contentId) + $this->contentStorageBytes($projectedItem);
+        $storageLimitBytes = $this->creatorContentStorageLimitBytes();
+
+        if ($projectedUsageBytes > $storageLimitBytes) {
+            return [
+                'ok' => false,
+                'message' => 'Sem espaço para salvar este conteúdo. Remova um replay ou outro arquivo em Meus Conteúdos para continuar.',
+                'code' => 'storage_quota_exceeded',
+                'storage_used_bytes' => $this->creatorContentUsageBytes($creatorId),
+                'storage_limit_bytes' => $storageLimitBytes,
+            ];
+        }
 
         if ($contentId > 0) {
             foreach ($items as &$item) {
@@ -1066,7 +1242,7 @@ final class PlatformRepository
                     $item = array_merge($item, array_filter($payload, static fn (mixed $value): bool => $value !== ''));
                     $this->save('content_items', $items);
 
-                    return $item;
+                    return ['ok' => true, 'item' => $item];
                 }
             }
             unset($item);
@@ -1082,7 +1258,7 @@ final class PlatformRepository
         $items[] = $item;
         $this->save('content_items', $items);
 
-        return $item;
+        return ['ok' => true, 'item' => $item];
     }
 
     public function updateContentStatus(int $creatorId, int $contentId, string $status): bool
@@ -1116,7 +1292,15 @@ final class PlatformRepository
     {
         $items = $this->contentItems();
         $before = count($items);
-        $items = array_values(array_filter($items, static fn (array $item): bool => ! ((int) $item['id'] === $contentId && (int) $item['creator_id'] === $creatorId)));
+        $removed = null;
+        $items = array_values(array_filter($items, static function (array $item) use ($contentId, $creatorId, &$removed): bool {
+            $match = (int) ($item['id'] ?? 0) === $contentId && (int) ($item['creator_id'] ?? 0) === $creatorId;
+            if ($match) {
+                $removed = $item;
+            }
+
+            return ! $match;
+        }));
 
         if (count($items) === $before) {
             return false;
@@ -1125,6 +1309,11 @@ final class PlatformRepository
         $this->save('content_items', $items);
         $savedItems = array_values(array_filter($this->savedItems(), static fn (array $saved): bool => (int) ($saved['content_id'] ?? 0) !== $contentId));
         $this->save('saved_items', $savedItems);
+        if (is_array($removed)) {
+            $this->deletePublicMediaFile((string) ($removed['media_url'] ?? ''));
+            $this->deletePublicMediaFile((string) ($removed['thumbnail_url'] ?? ''));
+            $this->clearReplayReferenceForContent($creatorId, $removed);
+        }
 
         return true;
     }
@@ -1329,14 +1518,13 @@ final class PlatformRepository
     public function creatorLiveData(int $creatorId, array $filters = []): array
     {
         $lives = array_values(array_filter($this->livesWithCreators(), static fn (array $live): bool => (int) $live['creator_id'] === $creatorId));
-        $lives = $this->sortByDate($lives, 'scheduled_for');
         $lives = array_map(fn (array $live): array => $this->hydrateLiveRuntime($live), $lives);
         $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
-        $status = trim((string) ($filters['status'] ?? ''));
+        $status = trim((string) ($filters['status'] ?? 'scheduled'));
         $selectedId = (int) ($filters['live'] ?? 0);
 
         $filtered = array_values(array_filter($lives, static function (array $live) use ($query, $status): bool {
-            if ($status !== '' && (string) ($live['status'] ?? '') !== $status) {
+            if ($status !== '' && (string) ($live['status_bucket'] ?? '') !== $status) {
                 return false;
             }
 
@@ -1348,43 +1536,47 @@ final class PlatformRepository
 
             return str_contains($haystack, $query);
         }));
+        $filtered = $this->sortCreatorLives($filtered, $status);
+        $allSorted = $this->sortCreatorLives($lives, $status);
 
         $selectedLive = null;
-        foreach ($lives as $live) {
-            if ($selectedId > 0 && (int) ($live['id'] ?? 0) === $selectedId) {
-                $selectedLive = $live;
-                break;
+        if ($selectedId > 0) {
+            foreach ($lives as $live) {
+                if ((int) ($live['id'] ?? 0) === $selectedId) {
+                    $selectedLive = $live;
+                    break;
+                }
             }
         }
-
-        $selectedLive ??= $lives[0] ?? null;
         $selectedMessages = [];
+        $selectedEngagement = [
+            'recent_tips' => [],
+            'top_supporters' => [],
+        ];
         if ($selectedLive !== null) {
-            $selectedMessages = array_values(array_filter($this->liveMessages(), static fn (array $message): bool => (int) ($message['live_id'] ?? 0) === (int) ($selectedLive['id'] ?? 0)));
-            $selectedMessages = $this->sortByDate($selectedMessages, 'created_at');
-            $selectedMessages = array_map(function (array $message): array {
-                $message['sender'] = $this->findUserById((int) ($message['sender_id'] ?? 0));
-
-                return $message;
-            }, $selectedMessages);
+            $selectedMessages = $this->liveChatMessagesFor((int) ($selectedLive['id'] ?? 0), 8);
+            $selectedEngagement = $this->liveEngagementData($selectedLive, 6, 4);
         }
 
         return [
             'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
-            'lives' => $lives,
+            'lives' => $allSorted,
             'filtered_lives' => $filtered,
             'selected_live' => $selectedLive,
-            'active_live' => array_values(array_filter($lives, static fn (array $live): bool => $live['status'] === 'live'))[0] ?? null,
+            'active_live' => array_values(array_filter($allSorted, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'live'))[0] ?? null,
             'messages' => $selectedMessages,
+            'recent_tips' => $selectedEngagement['recent_tips'],
+            'top_supporters' => $selectedEngagement['top_supporters'],
             'filters' => [
                 'q' => $query,
                 'status' => $status,
             ],
             'summary' => [
-                'scheduled' => count(array_filter($lives, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'scheduled')),
-                'live' => count(array_filter($lives, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'live')),
-                'ended' => count(array_filter($lives, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'ended')),
-                'chat_enabled' => count(array_filter($lives, static fn (array $live): bool => (bool) ($live['chat_enabled'] ?? false))),
+                'scheduled' => count(array_filter($allSorted, static fn (array $live): bool => (string) ($live['status_bucket'] ?? '') === 'scheduled')),
+                'live' => count(array_filter($allSorted, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'live')),
+                'ended' => count(array_filter($allSorted, static fn (array $live): bool => (string) ($live['status_bucket'] ?? '') === 'ended')),
+                'expired' => count(array_filter($allSorted, static fn (array $live): bool => (string) ($live['status_bucket'] ?? '') === 'expired')),
+                'chat_enabled' => count(array_filter($allSorted, static fn (array $live): bool => (bool) ($live['chat_enabled'] ?? false))),
             ],
         ];
     }
@@ -1393,22 +1585,39 @@ final class PlatformRepository
     {
         $lives = $this->liveSessions();
         $liveId = isset($data['id']) ? (int) $data['id'] : 0;
-        $status = in_array(($data['status'] ?? 'scheduled'), ['scheduled', 'live', 'ended'], true) ? $data['status'] : 'scheduled';
+        $creatorProfile = $this->findCreatorProfile($creatorId) ?? [];
+        $liveType = in_array(($data['live_type'] ?? 'scheduled'), ['instant', 'scheduled'], true) ? (string) $data['live_type'] : 'scheduled';
+        $rawStatus = (string) ($data['status'] ?? 'scheduled');
+        $status = in_array($rawStatus, ['scheduled', 'live', 'ended'], true) ? $rawStatus : 'scheduled';
+        $rawAccessMode = (string) ($data['access_mode'] ?? 'public');
+        $scheduledFor = $this->normalizeLiveDateTime(
+            (string) ($data['scheduled_for'] ?? ''),
+            $liveType === 'instant' ? '+2 hours' : '+1 day'
+        );
+        $chatAudience = $this->sanitizeLiveChatAudience((string) ($data['chat_audience'] ?? ($creatorProfile['live_chat_audience_default'] ?? 'all')));
+        $replayVisibility = $this->sanitizeReplayVisibility((string) ($data['replay_visibility'] ?? ($creatorProfile['replay_visibility_default'] ?? 'subscriber')));
+        $defaultSettings = $this->settings();
+        $chatEnabled = $chatAudience !== 'off';
         $payload = [
             'creator_id' => $creatorId,
+            'live_type' => $liveType,
             'title' => trim((string) ($data['title'] ?? 'Nova live')),
             'description' => trim((string) ($data['description'] ?? 'Sessao criada pelo painel do criador.')),
             'status' => $status,
-            'scheduled_for' => trim((string) ($data['scheduled_for'] ?? date('Y-m-d H:i:s', strtotime('+1 day')))),
+            'scheduled_for' => $scheduledFor,
             'viewer_count' => max(0, (int) ($data['viewer_count'] ?? 0)),
             'price_tokens' => max(0, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? 0)),
-            'chat_enabled' => ($data['chat_enabled'] ?? '1') === '1',
+            'chat_enabled' => $chatEnabled,
+            'chat_audience' => $chatAudience,
             'category' => trim((string) ($data['category'] ?? 'Chatting & Chill')),
-            'access_mode' => in_array(($data['access_mode'] ?? 'public'), ['public', 'subscriber'], true) ? (string) $data['access_mode'] : 'public',
+            'access_mode' => in_array($rawAccessMode, ['public', 'subscriber'], true) ? $rawAccessMode : 'public',
             'goal_tokens' => max(0, (int) ($data['goal_luacoins'] ?? $data['goal_tokens'] ?? 0)),
             'cover_url' => trim((string) ($data['cover_url'] ?? '')),
             'pinned_notice' => trim((string) ($data['pinned_notice'] ?? '')),
             'recording_enabled' => ($data['recording_enabled'] ?? '0') === '1',
+            'replay_visibility' => $replayVisibility,
+            'replay_expiration_days' => max(1, (int) ($defaultSettings['live_replay_expiration_days'] ?? 7)),
+            'max_live_duration_minutes' => max(5, (int) ($defaultSettings['live_max_duration_minutes'] ?? 30)),
             'stream_mode' => 'segment_queue',
             'segment_duration_seconds' => self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS,
             'max_bitrate_kbps' => max(300, min(2500, (int) ($data['max_bitrate_kbps'] ?? self::LIVE_DEFAULT_BITRATE_KBPS))),
@@ -1424,6 +1633,7 @@ final class PlatformRepository
                         $payload['viewer_count'] = (int) ($live['viewer_count'] ?? 0);
                     }
                     $live = array_merge($live, array_filter($payload, static fn (mixed $value): bool => $value !== ''));
+                    $this->syncReplayContentWithLive($live);
                     $this->save('live_sessions', $lives);
 
                     return $live;
@@ -1451,9 +1661,42 @@ final class PlatformRepository
         foreach ($lives as &$live) {
             if ((int) $live['id'] === $liveId && (int) $live['creator_id'] === $creatorId) {
                 $live['status'] = $status;
+                if ($status === 'scheduled') {
+                    $live['ended_at'] = '';
+                    $live['duration_seconds'] = 0;
+                }
                 $changed = true;
                 break;
             }
+        }
+        unset($live);
+
+        if ($changed) {
+            $this->save('live_sessions', $lives);
+        }
+
+        return $changed;
+    }
+
+    public function updateLiveStudioSettings(int $creatorId, int $liveId, array $data): bool
+    {
+        $lives = $this->liveSessions();
+        $changed = false;
+
+        foreach ($lives as &$live) {
+            if ((int) ($live['id'] ?? 0) !== $liveId || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+                continue;
+            }
+
+            $live['access_mode'] = in_array(($data['access_mode'] ?? $live['access_mode']), ['public', 'subscriber'], true)
+                ? (string) ($data['access_mode'] ?? $live['access_mode'])
+                : (string) ($live['access_mode'] ?? 'public');
+            $live['chat_audience'] = $this->sanitizeLiveChatAudience((string) ($data['chat_audience'] ?? ($live['chat_audience'] ?? 'all')));
+            $live['chat_enabled'] = (string) $live['chat_audience'] !== 'off';
+            $live['replay_visibility'] = $this->sanitizeReplayVisibility((string) ($data['replay_visibility'] ?? ($live['replay_visibility'] ?? 'subscriber')));
+            $this->syncReplayContentWithLive($live);
+            $changed = true;
+            break;
         }
         unset($live);
 
@@ -1628,6 +1871,10 @@ final class PlatformRepository
             'video_height' => $videoHeight,
             'video_fps' => $videoFps,
             'viewer_count' => $this->activeViewerCountForLive($liveId),
+            'started_at' => $now,
+            'ended_at' => '',
+            'duration_seconds' => 0,
+            'was_live' => true,
         ]);
 
         return [
@@ -1654,6 +1901,7 @@ final class PlatformRepository
 
         $streams = $this->liveStreams();
         $now = date('Y-m-d H:i:s');
+        $startedAt = (string) ($live['started_at'] ?? '');
         foreach ($streams as &$stream) {
             if ((int) ($stream['live_id'] ?? 0) !== $liveId) {
                 continue;
@@ -1663,6 +1911,7 @@ final class PlatformRepository
             $stream['broadcaster_peer_id'] = '';
             $stream['updated_at'] = $now;
             $stream['stopped_at'] = $now;
+            $startedAt = (string) ($stream['started_at'] ?? $startedAt);
         }
         unset($stream);
         $this->save('live_streams', $streams);
@@ -1676,9 +1925,13 @@ final class PlatformRepository
             )
         ));
         $this->save('live_presence', $presenceRows);
+        $durationSeconds = $this->calculateLiveDurationSeconds($startedAt, $now);
         $this->updateLiveRuntimeFields($liveId, [
             'status' => 'ended',
             'viewer_count' => 0,
+            'ended_at' => $now,
+            'duration_seconds' => $durationSeconds,
+            'recording_status' => 'processing',
         ]);
 
         return [
@@ -1686,6 +1939,9 @@ final class PlatformRepository
             'message' => 'Transmissao encerrada.',
             'live' => $this->hydrateLiveRuntime($this->decorateLive($this->findLiveById($liveId) ?? $live)),
             'stream' => $this->publicLiveStreamState($liveId),
+            'duration_seconds' => $durationSeconds,
+            'duration_label' => $this->formatLiveDuration($durationSeconds),
+            'title' => (string) ($live['title'] ?? 'Live'),
         ];
     }
 
@@ -1790,6 +2046,16 @@ final class PlatformRepository
     {
         $lives = $this->liveSessions();
         $recordingUrl = trim((string) ($data['recording_url'] ?? ''));
+        $thumbnailUrl = trim((string) ($data['thumbnail_url'] ?? ''));
+        $recordingBytes = $recordingUrl !== '' ? \public_media_file_bytes($recordingUrl) : 0;
+        if ($recordingBytes <= 0) {
+            $recordingBytes = max(0, (int) ($data['recording_bytes'] ?? 0));
+        }
+
+        $thumbnailBytes = $thumbnailUrl !== '' ? \public_media_file_bytes($thumbnailUrl) : 0;
+        if ($thumbnailBytes <= 0) {
+            $thumbnailBytes = max(0, (int) ($data['thumbnail_bytes'] ?? 0));
+        }
 
         if ($recordingUrl === '') {
             return ['ok' => false, 'message' => 'Arquivo de replay invalido.'];
@@ -1800,21 +2066,42 @@ final class PlatformRepository
                 continue;
             }
 
+            $storageLimitBytes = $this->creatorContentStorageLimitBytes();
+            $projectedUsageBytes = $this->creatorContentUsageBytes($creatorId, (int) ($live['replay_content_id'] ?? 0)) + $recordingBytes + $thumbnailBytes;
+
+            if ($projectedUsageBytes > $storageLimitBytes) {
+                return [
+                    'ok' => false,
+                    'code' => 'storage_quota_exceeded',
+                    'message' => 'Sem espaço para salvar o replay automático. Exclua um replay antigo em Meus Conteúdos e tente novamente.',
+                    'redirect_url' => '/creator/content',
+                    'storage_used_bytes' => $this->creatorContentUsageBytes($creatorId),
+                    'storage_limit_bytes' => $storageLimitBytes,
+                ];
+            }
+
             $live['recording_enabled'] = true;
             $live['recording_url'] = $recordingUrl;
             $live['recording_status'] = 'ready';
-            $live['recording_mime_type'] = trim((string) ($data['recording_mime_type'] ?? 'video/webm'));
-            $live['recording_bytes'] = max(0, (int) ($data['recording_bytes'] ?? 0));
-            $live['recording_duration_seconds'] = max(0, (int) ($data['recording_duration_seconds'] ?? 0));
-            $live['recording_label'] = trim((string) ($data['recording_label'] ?? 'Replay local'));
-            $live['recorded_at'] = date('Y-m-d H:i:s');
-            $this->save('live_sessions', $lives);
+              $live['recording_mime_type'] = trim((string) ($data['recording_mime_type'] ?? 'video/webm'));
+              $live['recording_bytes'] = $recordingBytes;
+              $live['recording_thumbnail_bytes'] = $thumbnailBytes;
+              $live['recording_duration_seconds'] = max(0, (int) ($data['recording_duration_seconds'] ?? 0));
+              $live['recording_label'] = trim((string) ($data['recording_label'] ?? 'Replay local'));
+              $live['recording_thumbnail_url'] = $thumbnailUrl !== '' ? $thumbnailUrl : (string) ($live['recording_thumbnail_url'] ?? '');
+              if ($thumbnailUrl !== '' && trim((string) ($live['cover_url'] ?? '')) === '') {
+                  $live['cover_url'] = $thumbnailUrl;
+              }
+              $live['recorded_at'] = date('Y-m-d H:i:s');
+              $content = $this->upsertReplayContentFromLive($live);
+              $this->save('live_sessions', $lives);
 
             return [
                 'ok' => true,
                 'message' => 'Replay enviado com sucesso.',
                 'live' => $this->hydrateLiveRuntime($this->decorateLive($live)),
                 'stream' => $this->publicLiveStreamState($liveId),
+                'content_id' => (int) ($content['id'] ?? 0),
             ];
         }
         unset($live);
@@ -1854,6 +2141,9 @@ final class PlatformRepository
             static fn (array $segment): bool => (int) ($segment['sequence'] ?? 0) > $afterId
         ));
 
+        $decoratedLive = $this->hydrateLiveRuntime($this->decorateLive($live));
+        $engagement = $this->liveEngagementData($decoratedLive);
+
         return [
             'ok' => true,
             'messages' => array_map(static fn (array $signal): array => [
@@ -1864,9 +2154,15 @@ final class PlatformRepository
                 'created_at' => (string) ($signal['created_at'] ?? ''),
             ], $signals),
             'segments' => $segments,
-            'live' => $this->hydrateLiveRuntime($this->decorateLive($live)),
+            'live' => $decoratedLive,
             'stream' => $stream,
+            'chat_messages' => $this->liveChatMessagesFor($liveId, 20),
+            'recent_tips' => $engagement['recent_tips'],
+            'top_supporters' => $engagement['top_supporters'],
+            'priority_alert' => $this->latestPriorityAlertForLive($liveId),
             'viewer_count' => $this->activeViewerCountForLive($liveId),
+            'can_chat' => $this->canUserChatInLive($decoratedLive, $userId),
+            'chat_audience' => (string) ($decoratedLive['chat_audience'] ?? 'all'),
             'server_time' => date('c'),
         ];
     }
@@ -2099,6 +2395,15 @@ final class PlatformRepository
                 'withdraw_min_luacoins' => (int) ($settings['withdraw_min_luacoins'] ?? 50),
                 'withdraw_max_luacoins' => (int) ($settings['withdraw_max_luacoins'] ?? 25000),
             ],
+            'live_defaults' => [
+                'chat_audience' => $this->sanitizeLiveChatAudience((string) ($creator['live_chat_audience_default'] ?? 'all')),
+                'replay_visibility' => $this->sanitizeReplayVisibility((string) ($creator['replay_visibility_default'] ?? 'subscriber')),
+                'priority_tip_tiers' => $this->priorityTipTiersForCreator($creatorId),
+                'priority_tip_messages' => $this->priorityTipMessagesForCreator($creatorId),
+                'priority_tip_custom' => max(1, (int) ($creator['priority_tip_custom'] ?? 150)),
+                'max_duration_minutes' => max(5, (int) ($settings['live_max_duration_minutes'] ?? 30)),
+                'replay_expiration_days' => max(1, (int) ($settings['live_replay_expiration_days'] ?? 7)),
+            ],
             'security' => [
                 'has_stream_key' => trim((string) ($creator['stream_key'] ?? '')) !== '',
                 'has_payout_key' => trim((string) ($creator['payout_key'] ?? '')) !== '',
@@ -2128,6 +2433,35 @@ final class PlatformRepository
         $instagram = trim((string) ($data['instagram'] ?? ''));
         $telegram = trim((string) ($data['telegram'] ?? ''));
         $streamKey = trim((string) ($data['stream_key'] ?? ''));
+        $liveChatAudienceDefault = $this->sanitizeLiveChatAudience((string) ($data['live_chat_audience_default'] ?? 'all'));
+        $replayVisibilityDefault = $this->sanitizeReplayVisibility((string) ($data['replay_visibility_default'] ?? 'subscriber'));
+        $priorityTierKeys = [
+            'priority_tip_tier_1',
+            'priority_tip_tier_2',
+            'priority_tip_tier_3',
+            'priority_tip_tier_4',
+            'priority_tip_tier_5',
+        ];
+        $priorityTiers = [];
+        foreach ($priorityTierKeys as $key) {
+            $priorityTiers[] = max(1, (int) ($data[$key] ?? 0));
+        }
+        $priorityTipCustom = max(1, (int) ($data['priority_tip_custom'] ?? 150));
+        $priorityMessagesInput = [
+            (string) ($data['priority_tip_message_1'] ?? ''),
+            (string) ($data['priority_tip_message_2'] ?? ''),
+            (string) ($data['priority_tip_message_3'] ?? ''),
+            (string) ($data['priority_tip_message_4'] ?? ''),
+            (string) ($data['priority_tip_message_5'] ?? ''),
+            (string) ($data['priority_tip_message_custom'] ?? ''),
+        ];
+        $normalizedTiers = $this->normalizePriorityTipTiers(array_merge($priorityTiers, [$priorityTipCustom]));
+        $priorityMessages = $this->normalizePriorityTipMessages(
+            array_combine(
+                array_map(static fn (int $tier): string => (string) max(1, $tier), array_merge($priorityTiers, [$priorityTipCustom])),
+                array_map(static fn (string $message): string => trim($message), $priorityMessagesInput)
+            ) ?: []
+        );
         $newPassword = (string) ($data['new_password'] ?? '');
 
         foreach ($users as &$user) {
@@ -2206,6 +2540,7 @@ final class PlatformRepository
 
             if (array_key_exists('payout_key', $data) && $payoutKey !== (string) ($profile['payout_key'] ?? '')) {
                 $profile['payout_key'] = $payoutKey;
+                $profile['payout_method'] = 'pix';
                 $changedProfiles = true;
             }
 
@@ -2221,6 +2556,31 @@ final class PlatformRepository
 
             if (array_key_exists('stream_key', $data) && $streamKey !== (string) ($profile['stream_key'] ?? '')) {
                 $profile['stream_key'] = $streamKey;
+                $changedProfiles = true;
+            }
+
+            if ($normalizedTiers !== $this->priorityTipTiersForProfile($profile)) {
+                $profile['priority_tip_tiers'] = $normalizedTiers;
+                $changedProfiles = true;
+            }
+
+            if ($priorityMessages !== $this->priorityTipMessagesForProfile($profile)) {
+                $profile['priority_tip_messages'] = $priorityMessages;
+                $changedProfiles = true;
+            }
+
+            if ($liveChatAudienceDefault !== (string) ($profile['live_chat_audience_default'] ?? 'all')) {
+                $profile['live_chat_audience_default'] = $liveChatAudienceDefault;
+                $changedProfiles = true;
+            }
+
+            if ($replayVisibilityDefault !== (string) ($profile['replay_visibility_default'] ?? 'subscriber')) {
+                $profile['replay_visibility_default'] = $replayVisibilityDefault;
+                $changedProfiles = true;
+            }
+
+            if ($priorityTipCustom !== (int) ($profile['priority_tip_custom'] ?? 150)) {
+                $profile['priority_tip_custom'] = $priorityTipCustom;
                 $changedProfiles = true;
             }
         }
@@ -2246,6 +2606,11 @@ final class PlatformRepository
                 'instagram' => $instagram,
                 'telegram' => $telegram,
                 'stream_key' => $streamKey,
+                'priority_tip_tiers' => $normalizedTiers,
+                'priority_tip_messages' => $priorityMessages,
+                'priority_tip_custom' => $priorityTipCustom,
+                'live_chat_audience_default' => $liveChatAudienceDefault,
+                'replay_visibility_default' => $replayVisibilityDefault,
             ];
             $changedProfiles = true;
         }
@@ -3203,6 +3568,8 @@ final class PlatformRepository
         $settings['luacoin_price_brl'] = max(0.01, (float) ($data['luacoin_price_brl'] ?? $data['token_price_brl'] ?? $settings['luacoin_price_brl']));
         $settings['withdraw_min_luacoins'] = max(1, (int) ($data['withdraw_min_luacoins'] ?? $data['withdraw_min_tokens'] ?? $settings['withdraw_min_luacoins']));
         $settings['withdraw_max_luacoins'] = max($settings['withdraw_min_luacoins'], (int) ($data['withdraw_max_luacoins'] ?? $data['withdraw_max_tokens'] ?? $settings['withdraw_max_luacoins']));
+        $settings['live_replay_expiration_days'] = max(1, (int) ($data['live_replay_expiration_days'] ?? $settings['live_replay_expiration_days'] ?? 7));
+        $settings['live_max_duration_minutes'] = max(5, (int) ($data['live_max_duration_minutes'] ?? $settings['live_max_duration_minutes'] ?? 30));
         $settings['maintenance_mode'] = ($data['maintenance_mode'] ?? '0') === '1';
         $settings['slow_mode_seconds'] = max(0, (int) ($data['slow_mode_seconds'] ?? $settings['slow_mode_seconds']));
         $settings['auto_moderation'] = ($data['auto_moderation'] ?? '0') === '1';
@@ -3210,11 +3577,13 @@ final class PlatformRepository
         $settings['live_chat_enabled'] = ($data['live_chat_enabled'] ?? '0') === '1';
         $settings['announcement'] = trim((string) ($data['announcement'] ?? $settings['announcement']));
         $settings['site_base_url'] = rtrim(trim((string) ($data['site_base_url'] ?? $settings['site_base_url'] ?? '')), '/');
-        $settings['mercadopago_access_token'] = trim((string) ($data['mercadopago_access_token'] ?? $settings['mercadopago_access_token'] ?? ''));
-        $settings['mercadopago_public_key'] = trim((string) ($data['mercadopago_public_key'] ?? $settings['mercadopago_public_key'] ?? ''));
-        $settings['mercadopago_webhook_secret'] = trim((string) ($data['mercadopago_webhook_secret'] ?? $settings['mercadopago_webhook_secret'] ?? ''));
-        $settings['mercadopago_statement_descriptor'] = trim((string) ($data['mercadopago_statement_descriptor'] ?? $settings['mercadopago_statement_descriptor'] ?? ''));
-        $settings['mercadopago_webhook_url'] = webhook_url($this->config, $settings);
+        $settings['syncpay_api_base_url'] = rtrim(trim((string) ($data['syncpay_api_base_url'] ?? $settings['syncpay_api_base_url'] ?? 'https://api.syncpay.pro')), '/');
+        $settings['syncpay_client_id'] = trim((string) ($data['syncpay_client_id'] ?? $settings['syncpay_client_id'] ?? ''));
+        $settings['syncpay_client_secret'] = trim((string) ($data['syncpay_client_secret'] ?? $settings['syncpay_client_secret'] ?? ''));
+        $settings['syncpay_api_key'] = trim((string) ($data['syncpay_api_key'] ?? $settings['syncpay_api_key'] ?? ''));
+        $settings['syncpay_webhook_token'] = trim((string) ($data['syncpay_webhook_token'] ?? $settings['syncpay_webhook_token'] ?? ''));
+        $settings['syncpay_pix_expires_in_days'] = max(1, (int) ($data['syncpay_pix_expires_in_days'] ?? $settings['syncpay_pix_expires_in_days'] ?? 2));
+        $settings['syncpay_webhook_url'] = webhook_url($this->config, $settings, '/webhook/syncpay');
         $settings['token_price_brl'] = $settings['luacoin_price_brl'];
         $settings['withdraw_min_tokens'] = $settings['withdraw_min_luacoins'];
         $settings['withdraw_max_tokens'] = $settings['withdraw_max_luacoins'];
@@ -3369,11 +3738,12 @@ final class PlatformRepository
     private function decorateCreator(array $user): array
     {
         $profile = $this->findCreatorProfile((int) $user['id']) ?? [];
+        $sanitizedUser = $this->sanitizeUser($user);
         $contentCount = 0;
         $subscriberCount = 0;
 
         foreach ($this->contentItems() as $item) {
-            if ((int) $item['creator_id'] === (int) $user['id'] && $item['status'] === 'approved') {
+            if ((int) $item['creator_id'] === (int) $user['id'] && $item['status'] === 'approved' && ! $this->contentIsExpired($item)) {
                 $contentCount++;
             }
         }
@@ -3384,7 +3754,10 @@ final class PlatformRepository
             }
         }
 
-        return array_merge($this->sanitizeUser($user), $profile, [
+        return array_merge($profile, $sanitizedUser, [
+            'id' => (int) ($user['id'] ?? 0),
+            'profile_id' => (int) ($profile['id'] ?? 0),
+            'user_id' => (int) ($user['id'] ?? 0),
             'subscriber_count' => $subscriberCount,
             'content_count' => $contentCount,
             'wallet_balance' => $this->walletBalance((int) $user['id']),
@@ -3393,7 +3766,19 @@ final class PlatformRepository
 
     private function decorateContent(array $item): array
     {
-        return $item + ['creator' => $this->findCreatorBySlugOrId(null, (int) $item['creator_id'])];
+        $plan = null;
+        if ((int) ($item['plan_id'] ?? 0) > 0) {
+            $rawPlan = $this->findPlanById((int) $item['plan_id']);
+            if ($rawPlan !== null) {
+                $plan = $this->decoratePlan($rawPlan);
+            }
+        }
+
+        return $item + [
+            'creator' => $this->findCreatorBySlugOrId(null, (int) $item['creator_id']),
+            'plan' => $plan,
+            'is_expired' => $this->contentIsExpired($item),
+        ];
     }
 
     private function decoratePlan(array $plan): array
@@ -3414,7 +3799,22 @@ final class PlatformRepository
 
     private function decorateLive(array $live): array
     {
-        return $live + ['creator' => $this->findCreatorBySlugOrId(null, (int) $live['creator_id'])];
+        $creatorId = (int) ($live['creator_id'] ?? 0);
+        $creatorProfile = $this->findCreatorProfile($creatorId) ?? [];
+        $resolvedStatus = $this->resolveLiveStatus($live);
+
+        return array_merge($live, [
+            'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
+            'base_status' => (string) ($live['status'] ?? 'scheduled'),
+            'status' => $resolvedStatus,
+            'status_bucket' => $this->liveStatusBucket($resolvedStatus),
+            'chat_audience' => $this->sanitizeLiveChatAudience((string) ($live['chat_audience'] ?? ($creatorProfile['live_chat_audience_default'] ?? 'all'))),
+            'replay_visibility' => $this->sanitizeReplayVisibility((string) ($live['replay_visibility'] ?? ($creatorProfile['replay_visibility_default'] ?? 'subscriber'))),
+            'priority_tip_tiers' => $this->priorityTipTiersForProfile($creatorProfile),
+            'priority_tip_custom' => max(1, (int) ($creatorProfile['priority_tip_custom'] ?? 150)),
+            'max_live_duration_minutes' => max(5, (int) ($live['max_live_duration_minutes'] ?? ($this->settings()['live_max_duration_minutes'] ?? 30))),
+            'replay_expiration_days' => max(1, (int) ($live['replay_expiration_days'] ?? ($this->settings()['live_replay_expiration_days'] ?? 7))),
+        ]);
     }
 
     private function findCreatorProfile(int $creatorId): ?array
@@ -3470,6 +3870,29 @@ final class PlatformRepository
         }
 
         return null;
+    }
+
+    private function findConversationByPair(int $subscriberId, int $creatorId): ?array
+    {
+        foreach ($this->conversations() as $conversation) {
+            if ((int) ($conversation['subscriber_id'] ?? 0) === $subscriberId && (int) ($conversation['creator_id'] ?? 0) === $creatorId) {
+                return $conversation;
+            }
+        }
+
+        return null;
+    }
+
+    private function contentIsExpired(array $item): bool
+    {
+        $expiresAt = trim((string) ($item['expires_at'] ?? ''));
+        if ($expiresAt === '') {
+            return false;
+        }
+
+        $timestamp = strtotime($expiresAt);
+
+        return $timestamp !== false && $timestamp <= time();
     }
 
     private function activeSubscriptionsForSubscriber(int $subscriberId): array
@@ -3537,7 +3960,526 @@ final class PlatformRepository
         return false;
     }
 
-    private function chargeSubscriberAndCreditCreator(int $subscriberId, int $creatorId, int $amount, string $type, string $note): void
+    private function liveChatMessagesFor(int $liveId, int $limit = 20): array
+    {
+        $live = $this->findLiveById($liveId);
+        $messages = array_values(array_filter(
+            $this->liveMessages(),
+            static fn (array $message): bool => (int) ($message['live_id'] ?? 0) === $liveId
+        ));
+        $messages = $this->sortByDate($messages, 'created_at');
+        $messages = array_map(function (array $message): array {
+            $message['sender'] = $this->findUserById((int) ($message['sender_id'] ?? 0));
+
+            return $message;
+        }, $messages);
+        if ($live !== null) {
+            $messages = array_map(fn (array $message): array => $this->decorateLiveMessage($message, $live), $messages);
+        }
+        $messages = array_slice($messages, 0, max(1, $limit));
+
+        return array_reverse($messages);
+    }
+
+    private function liveTipTransactionsFor(array $live): array
+    {
+        $creatorId = (int) ($live['creator_id'] ?? 0);
+        $liveId = (int) ($live['id'] ?? 0);
+
+        if ($creatorId <= 0) {
+            return [];
+        }
+
+        $transactions = array_values(array_filter(
+            $this->walletTransactions(),
+            static function (array $transaction) use ($creatorId, $liveId): bool {
+                if ((string) ($transaction['type'] ?? '') !== 'tip' || (int) ($transaction['creator_id'] ?? 0) !== $creatorId) {
+                    return false;
+                }
+
+                $transactionLiveId = (int) ($transaction['live_id'] ?? 0);
+
+                return $liveId <= 0 || $transactionLiveId === 0 || $transactionLiveId === $liveId;
+            }
+        ));
+        $transactions = $this->sortByDate($transactions, 'created_at');
+
+        return array_map(function (array $transaction): array {
+            $transaction['sender'] = $this->findUserById((int) ($transaction['user_id'] ?? 0));
+
+            return $transaction;
+        }, $transactions);
+    }
+
+    private function liveEngagementData(array $live, int $tipLimit = 5, int $supporterLimit = 3): array
+    {
+        $tipTransactions = $this->liveTipTransactionsFor($live);
+        $supporters = [];
+
+        foreach ($tipTransactions as $transaction) {
+            $senderId = (int) ($transaction['sender']['id'] ?? 0);
+
+            if ($senderId === 0) {
+                continue;
+            }
+
+            if (! isset($supporters[$senderId])) {
+                $supporters[$senderId] = [
+                    'user' => $transaction['sender'],
+                    'amount' => 0,
+                ];
+            }
+
+            $supporters[$senderId]['amount'] += (int) ($transaction['amount'] ?? 0);
+        }
+
+        $supporters = array_values($supporters);
+        usort($supporters, static fn (array $left, array $right): int => ((int) ($right['amount'] ?? 0)) <=> ((int) ($left['amount'] ?? 0)));
+
+        return [
+            'recent_tips' => array_slice($tipTransactions, 0, max(1, $tipLimit)),
+            'top_supporters' => array_slice($supporters, 0, max(1, $supporterLimit)),
+        ];
+    }
+
+    private function sortCreatorLives(array $lives, string $bucket = 'scheduled'): array
+    {
+        usort($lives, function (array $left, array $right) use ($bucket): int {
+            $leftDate = (string) ($left['scheduled_for'] ?? '');
+            $rightDate = (string) ($right['scheduled_for'] ?? '');
+
+            if ($bucket === 'ended') {
+                $leftDate = (string) ($left['ended_at'] ?? $leftDate);
+                $rightDate = (string) ($right['ended_at'] ?? $rightDate);
+
+                return strcmp($rightDate, $leftDate);
+            }
+
+            if ($bucket === 'expired') {
+                return strcmp($rightDate, $leftDate);
+            }
+
+            $leftIsLive = (string) ($left['status'] ?? '') === 'live' ? 1 : 0;
+            $rightIsLive = (string) ($right['status'] ?? '') === 'live' ? 1 : 0;
+            if ($leftIsLive !== $rightIsLive) {
+                return $rightIsLive <=> $leftIsLive;
+            }
+
+            return strcmp($leftDate, $rightDate);
+        });
+
+        return $lives;
+    }
+
+    private function normalizeLiveDateTime(string $value, string $fallback = '+1 day'): string
+    {
+        $value = trim(str_replace('T', ' ', $value));
+        if ($value !== '') {
+            $timestamp = strtotime($value);
+            if ($timestamp !== false) {
+                return date('Y-m-d H:i:s', $timestamp);
+            }
+        }
+
+        return $fallback === 'now'
+            ? date('Y-m-d H:i:s')
+            : date('Y-m-d H:i:s', strtotime($fallback));
+    }
+
+    private function resolveLiveStatus(array $live): string
+    {
+        $status = (string) ($live['status'] ?? 'scheduled');
+        if ($status === 'live' || $status === 'ended') {
+            return $status;
+        }
+
+        $scheduledFor = strtotime((string) ($live['scheduled_for'] ?? ''));
+        $wasLive = (bool) ($live['was_live'] ?? false)
+            || trim((string) ($live['started_at'] ?? '')) !== ''
+            || trim((string) ($live['ended_at'] ?? '')) !== '';
+
+        if (! $wasLive && $scheduledFor !== false && $scheduledFor < time()) {
+            return 'expired';
+        }
+
+        return 'scheduled';
+    }
+
+    private function liveStatusBucket(string $status): string
+    {
+        return match ($status) {
+            'ended' => 'ended',
+            'expired' => 'expired',
+            default => 'scheduled',
+        };
+    }
+
+    private function sanitizeLiveChatAudience(string $value): string
+    {
+        return in_array($value, ['all', 'subscriber', 'off'], true) ? $value : 'all';
+    }
+
+    private function sanitizeReplayVisibility(string $value): string
+    {
+        return in_array($value, ['public', 'subscriber'], true) ? $value : 'subscriber';
+    }
+
+    private function normalizePriorityTipTiers(array $tiers): array
+    {
+        $normalized = array_values(array_filter(array_map(static fn (mixed $tier): int => max(1, (int) $tier), $tiers)));
+        $normalized = array_values(array_unique($normalized));
+        sort($normalized);
+
+        return $normalized !== [] ? $normalized : [1, 10, 25, 50, 100, 150];
+    }
+
+    private function normalizePriorityTipMessages(array $messages): array
+    {
+        $normalized = [];
+
+        foreach ($messages as $tier => $message) {
+            $tierValue = max(1, (int) $tier);
+            $text = trim((string) $message);
+            if ($text === '') {
+                continue;
+            }
+
+            $normalized[(string) $tierValue] = $text;
+        }
+
+        ksort($normalized, SORT_NUMERIC);
+
+        return $normalized;
+    }
+
+    private function priorityTipTiersForProfile(array $profile): array
+    {
+        $tiers = $profile['priority_tip_tiers'] ?? null;
+        if (is_array($tiers)) {
+            return $this->normalizePriorityTipTiers($tiers);
+        }
+
+        return [1, 10, 25, 50, 100, max(1, (int) ($profile['priority_tip_custom'] ?? 150))];
+    }
+
+    private function priorityTipTiersForCreator(int $creatorId): array
+    {
+        return $this->priorityTipTiersForProfile($this->findCreatorProfile($creatorId) ?? []);
+    }
+
+    private function priorityTipMessagesForProfile(array $profile): array
+    {
+        $messages = $profile['priority_tip_messages'] ?? [];
+
+        return is_array($messages) ? $this->normalizePriorityTipMessages($messages) : [];
+    }
+
+    private function priorityTipMessagesForCreator(int $creatorId): array
+    {
+        return $this->priorityTipMessagesForProfile($this->findCreatorProfile($creatorId) ?? []);
+    }
+
+    private function priorityTipTiersForLive(array $live): array
+    {
+        if (isset($live['priority_tip_tiers']) && is_array($live['priority_tip_tiers'])) {
+            return $this->normalizePriorityTipTiers($live['priority_tip_tiers']);
+        }
+
+        return $this->priorityTipTiersForCreator((int) ($live['creator_id'] ?? 0));
+    }
+
+    private function priorityTipMessagesForLive(array $live): array
+    {
+        if (isset($live['priority_tip_messages']) && is_array($live['priority_tip_messages'])) {
+            return $this->normalizePriorityTipMessages($live['priority_tip_messages']);
+        }
+
+        return $this->priorityTipMessagesForCreator((int) ($live['creator_id'] ?? 0));
+    }
+
+    private function priorityTipAlertTextForLive(array $live, int $tier, int $amount, int $subscriberId): string
+    {
+        $sender = $this->findUserById($subscriberId);
+        $senderName = trim((string) ($sender['name'] ?? 'Um assinante'));
+        $template = trim((string) ($this->priorityTipMessagesForLive($live)[(string) $tier] ?? ''));
+
+        if ($template === '') {
+            return $senderName . ' enviou uma mensagem em destaque.';
+        }
+
+        return strtr($template, [
+            '{nome}' => $senderName,
+            '{valor}' => luacoin_value($amount),
+            '{tier}' => (string) $tier,
+        ]);
+    }
+
+    private function canUserChatInLive(array $live, ?int $userId): bool
+    {
+        if (! (bool) ($this->settings()['live_chat_enabled'] ?? true) || ! (bool) ($live['chat_enabled'] ?? false)) {
+            return false;
+        }
+
+        $audience = $this->sanitizeLiveChatAudience((string) ($live['chat_audience'] ?? 'all'));
+        if ($audience === 'off' || $userId === null) {
+            return false;
+        }
+
+        $user = $this->findUserById($userId);
+        if (! $user || (string) ($user['status'] ?? 'active') !== 'active') {
+            return false;
+        }
+
+        if ((int) ($live['creator_id'] ?? 0) === $userId || (string) ($user['role'] ?? '') === 'admin') {
+            return true;
+        }
+
+        if ($audience === 'subscriber') {
+            return $this->activeSubscriptionFor($userId, (int) ($live['creator_id'] ?? 0)) !== null;
+        }
+
+        return true;
+    }
+
+    private function appendPriorityTipMessage(array $live, int $subscriberId, int $amount): void
+    {
+        $tiers = $this->priorityTipTiersForLive($live);
+        $matchedTier = 0;
+        foreach ($tiers as $tier) {
+            if ($amount >= $tier) {
+                $matchedTier = $tier;
+            }
+        }
+
+        if ($matchedTier <= 0) {
+            return;
+        }
+
+        $level = 1;
+        foreach ($tiers as $index => $tier) {
+            if ($tier === $matchedTier) {
+                $level = min(6, $index + 1);
+                break;
+            }
+        }
+
+        $messages = $this->liveMessages();
+        $messages[] = [
+            'id' => $this->store->nextId($messages),
+            'live_id' => (int) ($live['id'] ?? 0),
+            'sender_id' => $subscriberId,
+            'body' => 'enviou uma gorjeta em destaque.',
+            'alert_text' => $this->priorityTipAlertTextForLive($live, $matchedTier, $amount, $subscriberId),
+            'created_at' => date('Y-m-d H:i:s'),
+            'kind' => 'priority_tip',
+            'tip_amount' => $amount,
+            'highlight_tier' => $matchedTier,
+            'highlight_level' => $level,
+        ];
+        $this->save('live_messages', $messages);
+    }
+
+    private function decorateLiveMessage(array $message, array $live): array
+    {
+        $kind = (string) ($message['kind'] ?? 'chat');
+        if ($kind !== 'priority_tip') {
+            return $message + [
+                'is_highlighted' => false,
+                'highlight_theme' => [],
+            ];
+        }
+
+        $level = max(1, min(6, (int) ($message['highlight_level'] ?? 1)));
+        $theme = $this->liveMessageHighlightTheme($level);
+        $amount = max(1, (int) ($message['tip_amount'] ?? 0));
+        $tier = max(1, (int) ($message['highlight_tier'] ?? $amount));
+        $senderName = (string) ($message['sender']['name'] ?? 'Assinante');
+
+        return $message + [
+            'is_highlighted' => true,
+            'highlight_theme' => $theme,
+            'highlight_label' => 'Destaque ' . $tier,
+            'alert_text' => trim((string) ($message['alert_text'] ?? '')) !== '' ? (string) ($message['alert_text'] ?? '') : ($senderName . ' enviou uma mensagem em destaque.'),
+            'body' => $senderName . ' enviou ' . luacoin_value($amount) . ' LuaCoins em destaque no chat.',
+        ];
+    }
+
+    private function latestPriorityAlertForLive(int $liveId): ?array
+    {
+        $live = $this->findLiveById($liveId);
+        if (! $live) {
+            return null;
+        }
+
+        $alerts = array_values(array_filter(
+            $this->liveMessages(),
+            static fn (array $message): bool => (int) ($message['live_id'] ?? 0) === $liveId && (string) ($message['kind'] ?? '') === 'priority_tip'
+        ));
+
+        if ($alerts === []) {
+            return null;
+        }
+
+        usort($alerts, static fn (array $left, array $right): int => ((int) ($right['id'] ?? 0)) <=> ((int) ($left['id'] ?? 0)));
+        $latest = $this->decorateLiveMessage($alerts[0], $live);
+
+        return [
+            'id' => (int) ($latest['id'] ?? 0),
+            'body' => (string) ($latest['body'] ?? ''),
+            'alert_text' => (string) ($latest['alert_text'] ?? ''),
+            'sender_name' => (string) ($latest['sender']['name'] ?? 'Assinante'),
+            'tip_amount' => (int) ($latest['tip_amount'] ?? 0),
+            'created_at' => (string) ($latest['created_at'] ?? ''),
+        ];
+    }
+
+    private function liveMessageHighlightTheme(int $level): array
+    {
+        $themes = [
+            1 => ['background' => '#fff6cf', 'border' => '#fde68a', 'label_background' => '#f59e0b', 'label_text' => '#ffffff'],
+            2 => ['background' => '#ffe8cc', 'border' => '#fdba74', 'label_background' => '#f97316', 'label_text' => '#ffffff'],
+            3 => ['background' => '#ffd7e8', 'border' => '#f9a8d4', 'label_background' => '#db2777', 'label_text' => '#ffffff'],
+            4 => ['background' => '#f5d9ff', 'border' => '#d8b4fe', 'label_background' => '#a855f7', 'label_text' => '#ffffff'],
+            5 => ['background' => '#dbeafe', 'border' => '#93c5fd', 'label_background' => '#2563eb', 'label_text' => '#ffffff'],
+            6 => ['background' => '#dcfce7', 'border' => '#86efac', 'label_background' => '#16a34a', 'label_text' => '#ffffff'],
+        ];
+
+        return $themes[$level] ?? $themes[1];
+    }
+
+    private function calculateLiveDurationSeconds(string $startedAt, ?string $endedAt = null): int
+    {
+        $start = strtotime($startedAt);
+        $end = strtotime($endedAt ?? date('Y-m-d H:i:s'));
+
+        if ($start === false || $end === false) {
+            return 0;
+        }
+
+        return max(0, $end - $start);
+    }
+
+    private function formatLiveDuration(int $seconds): string
+    {
+        $minutes = intdiv(max(0, $seconds), 60);
+        $rest = max(0, $seconds) % 60;
+
+        return $minutes . ' minutos e ' . str_pad((string) $rest, 2, '0', STR_PAD_LEFT) . ' segundos';
+    }
+
+    private function maxLiveDurationSecondsForLive(array $live): int
+    {
+        return max(300, (int) ($live['max_live_duration_minutes'] ?? ($this->settings()['live_max_duration_minutes'] ?? 30)) * 60);
+    }
+
+    private function enforceLiveDurationLimits(): void
+    {
+        $streams = $this->liveStreams();
+        if ($streams === []) {
+            return;
+        }
+
+        $changed = false;
+        $now = date('Y-m-d H:i:s');
+        foreach ($streams as &$stream) {
+            if ((string) ($stream['status'] ?? '') !== 'live') {
+                continue;
+            }
+
+            $live = $this->findLiveById((int) ($stream['live_id'] ?? 0));
+            if (! $live) {
+                continue;
+            }
+
+            $durationSeconds = $this->calculateLiveDurationSeconds((string) ($stream['started_at'] ?? ($live['started_at'] ?? $now)), $now);
+            if ($durationSeconds < $this->maxLiveDurationSecondsForLive($live)) {
+                continue;
+            }
+
+            $stream['status'] = 'ended';
+            $stream['broadcaster_peer_id'] = '';
+            $stream['updated_at'] = $now;
+            $stream['stopped_at'] = $now;
+            $changed = true;
+
+            $this->updateLiveRuntimeFields((int) ($live['id'] ?? 0), [
+                'status' => 'ended',
+                'viewer_count' => 0,
+                'ended_at' => $now,
+                'duration_seconds' => $durationSeconds,
+                'recording_status' => 'processing',
+            ]);
+        }
+        unset($stream);
+
+        if ($changed) {
+            $this->save('live_streams', $streams);
+        }
+    }
+
+    private function upsertReplayContentFromLive(array &$live): array
+    {
+        $items = $this->contentItems();
+        $contentId = (int) ($live['replay_content_id'] ?? 0);
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+' . max(1, (int) ($live['replay_expiration_days'] ?? 7)) . ' days'));
+        $duration = (int) ($live['recording_duration_seconds'] ?? $live['duration_seconds'] ?? 0);
+        $payload = [
+            'title' => 'Replay - ' . trim((string) ($live['title'] ?? 'Live')),
+            'excerpt' => trim((string) ($live['description'] ?? 'Replay salvo automaticamente apos a transmissao.')),
+            'body' => trim((string) ($live['description'] ?? 'Replay salvo automaticamente apos a transmissao.')),
+            'visibility' => $this->sanitizeReplayVisibility((string) ($live['replay_visibility'] ?? 'subscriber')),
+            'status' => 'approved',
+            'kind' => 'video',
+            'duration' => $duration > 0 ? gmdate('H:i:s', $duration) : '',
+            'media_url' => trim((string) ($live['recording_url'] ?? '')),
+            'thumbnail_url' => trim((string) ($live['recording_thumbnail_url'] ?? $live['cover_url'] ?? '')),
+            'media_bytes' => max(0, (int) ($live['recording_bytes'] ?? 0)),
+            'thumbnail_bytes' => max(0, (int) ($live['recording_thumbnail_bytes'] ?? \public_media_file_bytes((string) ($live['recording_thumbnail_url'] ?? $live['cover_url'] ?? '')))),
+            'updated_at' => date('Y-m-d H:i:s'),
+            'source_live_id' => (int) ($live['id'] ?? 0),
+            'expires_at' => $expiresAt,
+            'auto_generated' => true,
+        ];
+
+        if ($contentId > 0) {
+            foreach ($items as &$item) {
+                if ((int) ($item['id'] ?? 0) !== $contentId) {
+                    continue;
+                }
+
+                $item = array_merge($item, $payload);
+                $this->save('content_items', $items);
+
+                return $item;
+            }
+            unset($item);
+        }
+
+        $item = [
+            'id' => $this->store->nextId($items),
+            'creator_id' => (int) ($live['creator_id'] ?? 0),
+            'created_at' => date('Y-m-d H:i:s'),
+            'saved_count' => 0,
+        ] + $payload;
+        $items[] = $item;
+        $this->save('content_items', $items);
+
+        $live['replay_content_id'] = (int) $item['id'];
+
+        return $item;
+    }
+
+    private function syncReplayContentWithLive(array $live): void
+    {
+        if ((int) ($live['replay_content_id'] ?? 0) <= 0) {
+            return;
+        }
+
+        $shadow = $live;
+        $this->upsertReplayContentFromLive($shadow);
+    }
+
+    private function chargeSubscriberAndCreditCreator(int $subscriberId, int $creatorId, int $amount, string $type, string $note, int $liveId = 0): void
     {
         $transactions = $this->walletTransactions();
         $feePercent = (int) ($this->settings()['platform_fee_percent'] ?? 20);
@@ -3551,6 +4493,7 @@ final class PlatformRepository
             'amount' => $amount,
             'note' => $note,
             'creator_id' => $creatorId,
+            'live_id' => max(0, $liveId),
             'created_at' => date('Y-m-d H:i:s'),
         ];
         $transactions[] = [
@@ -3561,10 +4504,24 @@ final class PlatformRepository
             'amount' => $net,
             'note' => 'Receita liquida de ' . $note,
             'subscriber_id' => $subscriberId,
+            'live_id' => max(0, $liveId),
             'created_at' => date('Y-m-d H:i:s'),
         ];
 
         $this->save('wallet_transactions', $transactions);
+    }
+
+    private function normalizeSyncPayStatus(string $status): string
+    {
+        $status = strtolower(trim($status));
+        $status = str_replace([' ', '-'], '_', $status);
+
+        return match ($status) {
+            'success', 'approved', 'authorized', 'paid', 'completed', 'confirmado', 'aprovado' => 'approved',
+            'waiting_for_approval', 'waiting_payment', 'waiting_for_payment', 'aguardando_pagamento', 'pending', 'created', 'processing', 'in_process', 'em_processamento' => 'pending',
+            'cancelled', 'canceled', 'expired', 'failed', 'rejected', 'denied', 'refunded', 'charged_back', 'recusado', 'expirado' => $status,
+            default => $status !== '' ? $status : 'pending',
+        };
     }
 
     private function transactionCountsForBalance(array $transaction): bool
@@ -3603,12 +4560,16 @@ final class PlatformRepository
         $normalized['luacoin_price_brl'] = max(0.01, (float) ($normalized['luacoin_price_brl'] ?? 0.07));
         $normalized['withdraw_min_luacoins'] = max(1, (int) ($normalized['withdraw_min_luacoins'] ?? 50));
         $normalized['withdraw_max_luacoins'] = max($normalized['withdraw_min_luacoins'], (int) ($normalized['withdraw_max_luacoins'] ?? 25000));
+        $normalized['live_replay_expiration_days'] = max(1, (int) ($normalized['live_replay_expiration_days'] ?? 7));
+        $normalized['live_max_duration_minutes'] = max(5, (int) ($normalized['live_max_duration_minutes'] ?? 30));
         $normalized['site_base_url'] = rtrim(trim((string) ($normalized['site_base_url'] ?? '')), '/');
-        $normalized['mercadopago_access_token'] = trim((string) ($normalized['mercadopago_access_token'] ?? ''));
-        $normalized['mercadopago_public_key'] = trim((string) ($normalized['mercadopago_public_key'] ?? ''));
-        $normalized['mercadopago_webhook_secret'] = trim((string) ($normalized['mercadopago_webhook_secret'] ?? ''));
-        $normalized['mercadopago_statement_descriptor'] = trim((string) ($normalized['mercadopago_statement_descriptor'] ?? ''));
-        $normalized['mercadopago_webhook_url'] = webhook_url($this->config, $normalized);
+        $normalized['syncpay_api_base_url'] = rtrim(trim((string) ($normalized['syncpay_api_base_url'] ?? 'https://api.syncpay.pro')), '/');
+        $normalized['syncpay_client_id'] = trim((string) ($normalized['syncpay_client_id'] ?? ''));
+        $normalized['syncpay_client_secret'] = trim((string) ($normalized['syncpay_client_secret'] ?? ''));
+        $normalized['syncpay_api_key'] = trim((string) ($normalized['syncpay_api_key'] ?? ''));
+        $normalized['syncpay_webhook_token'] = trim((string) ($normalized['syncpay_webhook_token'] ?? ''));
+        $normalized['syncpay_pix_expires_in_days'] = max(1, (int) ($normalized['syncpay_pix_expires_in_days'] ?? 2));
+        $normalized['syncpay_webhook_url'] = webhook_url($this->config, $normalized, '/webhook/syncpay');
         $normalized['token_price_brl'] = $normalized['luacoin_price_brl'];
         $normalized['withdraw_min_tokens'] = $normalized['withdraw_min_luacoins'];
         $normalized['withdraw_max_tokens'] = $normalized['withdraw_max_luacoins'];
@@ -3623,6 +4584,8 @@ final class PlatformRepository
             'luacoin_price_brl' => 0.07,
             'withdraw_min_luacoins' => 50,
             'withdraw_max_luacoins' => 25000,
+            'live_replay_expiration_days' => 7,
+            'live_max_duration_minutes' => 30,
             'maintenance_mode' => false,
             'slow_mode_seconds' => 3,
             'auto_moderation' => true,
@@ -3631,10 +4594,12 @@ final class PlatformRepository
             'theme' => 'lunar-metamorphosis',
             'announcement' => 'Noite especial com criadores em destaque e novas colecoes em aprovacao.',
             'site_base_url' => trim((string) ($this->config['app']['base_url'] ?? '')),
-            'mercadopago_access_token' => '',
-            'mercadopago_public_key' => '',
-            'mercadopago_webhook_secret' => '',
-            'mercadopago_statement_descriptor' => 'SEXYLUA',
+            'syncpay_api_base_url' => 'https://api.syncpay.pro',
+            'syncpay_client_id' => '',
+            'syncpay_client_secret' => '',
+            'syncpay_api_key' => '',
+            'syncpay_webhook_token' => '',
+            'syncpay_pix_expires_in_days' => 2,
         ];
     }
 
@@ -3651,6 +4616,7 @@ final class PlatformRepository
 
             return $conversation + [
                 'creator' => $creator,
+                'latest_message' => $lastMessage,
                 'last_message' => $lastMessage,
             ];
         }, $rows);
@@ -3658,6 +4624,7 @@ final class PlatformRepository
 
     private function cleanupLiveRtcData(): void
     {
+        $this->enforceLiveDurationLimits();
         $now = time();
         $presence = $this->livePresence();
         $freshPresence = array_values(array_filter(
@@ -3793,6 +4760,8 @@ final class PlatformRepository
             'broadcaster_peer_id' => $broadcasterPeerId,
             'broadcaster_online' => $status === 'live' && $broadcaster !== null,
             'viewer_count' => $viewerCount,
+            'started_at' => (string) ($stream['started_at'] ?? $live['started_at'] ?? ''),
+            'stopped_at' => (string) ($stream['stopped_at'] ?? $live['ended_at'] ?? ''),
             'stream_mode' => (string) ($stream['stream_mode'] ?? $live['stream_mode'] ?? 'segment_queue'),
             'max_bitrate_kbps' => (int) ($stream['max_bitrate_kbps'] ?? $live['max_bitrate_kbps'] ?? self::LIVE_DEFAULT_BITRATE_KBPS),
             'video_width' => (int) ($stream['video_width'] ?? $live['video_width'] ?? 960),
@@ -3947,6 +4916,78 @@ final class PlatformRepository
         $path = public_path(ltrim($url, '/'));
         if (is_file($path)) {
             @unlink($path);
+        }
+    }
+
+    private function creatorContentStorageLimitBytes(): int
+    {
+        return self::CREATOR_CONTENT_STORAGE_LIMIT_BYTES;
+    }
+
+    private function creatorContentUsageBytes(int $creatorId, int $excludeContentId = 0): int
+    {
+        $total = 0;
+
+        foreach ($this->contentItems() as $item) {
+            if ((int) ($item['creator_id'] ?? 0) !== $creatorId) {
+                continue;
+            }
+
+            if ($excludeContentId > 0 && (int) ($item['id'] ?? 0) === $excludeContentId) {
+                continue;
+            }
+
+            $total += $this->contentStorageBytes($item);
+        }
+
+        return $total;
+    }
+
+    private function contentStorageBytes(array $item): int
+    {
+        $mediaFileBytes = \public_media_file_bytes((string) ($item['media_url'] ?? ''));
+        $mediaBytes = $mediaFileBytes > 0 ? $mediaFileBytes : max(0, (int) ($item['media_bytes'] ?? 0));
+
+        $thumbnailFileBytes = \public_media_file_bytes((string) ($item['thumbnail_url'] ?? ''));
+        $thumbnailBytes = $thumbnailFileBytes > 0 ? $thumbnailFileBytes : max(0, (int) ($item['thumbnail_bytes'] ?? 0));
+
+        $textBytes = strlen((string) ($item['title'] ?? '') . (string) ($item['excerpt'] ?? '') . (string) ($item['body'] ?? ''));
+
+        return $mediaBytes + $thumbnailBytes + $textBytes;
+    }
+
+    private function clearReplayReferenceForContent(int $creatorId, array $content): void
+    {
+        $sourceLiveId = (int) ($content['source_live_id'] ?? 0);
+
+        if ($sourceLiveId <= 0) {
+            return;
+        }
+
+        $lives = $this->liveSessions();
+        $changed = false;
+
+        foreach ($lives as &$live) {
+            if ((int) ($live['id'] ?? 0) !== $sourceLiveId || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+                continue;
+            }
+
+            $this->deletePublicMediaFile((string) ($live['recording_url'] ?? ''));
+            $this->deletePublicMediaFile((string) ($live['recording_thumbnail_url'] ?? ''));
+            $live['replay_content_id'] = 0;
+            $live['recording_enabled'] = false;
+            $live['recording_status'] = 'deleted';
+            $live['recording_url'] = '';
+            $live['recording_thumbnail_url'] = '';
+            $live['recording_bytes'] = 0;
+            $live['recording_thumbnail_bytes'] = 0;
+            $changed = true;
+            break;
+        }
+        unset($live);
+
+        if ($changed) {
+            $this->save('live_sessions', $lives);
         }
     }
 

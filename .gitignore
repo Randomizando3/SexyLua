@@ -9,6 +9,9 @@ node_modules/
 *.tmp
 *.cache
 cookies_*.txt
+storage/*.txt
+storage/*.log
+storage/tmp/
 Visual.zip
 storage/data/*.json
 !storage/data/.gitkeep

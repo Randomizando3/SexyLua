@@ -244,10 +244,6 @@ $admin = $app->auth->user() ?? [];
                                         <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Telegram</span>
                                         <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="telegram" type="text" value="<?= e((string) ($user['telegram'] ?? '')) ?>">
                                     </label>
-                                    <label class="block space-y-2 md:col-span-2">
-                                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Stream key</span>
-                                        <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="stream_key" type="text" value="<?= e((string) ($user['stream_key'] ?? '')) ?>">
-                                    </label>
                                 </div>
                             </div>
                         <?php endif; ?>
@@ -393,10 +389,6 @@ $admin = $app->auth->user() ?? [];
                         <label class="block space-y-2">
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Telegram</span>
                             <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="telegram" type="text">
-                        </label>
-                        <label class="block space-y-2 md:col-span-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Stream key</span>
-                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="stream_key" type="text">
                         </label>
                     </div>
                 </div>

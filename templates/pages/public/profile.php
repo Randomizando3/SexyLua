@@ -1,279 +1,673 @@
-﻿<!DOCTYPE html>
+<?php
 
-<html lang="pt-BR"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,700;0,800;1,800&amp;family=Manrope:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              "surface-container": "#efedef",
-              "secondary": "#ab2c5d",
-              "inverse-surface": "#303032",
-              "surface-bright": "#fbf9fb",
-              "surface-container-highest": "#e3e2e4",
-              "secondary-container": "#fd6c9c",
-              "on-error-container": "#93000a",
-              "on-tertiary-fixed": "#280056",
-              "on-primary": "#ffffff",
-              "tertiary-fixed-dim": "#d7baff",
-              "on-secondary-container": "#6e0034",
-              "on-surface-variant": "#5a4044",
-              "on-tertiary-container": "#fcf3ff",
-              "on-secondary": "#ffffff",
-              "on-background": "#1b1c1d",
-              "surface-container-high": "#e9e7e9",
-              "surface": "#fbf9fb",
-              "on-secondary-fixed-variant": "#8b0e45",
-              "inverse-primary": "#ffb1c5",
-              "on-primary-fixed": "#3f001a",
-              "surface-variant": "#e3e2e4",
-              "on-tertiary-fixed-variant": "#5a2a9c",
-              "on-secondary-fixed": "#3f001b",
-              "error-container": "#ffdad6",
-              "tertiary-fixed": "#eddcff",
-              "on-surface": "#1b1c1d",
-              "tertiary": "#6c3eaf",
-              "error": "#ba1a1a",
-              "outline": "#8e6f74",
-              "on-error": "#ffffff",
-              "tertiary-container": "#8658ca",
-              "surface-tint": "#b41b5c",
-              "on-primary-container": "#fff2f4",
-              "inverse-on-surface": "#f2f0f2",
-              "primary-fixed": "#ffd9e1",
-              "surface-dim": "#dbd9db",
-              "surface-container-low": "#f5f3f5",
-              "primary-container": "#cc326e",
-              "primary-fixed-dim": "#ffb1c5",
-              "background": "#fbf9fb",
-              "surface-container-lowest": "#ffffff",
-              "on-tertiary": "#ffffff",
-              "secondary-fixed": "#ffd9e1",
-              "primary": "#ab1155",
-              "secondary-fixed-dim": "#ffb1c5",
-              "outline-variant": "#e3bdc3",
-              "on-primary-fixed-variant": "#8f0045"
-            },
-            fontFamily: {
-              "headline": ["Plus Jakarta Sans"],
-              "body": ["Manrope"],
-              "label": ["Manrope"]
-            },
-            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
-          },
-        },
-      }
-    </script>
-<style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+declare(strict_types=1);
+
+$currentUser = $app->auth->user();
+$creator = $data['creator'] ?? [];
+$plans = $data['plans'] ?? [];
+$content = $data['content'] ?? [];
+$relatedCreators = $data['related_creators'] ?? [];
+$isFavorite = (bool) ($data['is_favorite'] ?? false);
+$isSubscribed = (bool) ($data['is_subscribed'] ?? false);
+$creatorId = (int) ($creator['id'] ?? 0);
+$cover = media_url((string) ($creator['cover_url'] ?? ''));
+$avatar = media_url((string) ($creator['avatar_url'] ?? ''));
+$profileUrl = path_with_query('/profile', ['id' => $creatorId]);
+$primaryPlan = $plans[0] ?? null;
+$canInteractAsSubscriber = ($currentUser['role'] ?? '') === 'subscriber';
+$requestedContentId = isset($_GET['content']) ? (int) $_GET['content'] : 0;
+$selectedContentPayload = null;
+$selectedLockedPayload = null;
+$viewerId = (int) ($currentUser['id'] ?? 0);
+$viewerRole = (string) ($currentUser['role'] ?? '');
+$canAccessContent = static function (array $item) use ($creatorId, $viewerId, $viewerRole, $isSubscribed): bool {
+    $visibility = (string) ($item['visibility'] ?? 'public');
+    if ($visibility === 'public') {
+        return true;
+    }
+
+    if ($viewerRole === 'admin') {
+        return true;
+    }
+
+    if ($viewerRole === 'creator' && $viewerId === $creatorId) {
+        return true;
+    }
+
+    return $isSubscribed;
+};
+$lockedMessageForContent = static function (array $item): string {
+    $visibility = (string) ($item['visibility'] ?? 'subscriber');
+    return $visibility === 'premium'
+        ? 'Este conteúdo exige um plano ativo para ser desbloqueado.'
+        : 'Este conteúdo é exclusivo para assinantes.';
+};
+
+if ($requestedContentId > 0) {
+    foreach ($content as $candidate) {
+        if ((int) ($candidate['id'] ?? 0) !== $requestedContentId) {
+            continue;
         }
-        .lunar-blur {
-            backdrop-filter: blur(24px);
+
+        $candidatePlan = is_array($candidate['plan'] ?? null) ? $candidate['plan'] : null;
+        if ($canAccessContent($candidate)) {
+            $selectedContentPayload = [
+                'id' => (int) ($candidate['id'] ?? 0),
+                'title' => (string) ($candidate['title'] ?? 'Conteúdo'),
+                'kind' => (string) ($candidate['kind'] ?? 'gallery'),
+                'thumbnail_url' => media_url((string) ($candidate['thumbnail_url'] ?? $candidate['media_url'] ?? '')),
+                'media_url' => media_url((string) ($candidate['media_url'] ?? '')),
+                'excerpt' => (string) ($candidate['excerpt'] ?? ''),
+                'body' => (string) ($candidate['body'] ?? ''),
+                'duration' => (string) ($candidate['duration'] ?? ''),
+                'visibility' => (string) ($candidate['visibility'] ?? 'public'),
+                'plan_name' => (string) ($candidatePlan['name'] ?? ''),
+            ];
+        } else {
+            $selectedLockedPayload = [
+                'id' => (int) ($candidate['id'] ?? 0),
+                'title' => (string) ($candidate['title'] ?? 'Conteúdo exclusivo'),
+                'visibility' => (string) ($candidate['visibility'] ?? 'subscriber'),
+                'plan_name' => (string) ($candidatePlan['name'] ?? ''),
+                'message' => $lockedMessageForContent($candidate),
+            ];
         }
-        body {
-            font-family: 'Manrope', sans-serif;
-            background-color: #fbf9fb;
-        }
+        break;
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title><?= e((string) ($creator['name'] ?? 'Perfil')) ?> - SexyLua</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        body { background: #fbf9fb; color: #1b1c1d; font-family: Manrope, sans-serif; }
+        .headline { font-family: "Plus Jakarta Sans", sans-serif; }
+        .signature-glow { background: linear-gradient(135deg, #D81B60 0%, #ab1155 100%); }
+        .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; }
     </style>
 </head>
-<body class="text-on-background selection:bg-primary-fixed selection:text-on-primary-fixed">
-<!-- TopNavBar -->
-<nav class="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-20 bg-[#D81B60] shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-<a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
-<div class="hidden md:flex gap-8 items-center">
-<a class="font-['Plus_Jakarta_Sans'] tracking-wide uppercase text-sm font-bold text-white/80 hover:text-white transition-colors" href="#">Live Cam</a>
-<a class="font-['Plus_Jakarta_Sans'] tracking-wide uppercase text-sm font-bold text-white/80 hover:text-white transition-colors" href="#">Explorar</a>
-<a class="font-['Plus_Jakarta_Sans'] tracking-wide uppercase text-sm font-bold text-white border-b-2 border-white pb-1" href="#">Assinaturas</a>
-<a class="font-['Plus_Jakarta_Sans'] tracking-wide uppercase text-sm font-bold text-white/80 hover:text-white transition-colors" href="#">Mensagens</a>
-</div>
-<div class="flex gap-4 items-center">
-<button class="font-['Plus_Jakarta_Sans'] tracking-wide uppercase text-sm font-bold text-white/80 hover:scale-105 transition-transform duration-200">Login</button>
-<button class="bg-white text-primary px-6 py-2 rounded-full font-['Plus_Jakarta_Sans'] tracking-wide uppercase text-sm font-bold hover:scale-105 transition-transform duration-200">Registro</button>
-</div>
-</nav>
-<main class="pt-20 min-h-screen">
-<!-- Hero Banner Section -->
-<div class="relative w-full h-[460px] bg-surface-container-high overflow-hidden">
-<img class="w-full h-full object-cover" data-alt="Abstract cinematic pink and purple moonlight landscape" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtH6SGji4tKk0jH3Z-XYQ_FG4Z6glEPaFfksO0EPrhPINihx4CzLBw_9GCsABWLmwYV_O1Xl78CqHCczDRiXCf7ysnG1iP0drdTT1DVz_WxY2vss3ksK374ARdaKaqq3-4dMHlKlwJpXfc50HXAR7p0FNHgzSRwMnIEX00Aumv2MCOV1Eb4mOBXWw2rNsW4tl5w8Jz97Mfuh9j4EafY_cBFlnQscSP61BxBwRBycv7k2lqoswGquOahJI8H-enZ0TAb_d5Y4Jl8Aw"/>
-<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
-<!-- Floating Moon Elements (Background Decor) -->
-<div class="absolute top-10 right-20 w-32 h-32 bg-primary/10 rounded-full blur-3xl"></div>
-<div class="absolute bottom-20 left-10 w-48 h-48 bg-secondary/5 rounded-full blur-2xl"></div>
-</div>
-<!-- Profile Header Area -->
-<div class="max-w-7xl mx-auto px-8 -mt-32 relative z-10">
-<div class="flex flex-col md:flex-row items-end gap-8 mb-12">
-<!-- Avatar -->
-<div class="relative">
-<div class="p-1 bg-background rounded-full">
-<img class="w-48 h-48 rounded-full border-4 border-surface-container-lowest shadow-xl object-cover" data-alt="Close up portrait of Maria Silva smiling softly" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDuJPAxgz4VR7T8ohj6geBS0a1uNpV8LRXK3OSA3i_P18dqd0vgDXDnLprgG6sjjivJK_kXbLqEQtHYxRivkzR3xqmbMD7b2iExze_z4ohs_tFBSxx-TFy4gbPlH2cejYwsJIS3PUtwV_ZSY1ZP-X88Sbn-gr1by8IZAvycVJg44OvdGjQKYAktRMHqHvu86RJ4VOK8iMe0gJkk93ITWkfEHn2Jcj92hV2V9yC4hWTcYcRtAcPk8YfaYTgWxlGHEHKAlZSqspqRvgw"/>
-</div>
-<div class="absolute bottom-4 right-4 bg-green-500 w-6 h-6 rounded-full border-4 border-background"></div>
-</div>
-<!-- Info -->
-<div class="flex-1 pb-4">
-<h1 class="font-headline text-5xl font-extrabold tracking-tight text-on-surface mb-2">Maria Silva</h1>
-<p class="font-body text-lg text-on-surface-variant flex items-center gap-2">
-                        @maria_lunar 
-                        <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">verified</span>
-</p>
-</div>
-<!-- Actions -->
-<div class="flex gap-4 pb-4">
-<button class="p-4 rounded-full bg-surface-container-low text-on-surface hover:scale-105 transition-all">
-<span class="material-symbols-outlined">share</span>
-</button>
-<button class="bg-primary text-on-primary px-10 py-4 rounded-full font-headline font-bold text-lg hover:bg-primary-container hover:scale-105 transition-all shadow-lg">
-                        Assinar Agora
-                    </button>
-</div>
-</div>
-<!-- Bento Layout Content -->
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-20">
-<!-- Main Feed Area (8 columns) -->
-<div class="lg:col-span-8 space-y-8">
-<!-- Bio Card -->
-<div class="bg-surface-container-lowest p-10 rounded-lg shadow-sm">
-<h2 class="font-headline text-2xl font-bold mb-6 text-primary flex items-center gap-2">
-<span class="material-symbols-outlined">nightlight</span> O Despertar Lunar
-                        </h2>
-<p class="font-body text-xl leading-relaxed text-on-surface-variant mb-6 italic">
-                            "Bem-vindo ao meu santuário privado. Aqui, as fases da lua ditam o ritmo dos nossos segredos. Sou a Maria, e convido você a explorar o que acontece quando as luzes se apagam e o desejo floresce."
-                        </p>
-<div class="flex gap-4 flex-wrap">
-<span class="px-4 py-2 bg-surface-container-low rounded-full text-sm font-medium text-on-surface-variant">#Exclusivo</span>
-<span class="px-4 py-2 bg-surface-container-low rounded-full text-sm font-medium text-on-surface-variant">#Sensual</span>
-<span class="px-4 py-2 bg-surface-container-low rounded-full text-sm font-medium text-on-surface-variant">#SemFiltro</span>
-</div>
-</div>
-<!-- Content Grid -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-<!-- Locked Content Card 1 -->
-<div class="group relative aspect-[3/4] rounded-lg overflow-hidden bg-surface-container-highest">
-<img class="w-full h-full object-cover blur-xl opacity-50 group-hover:scale-110 transition-transform duration-700" data-alt="Blurred artistic silhouette of a woman" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDR2f0TWMQXavdA-EFX7J5yfUZJj5JOyyD866cmH9t7wQnkt94zmqeaQXPPASQU2VsVowl5esCJNyfJh-QQKx1jeriWdhFkuBpjoBiP31uB8Sk8GCpDYg5Cz6dfcXHWd47FRrDyz7fvbwbWx5Xnw19Z3-OfivDNBrVdNZ3-sPw9g69c_3KD5IcVQLULtbJBUdw17Z0YdxSL43RnNX2BbqdmnsYI0RmcXqFBwwVVGPvu8bIo1WQTxYJXbCCFrfJ3fWREbha6WcVkYjs"/>
-<div class="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-8 text-center">
-<span class="material-symbols-outlined text-white text-5xl mb-4" style="font-variation-settings: 'FILL' 1;">lock</span>
-<h3 class="text-white font-headline font-bold text-xl mb-2">Conteúdo Proibido</h3>
-<p class="text-white/80 text-sm mb-6">Assine para me ver sem segredos e descobrir o que preparei nesta noite de lua cheia.</p>
-<button class="bg-white text-primary px-6 py-2 rounded-full font-bold text-sm uppercase tracking-wider">Desbloquear</button>
-</div>
-<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-tighter">Premium</div>
-</div>
-<!-- Locked Content Card 2 -->
-<div class="group relative aspect-[3/4] rounded-lg overflow-hidden bg-surface-container-highest">
-<img class="w-full h-full object-cover blur-md opacity-40 group-hover:scale-110 transition-transform duration-700" data-alt="Abstract blurred textures of satin and skin" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3qlvGh7lGHxvPIWwJvRUeJBvoXaqLmGgqf3aknQ2bQTSUdx3OVbHJVyO2yTkZ7tQ_WffCGjJBoOsFDu3rmEho_XomZZUety1auUHHSeVClkRYr0orXkclf95TgNXvMooXpnbQ97LpFbXVHdp8anbv3IPR4Qc9T_SHM9DhxCUmpZTZkTjrzIu2JlL6nLEzm6T3os-q7X4RAiXK7yP1v_VXjCzFkWQfLuRQ5nl4TVI2VNpVnjelppN4ghYBBAimrE8p7dMi6HtuL8k"/>
-<div class="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-8 text-center">
-<span class="material-symbols-outlined text-white text-5xl mb-4" style="font-variation-settings: 'FILL' 1;">movie</span>
-<h3 class="text-white font-headline font-bold text-xl mb-2">Bastidores Lunares</h3>
-<p class="text-white/80 text-sm mb-6">Um vídeo íntimo de 5 minutos sobre minha última sessão de fotos editorial.</p>
-<button class="bg-white text-primary px-6 py-2 rounded-full font-bold text-sm uppercase tracking-wider">Ver Vídeo</button>
-</div>
-</div>
-<!-- Locked Content Card 3 -->
-<div class="group relative aspect-square md:col-span-2 rounded-lg overflow-hidden bg-surface-container-highest">
-<img class="w-full h-full object-cover blur-2xl opacity-30" data-alt="Very blurred artistic photo of a model in red lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADG7X7kXHb5YrKdVsTVtpHH1qczWuWK-LVVIHPFheqcPkcRZIgYu7oO-yFP9quPz-H3BEc_3FfvLgBIa4_jzUCSVFxRhkKgBZANtMLCmR_69G_cKGLsIKQb9hM_NNEV__tBWeaYc5I05dg1cD86pGA99b9HXs35auobwWkJ-BGUUxadX_Is6cTyXmgpg4tIuYdJcEjxgVSwJBCRV50bHFouiJaapA-z46bg0ByCVwpWq6UzjXMUfDtkgOCkqJBg2bm6N5szTHg_gE"/>
-<div class="absolute inset-0 bg-gradient-to-tr from-primary/60 to-transparent flex flex-col items-center justify-center p-12 text-center">
-<div class="bg-white/10 lunar-blur p-8 rounded-xl border border-white/20">
-<span class="material-symbols-outlined text-white text-6xl mb-4" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
-<h3 class="text-white font-headline font-extrabold text-3xl mb-4 italic">Coleção Eclipse</h3>
-<p class="text-white/90 text-lg mb-8 max-w-md mx-auto">24 fotos em alta definição capturando a metamorfose mais intensa da minha carreira.</p>
-<button class="bg-primary-container text-white px-10 py-4 rounded-full font-bold text-lg hover:scale-105 transition-all shadow-xl">Assine para Ver</button>
-</div>
-</div>
-</div>
-</div>
-</div>
-<!-- Sidebar Area (4 columns) -->
-<div class="lg:col-span-4 space-y-8">
-<!-- Metrics Card -->
-<div class="bg-surface-container-low p-8 rounded-lg">
-<h3 class="font-headline text-lg font-bold mb-6 text-on-surface uppercase tracking-widest">Métricas Lunares</h3>
-<div class="grid grid-cols-2 gap-4">
-<div class="bg-surface-container-lowest p-4 rounded-md">
-<p class="text-xs text-on-surface-variant uppercase font-bold mb-1 tracking-tight">Fotos</p>
-<p class="text-2xl font-headline font-black text-primary">142</p>
-</div>
-<div class="bg-surface-container-lowest p-4 rounded-md">
-<p class="text-xs text-on-surface-variant uppercase font-bold mb-1 tracking-tight">Vídeos</p>
-<p class="text-2xl font-headline font-black text-primary">38</p>
-</div>
-<div class="bg-surface-container-lowest p-4 rounded-md">
-<p class="text-xs text-on-surface-variant uppercase font-bold mb-1 tracking-tight">Likes</p>
-<p class="text-2xl font-headline font-black text-primary">12.4k</p>
-</div>
-<div class="bg-surface-container-lowest p-4 rounded-md">
-<p class="text-xs text-on-surface-variant uppercase font-bold mb-1 tracking-tight">Fãs</p>
-<p class="text-2xl font-headline font-black text-primary">850</p>
-</div>
-</div>
-</div>
-<!-- Mood Card -->
-<div class="bg-primary p-8 rounded-lg text-on-primary relative overflow-hidden">
-<div class="relative z-10">
-<h3 class="font-headline text-lg font-bold mb-4 uppercase tracking-widest">Lunar Mood</h3>
-<div class="flex items-center gap-4 mb-4">
-<span class="material-symbols-outlined text-4xl">brightness_2</span>
-<div>
-<p class="font-bold text-xl italic">Crescente e Ousada</p>
-<p class="text-sm text-white/80">Disponível para chat privado até as 02:00</p>
-</div>
-</div>
-<button class="w-full bg-white text-primary py-3 rounded-full font-bold uppercase text-sm tracking-widest hover:bg-on-primary-container transition-colors">
-                                Enviar Mensagem
-                            </button>
-</div>
-<div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full"></div>
-</div>
-<!-- Moon Phase Visualizer -->
-<div class="bg-surface-container-lowest p-8 rounded-lg shadow-sm">
-<h3 class="font-headline text-sm font-bold mb-6 text-on-surface-variant uppercase tracking-widest">Fase da Lua Atual</h3>
-<div class="flex justify-between items-center px-2">
-<div class="flex flex-col items-center gap-2 opacity-30">
-<span class="material-symbols-outlined text-2xl">circle</span>
-<span class="text-[10px] font-bold">Nova</span>
-</div>
-<div class="flex flex-col items-center gap-2">
-<span class="material-symbols-outlined text-4xl text-primary" style="font-variation-settings: 'FILL' 1;">brightness_3</span>
-<span class="text-[10px] font-bold text-primary">Crescente</span>
-</div>
-<div class="flex flex-col items-center gap-2 opacity-30">
-<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">circle</span>
-<span class="text-[10px] font-bold">Cheia</span>
-</div>
-<div class="flex flex-col items-center gap-2 opacity-30">
-<span class="material-symbols-outlined text-2xl">brightness_2</span>
-<span class="text-[10px] font-bold">Minguante</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</main>
-<!-- Footer -->
-<footer class="w-full flex flex-col items-center gap-6 px-10 py-12 bg-[#D81B60] text-white">
-<?= brand_logo_white('h-8 w-auto') ?>
-<div class="flex gap-8">
-<a class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70 hover:text-white transition-all duration-300" href="/terms">Termos</a>
-<a class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70 hover:text-white transition-all duration-300" href="/privacy">Privacidade</a>
-<a class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70 hover:text-white transition-all duration-300" href="/help">Ajuda</a>
-<a class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70 hover:text-white transition-all duration-300" href="#">Carreiras</a>
-</div>
-<div class="font-['Manrope'] text-xs tracking-widest uppercase text-white/70">
-            © 2024 SexyLua. The Lunar Metamorphosis.
+<body>
+<nav class="fixed top-0 z-50 flex h-20 w-full items-center justify-between bg-[#D81B60] px-8 text-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
+    <div class="flex items-center gap-12">
+        <a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
+        <div class="hidden items-center gap-8 md:flex">
+            <a class="text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/">Home</a>
+            <a class="text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/explore">Explorar</a>
         </div>
+    </div>
+    <div class="flex items-center gap-4">
+        <?php if ($currentUser): ?>
+            <a class="rounded-full border border-white/20 px-6 py-2 text-sm font-bold uppercase tracking-widest" href="<?= e(($currentUser['role'] ?? '') === 'creator' ? '/creator' : (($currentUser['role'] ?? '') === 'admin' ? '/admin' : '/subscriber')) ?>">Painel</a>
+            <form action="/logout" method="post">
+                <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                <button class="rounded-full bg-white/10 px-6 py-2 text-sm font-bold uppercase tracking-widest text-white" type="submit">Sair</button>
+            </form>
+        <?php else: ?>
+            <a class="rounded-full px-6 py-2 text-sm font-bold uppercase tracking-widest text-white transition-transform hover:scale-105" href="/login">Login</a>
+            <a class="rounded-full bg-white px-6 py-2 text-sm font-bold uppercase tracking-widest text-[#ab1155] shadow-lg transition-transform hover:scale-105" href="/register">Registro</a>
+        <?php endif; ?>
+    </div>
+</nav>
+
+<main class="pt-20">
+    <div class="relative z-0 h-[210px] overflow-hidden bg-surface-container-high md:h-[240px] lg:h-[260px]">
+        <?php if ($cover !== ''): ?>
+            <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-full w-full object-cover" src="<?= e($cover) ?>">
+        <?php else: ?>
+            <div class="signature-glow flex h-full w-full items-center justify-center">
+                <span class="headline text-5xl font-extrabold text-white"><?= e((string) ($creator['name'] ?? 'Criador')) ?></span>
+            </div>
+        <?php endif; ?>
+        <div class="absolute inset-0 z-10 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
+    </div>
+
+    <div class="relative z-20 mx-auto max-w-7xl px-8">
+        <div class="-mt-4 mb-16 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            <div class="flex flex-col items-center gap-5 text-center md:flex-row md:items-center md:text-left">
+                <div class="relative z-30 rounded-full bg-white p-1 shadow-xl">
+                    <?php if ($avatar !== ''): ?>
+                        <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-44 w-44 rounded-full object-cover" src="<?= e($avatar) ?>">
+                    <?php else: ?>
+                        <div class="signature-glow flex h-44 w-44 items-center justify-center rounded-full text-4xl font-extrabold text-white"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
+                    <?php endif; ?>
+                </div>
+                <div class="space-y-1 pt-1 md:pt-0">
+                    <h1 class="headline text-5xl font-extrabold tracking-tight"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h1>
+                    <p class="text-lg text-slate-500">@<?= e((string) ($creator['slug'] ?? 'sexylua')) ?></p>
+                    <p class="max-w-2xl text-slate-700"><?= e((string) ($creator['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap justify-center gap-3 pb-4 lg:justify-end">
+                <?php if ($canInteractAsSubscriber): ?>
+                    <form action="/subscriber/favorites/toggle" method="post">
+                        <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                        <input name="creator_id" type="hidden" value="<?= e((string) $creatorId) ?>">
+                        <input name="redirect" type="hidden" value="<?= e($profileUrl) ?>">
+                        <button class="inline-flex h-12 w-12 items-center justify-center rounded-full border <?= $isFavorite ? 'border-amber-300 bg-amber-100 text-amber-500' : 'border-slate-200 bg-white text-slate-400' ?> shadow-sm transition hover:scale-105" title="<?= e($isFavorite ? 'Remover favorito' : 'Favoritar') ?>" type="submit">
+                            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' <?= $isFavorite ? '1' : '0' ?>, 'wght' 500, 'GRAD' 0, 'opsz' 24;">star</span>
+                        </button>
+                    </form>
+                    <form action="/profile/message" method="post">
+                        <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                        <input name="creator_id" type="hidden" value="<?= e((string) $creatorId) ?>">
+                        <input name="body" type="hidden" value="Oi! Gostaria de conversar com voce.">
+                        <button class="rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white" type="submit">Enviar mensagem</button>
+                    </form>
+                    <?php if ($primaryPlan && ! $isSubscribed): ?>
+                        <form action="/profile/subscribe" method="post">
+                            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                            <input name="plan_id" type="hidden" value="<?= e((string) ((int) ($primaryPlan['id'] ?? 0))) ?>">
+                            <button class="signature-glow rounded-full px-8 py-3 text-sm font-bold text-white shadow-lg" type="submit">Assinar agora</button>
+                        </form>
+                    <?php elseif ($isSubscribed): ?>
+                        <span class="rounded-full bg-emerald-50 px-6 py-3 text-sm font-bold text-emerald-700">Assinatura ativa</span>
+                    <?php endif; ?>
+                <?php elseif (! $currentUser): ?>
+                    <a class="signature-glow rounded-full px-8 py-3 text-sm font-bold text-white shadow-lg" href="/login">Entrar para assinar</a>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="mb-16 grid grid-cols-1 gap-8 lg:grid-cols-12">
+            <section class="space-y-8 lg:col-span-8">
+                <div class="rounded-[2rem] bg-white p-8 shadow-sm">
+                    <div class="mb-6 flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[#ab1155]">nightlight</span>
+                        <h2 class="headline text-2xl font-extrabold">Sobre este perfil</h2>
+                    </div>
+                    <p class="text-lg leading-relaxed text-slate-600"><?= e((string) ($creator['bio'] ?? $creator['headline'] ?? 'Este criador ainda nao publicou uma bio completa.')) ?></p>
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <span class="rounded-full bg-[#f5f3f5] px-4 py-2 text-sm font-semibold text-slate-600">Mood: <?= e((string) ($creator['mood'] ?? 'Lunar')) ?></span>
+                        <span class="rounded-full bg-[#f5f3f5] px-4 py-2 text-sm font-semibold text-slate-600"><?= e(number_format((int) ($creator['content_count'] ?? 0), 0, ',', '.')) ?> conteudos</span>
+                        <span class="rounded-full bg-[#f5f3f5] px-4 py-2 text-sm font-semibold text-slate-600"><?= e(number_format((int) ($creator['subscriber_count'] ?? 0), 0, ',', '.')) ?> assinantes</span>
+                    </div>
+                </div>
+
+                <div class="rounded-[2rem] bg-white p-8 shadow-sm">
+                    <div class="mb-8 flex items-end justify-between gap-6">
+                        <div>
+                            <h2 class="headline text-2xl font-extrabold">Conteudos publicados</h2>
+                            <p class="mt-2 text-sm text-slate-500">Tudo aqui ja vem do catalogo real do criador.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                        <?php foreach (array_slice($content, 0, 6) as $item): ?>
+                            <?php
+                            $itemId = (int) ($item['id'] ?? 0);
+                            $kind = (string) ($item['kind'] ?? 'gallery');
+                            $itemPlan = is_array($item['plan'] ?? null) ? $item['plan'] : null;
+                            $itemAccessible = $canAccessContent($item);
+                            $contentPayload = null;
+                            $lockedPayload = null;
+
+                            if ($itemAccessible) {
+                                $thumbnail = media_url((string) ($item['thumbnail_url'] ?? $item['media_url'] ?? ''));
+                                $media = media_url((string) ($item['media_url'] ?? ''));
+                                $contentPayload = [
+                                    'id' => $itemId,
+                                    'title' => (string) ($item['title'] ?? 'Conteúdo'),
+                                    'kind' => $kind,
+                                    'thumbnail_url' => $thumbnail,
+                                    'media_url' => $media,
+                                    'excerpt' => (string) ($item['excerpt'] ?? ''),
+                                    'body' => (string) ($item['body'] ?? ''),
+                                    'duration' => (string) ($item['duration'] ?? ''),
+                                    'visibility' => (string) ($item['visibility'] ?? 'public'),
+                                    'plan_name' => (string) ($itemPlan['name'] ?? ''),
+                                ];
+                            } else {
+                                $lockedPayload = [
+                                    'id' => $itemId,
+                                    'title' => (string) ($item['title'] ?? 'Conteúdo exclusivo'),
+                                    'visibility' => (string) ($item['visibility'] ?? 'subscriber'),
+                                    'plan_name' => (string) ($itemPlan['name'] ?? ''),
+                                    'message' => $lockedMessageForContent($item),
+                                ];
+                            }
+                            ?>
+                            <button
+                                class="overflow-hidden rounded-3xl bg-[#fbf9fb] text-left shadow-sm ring-1 ring-[#f0e8ee] transition-transform hover:-translate-y-1"
+                                <?php if ($itemAccessible && $contentPayload !== null): ?>
+                                    data-profile-content="<?= e((string) json_encode($contentPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"
+                                <?php elseif ($lockedPayload !== null): ?>
+                                    data-profile-locked="<?= e((string) json_encode($lockedPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"
+                                <?php endif; ?>
+                                id="content-<?= e((string) $itemId) ?>"
+                                type="button"
+                            >
+                                <div class="relative aspect-[4/3] bg-slate-900">
+                                    <?php if ($itemAccessible && !empty($thumbnail ?? '')): ?>
+                                        <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover" src="<?= e($thumbnail) ?>">
+                                    <?php else: ?>
+                                        <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
+                                            <div class="<?= $itemAccessible ? '' : 'blur-md' ?>">
+                                                <span class="headline text-2xl font-extrabold"><?= e((string) strtoupper((string) ($item['kind'] ?? 'conteúdo'))) ?></span>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if ($itemAccessible && ($kind === 'video' || $kind === 'live_teaser')): ?>
+                                        <div class="absolute inset-0 flex items-center justify-center">
+                                            <span class="flex h-16 w-16 items-center justify-center rounded-full bg-black/55 text-white shadow-lg">
+                                                <span class="material-symbols-outlined text-4xl">play_arrow</span>
+                                            </span>
+                                        </div>
+                                    <?php elseif (! $itemAccessible): ?>
+                                        <div class="absolute inset-0">
+                                            <div class="absolute inset-4 rounded-[1.75rem] bg-white/15 blur-xl"></div>
+                                            <div class="absolute inset-0 bg-slate-950/25 backdrop-blur-sm"></div>
+                                            <div class="absolute inset-0 flex flex-col justify-between p-5 text-white">
+                                                <div class="flex items-start justify-between gap-3">
+                                                    <span class="rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em]"><?= e((string) ($item['visibility'] ?? 'subscriber')) ?></span>
+                                                    <span class="flex h-11 w-11 items-center justify-center rounded-full bg-white/15">
+                                                        <span class="material-symbols-outlined">lock</span>
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p class="text-sm font-bold uppercase tracking-[0.25em] text-white/80">Conteúdo bloqueado</p>
+                                                    <p class="mt-2 text-sm text-white/85">Assine para liberar este material.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="space-y-3 p-5">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <p class="headline truncate text-xl font-extrabold"><?= e((string) ($item['title'] ?? 'Conteúdo')) ?></p>
+                                        <span class="rounded-full bg-[#f8e8ef] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]"><?= e((string) ($item['visibility'] ?? 'public')) ?></span>
+                                    </div>
+                                    <p class="line-clamp-3 min-h-[4rem] text-sm text-slate-500">
+                                        <?= e($itemAccessible ? excerpt((string) ($item['excerpt'] ?? ''), 140) : $lockedMessageForContent($item)) ?>
+                                    </p>
+                                    <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">
+                                        <span><?= e((string) ($item['kind'] ?? 'conteúdo')) ?></span>
+                                        <?php if ($itemPlan): ?>
+                                            <span class="rounded-full bg-white px-3 py-1 text-[10px] text-[#ab1155]"><?= e((string) ($itemPlan['name'] ?? 'Plano')) ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </button>
+                        <?php endforeach; ?>
+                        <?php if ($content === []): ?>
+                            <div class="col-span-full rounded-3xl bg-[#fbf9fb] p-8 text-sm text-slate-500 shadow-sm ring-1 ring-[#f0e8ee]">
+                                Este criador ainda nao publicou conteudos visiveis no catalogo publico.
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="space-y-8 lg:col-span-4">
+                <section class="rounded-[2rem] bg-white p-8 shadow-sm">
+                    <h2 class="headline text-2xl font-extrabold">Assinaturas VIP</h2>
+                    <div class="mt-6 space-y-4">
+                        <?php foreach ($plans as $plan): ?>
+                            <?php $perks = array_values(array_filter(array_map('strval', (array) ($plan['perks'] ?? [])))); ?>
+                            <div class="rounded-3xl bg-[#fbf9fb] p-5 shadow-sm ring-1 ring-[#f0e8ee]">
+                                <div class="flex items-center justify-between gap-3">
+                                    <p class="headline text-xl font-extrabold"><?= e((string) ($plan['name'] ?? 'Plano')) ?></p>
+                                    <span class="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-700">Ativo</span>
+                                </div>
+                                <div class="mt-3 text-sm font-semibold text-slate-600"><?= luacoin_amount_html((int) ($plan['price_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></div>
+                                <p class="mt-3 text-sm text-slate-500"><?= e((string) ($plan['description'] ?? 'Acesso recorrente ao universo deste criador.')) ?></p>
+                                <?php if ($perks !== []): ?>
+                                    <div class="mt-4 flex flex-wrap gap-2">
+                                        <?php foreach ($perks as $perk): ?>
+                                            <span class="rounded-full bg-white px-3 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500"><?= e($perk) ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                        <?php if ($plans === []): ?>
+                            <div class="rounded-3xl bg-[#fbf9fb] p-6 text-sm text-slate-500 shadow-sm ring-1 ring-[#f0e8ee]">
+                                Este criador ainda nao tem planos ativos para assinatura publica.
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </section>
+
+                <section class="rounded-[2rem] bg-[#ab1155] p-8 text-white shadow-xl">
+                    <h2 class="headline text-2xl font-extrabold">Resumo lunar</h2>
+                    <p class="mt-3 text-white/80">Um resumo rapido do momento atual do perfil.</p>
+                    <div class="mt-6 grid grid-cols-2 gap-4">
+                        <div class="rounded-3xl bg-white/10 p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-white/70">Assinantes</p>
+                            <p class="mt-2 text-2xl font-extrabold"><?= e(number_format((int) ($creator['subscriber_count'] ?? 0), 0, ',', '.')) ?></p>
+                        </div>
+                        <div class="rounded-3xl bg-white/10 p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-white/70">Conteudos</p>
+                            <p class="mt-2 text-2xl font-extrabold"><?= e(number_format((int) ($creator['content_count'] ?? 0), 0, ',', '.')) ?></p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="rounded-[2rem] bg-white p-8 shadow-sm">
+                    <h2 class="headline text-2xl font-extrabold">Criadores relacionados</h2>
+                    <div class="mt-6 space-y-4">
+                        <?php foreach (array_slice($relatedCreators, 0, 4) as $related): ?>
+                            <?php $relatedAvatar = media_url((string) ($related['avatar_url'] ?? '')); ?>
+                            <a class="flex items-center gap-4 rounded-3xl bg-[#fbf9fb] p-4 shadow-sm ring-1 ring-[#f0e8ee]" href="<?= e(path_with_query('/profile', ['id' => (int) ($related['id'] ?? 0)])) ?>">
+                                <div class="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#f7edf2]">
+                                    <?php if ($relatedAvatar !== ''): ?>
+                                        <img alt="<?= e((string) ($related['name'] ?? 'Criador')) ?>" class="h-full w-full object-cover" src="<?= e($relatedAvatar) ?>">
+                                    <?php else: ?>
+                                        <span class="headline text-lg font-extrabold text-[#ab1155]"><?= e(avatar_initials((string) ($related['name'] ?? 'Criador'))) ?></span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="headline truncate text-lg font-extrabold"><?= e((string) ($related['name'] ?? 'Criador')) ?></p>
+                                    <p class="truncate text-sm text-slate-500"><?= e((string) ($related['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                        <?php if ($relatedCreators === []): ?>
+                            <div class="rounded-3xl bg-[#fbf9fb] p-6 text-sm text-slate-500 shadow-sm ring-1 ring-[#f0e8ee]">
+                                Ainda nao ha outros criadores para recomendar.
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </section>
+            </aside>
+        </div>
+    </div>
+</main>
+
+<div class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 py-8" data-profile-content-modal>
+    <div class="w-full max-w-5xl overflow-hidden rounded-[2rem] bg-white shadow-[0px_30px_80px_rgba(27,28,29,0.24)]">
+        <div class="flex items-center justify-between border-b border-[#f0e8ee] px-6 py-5">
+            <div class="min-w-0">
+                <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]" data-profile-modal-kind>Conteudo</p>
+                <h3 class="headline mt-2 truncate text-2xl font-extrabold" data-profile-modal-title>Conteudo</h3>
+            </div>
+            <button class="flex h-11 w-11 items-center justify-center rounded-full bg-[#f5f3f5] text-slate-500" data-profile-content-close type="button">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+            <div class="bg-slate-950">
+                <div class="hidden aspect-video h-full w-full" data-profile-modal-video-wrap>
+                    <video class="h-full w-full bg-black object-contain" controls data-profile-modal-video playsinline></video>
+                </div>
+                <div class="hidden aspect-video h-full w-full" data-profile-modal-audio-wrap>
+                    <div class="flex h-full min-h-[320px] items-center justify-center p-8">
+                        <audio class="w-full" controls data-profile-modal-audio></audio>
+                    </div>
+                </div>
+                <div class="hidden aspect-video h-full w-full" data-profile-modal-image-wrap>
+                    <img alt="" class="h-full w-full object-contain" data-profile-modal-image src="">
+                </div>
+                <div class="hidden flex h-full min-h-[320px] items-start justify-center bg-white p-8" data-profile-modal-article-wrap>
+                    <article class="prose max-w-none text-slate-700">
+                        <p data-profile-modal-article></p>
+                    </article>
+                </div>
+            </div>
+            <div class="space-y-5 p-6">
+                <div class="rounded-3xl bg-[#fbf9fb] p-5">
+                    <p class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Resumo</p>
+                    <p class="mt-3 text-sm leading-relaxed text-slate-600" data-profile-modal-excerpt></p>
+                </div>
+                <div class="rounded-3xl bg-[#fbf9fb] p-5">
+                    <p class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Detalhes</p>
+                    <div class="mt-4 grid grid-cols-1 gap-3">
+                        <div class="flex items-center justify-between gap-3 text-sm">
+                            <span class="text-slate-500">Tipo</span>
+                            <span class="font-bold text-slate-700" data-profile-modal-kind-label></span>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 text-sm">
+                            <span class="text-slate-500">Duracao</span>
+                            <span class="font-bold text-slate-700" data-profile-modal-duration></span>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 text-sm">
+                            <span class="text-slate-500">Acesso</span>
+                            <span class="font-bold text-slate-700" data-profile-modal-visibility></span>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 text-sm">
+                            <span class="text-slate-500">Plano</span>
+                            <span class="font-bold text-slate-700" data-profile-modal-plan></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="hidden fixed inset-0 z-[85] flex items-center justify-center bg-black/70 px-4 py-8" data-profile-locked-modal>
+    <div class="w-full max-w-xl overflow-hidden rounded-[2rem] bg-white shadow-[0px_30px_80px_rgba(27,28,29,0.24)]">
+        <div class="flex items-center justify-between border-b border-[#f0e8ee] px-6 py-5">
+            <div class="min-w-0">
+                <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Conteúdo exclusivo</p>
+                <h3 class="headline mt-2 truncate text-2xl font-extrabold" data-profile-locked-title>Conteúdo bloqueado</h3>
+            </div>
+            <button class="flex h-11 w-11 items-center justify-center rounded-full bg-[#f5f3f5] text-slate-500" data-profile-locked-close type="button">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="space-y-6 p-6">
+            <div class="rounded-[1.75rem] bg-[#fbf9fb] p-6">
+                <div class="flex items-start gap-4">
+                    <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#f8e8ef] text-[#ab1155]">
+                        <span class="material-symbols-outlined text-3xl">workspace_premium</span>
+                    </span>
+                    <div>
+                        <p class="text-sm font-bold uppercase tracking-[0.22em] text-slate-400" data-profile-locked-visibility>Assinantes</p>
+                        <p class="mt-2 text-base leading-relaxed text-slate-600" data-profile-locked-message>Assine para liberar este conteúdo.</p>
+                        <p class="mt-3 text-sm font-semibold text-[#ab1155]" data-profile-locked-plan></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <?php if (! $currentUser): ?>
+                    <a class="rounded-full bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white" href="/login">Entrar para assinar</a>
+                <?php elseif ($canInteractAsSubscriber && $primaryPlan && ! $isSubscribed): ?>
+                    <form action="/profile/subscribe" method="post">
+                        <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                        <input name="plan_id" type="hidden" value="<?= e((string) ((int) ($primaryPlan['id'] ?? 0))) ?>">
+                        <button class="signature-glow rounded-full px-6 py-4 text-sm font-bold text-white" type="submit">Adquirir plano</button>
+                    </form>
+                <?php elseif ($isSubscribed): ?>
+                    <span class="rounded-full bg-emerald-50 px-6 py-4 text-center text-sm font-bold text-emerald-700">Seu plano já está ativo</span>
+                <?php else: ?>
+                    <span class="rounded-full bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white">Acesse com uma conta de assinante</span>
+                <?php endif; ?>
+                <button class="rounded-full bg-[#f5f3f5] px-6 py-4 text-sm font-bold text-slate-600" data-profile-locked-close type="button">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="flex w-full flex-col items-center gap-6 bg-[#D81B60] px-10 py-12 text-white">
+    <?= brand_logo_white('h-8 w-auto') ?>
+    <div class="flex flex-wrap justify-center gap-8">
+        <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/terms">Termos</a>
+        <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/privacy">Privacidade</a>
+        <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/help">Ajuda</a>
+        <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="#">Carreiras</a>
+    </div>
+    <p class="text-[10px] uppercase tracking-[0.2em] text-white/80">&copy; 2026 SexyLua. Perfil publico conectado aos dados reais.</p>
 </footer>
-<!-- FAB (Suppressed based on rules for Details/Profile page if not matching primary action, 
-         but here we use it as a 'Return Top' or 'Chat' if necessary. Suppressing per instructions) -->
-</body></html>
 
+<?php if ($selectedContentPayload !== null): ?>
+    <script id="profile-selected-content" type="application/json"><?= e((string) json_encode($selectedContentPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></script>
+<?php endif; ?>
+<?php if ($selectedLockedPayload !== null): ?>
+    <script id="profile-selected-locked-content" type="application/json"><?= e((string) json_encode($selectedLockedPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></script>
+<?php endif; ?>
+<script>
+    (() => {
+        const modal = document.querySelector('[data-profile-content-modal]');
+        const lockedModal = document.querySelector('[data-profile-locked-modal]');
+        if (!modal || !lockedModal) return;
 
+        const titleNode = modal.querySelector('[data-profile-modal-title]');
+        const kindNode = modal.querySelector('[data-profile-modal-kind]');
+        const kindLabelNode = modal.querySelector('[data-profile-modal-kind-label]');
+        const excerptNode = modal.querySelector('[data-profile-modal-excerpt]');
+        const durationNode = modal.querySelector('[data-profile-modal-duration]');
+        const visibilityNode = modal.querySelector('[data-profile-modal-visibility]');
+        const planNode = modal.querySelector('[data-profile-modal-plan]');
+        const videoWrap = modal.querySelector('[data-profile-modal-video-wrap]');
+        const video = modal.querySelector('[data-profile-modal-video]');
+        const audioWrap = modal.querySelector('[data-profile-modal-audio-wrap]');
+        const audio = modal.querySelector('[data-profile-modal-audio]');
+        const imageWrap = modal.querySelector('[data-profile-modal-image-wrap]');
+        const image = modal.querySelector('[data-profile-modal-image]');
+        const articleWrap = modal.querySelector('[data-profile-modal-article-wrap]');
+        const article = modal.querySelector('[data-profile-modal-article]');
+        const lockedTitleNode = lockedModal.querySelector('[data-profile-locked-title]');
+        const lockedVisibilityNode = lockedModal.querySelector('[data-profile-locked-visibility]');
+        const lockedMessageNode = lockedModal.querySelector('[data-profile-locked-message]');
+        const lockedPlanNode = lockedModal.querySelector('[data-profile-locked-plan]');
+        const labels = {
+            gallery: 'Galeria',
+            video: 'Video',
+            audio: 'Audio',
+            article: 'Artigo',
+            live_teaser: 'Replay',
+        };
+        const visibilityLabels = {
+            public: 'Publico',
+            subscriber: 'Assinantes',
+            premium: 'Plano vinculado',
+        };
 
+        const resetMedia = () => {
+            [videoWrap, audioWrap, imageWrap, articleWrap].forEach((node) => node.classList.add('hidden'));
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.load();
+            image.setAttribute('src', '');
+            article.textContent = '';
+        };
+
+        const closeLockedModal = () => {
+            lockedModal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.delete('content');
+            window.history.replaceState({}, '', nextUrl.toString());
+        };
+
+        const openModal = (payload) => {
+            closeLockedModal();
+            resetMedia();
+            titleNode.textContent = payload.title || 'Conteudo';
+            kindNode.textContent = labels[payload.kind] || 'Conteudo';
+            kindLabelNode.textContent = labels[payload.kind] || 'Conteudo';
+            excerptNode.textContent = payload.excerpt || payload.body || 'Sem descricao adicional.';
+            durationNode.textContent = payload.duration || 'Sem duracao';
+            visibilityNode.textContent = visibilityLabels[payload.visibility] || 'Publico';
+            planNode.textContent = payload.plan_name || 'Sem plano';
+
+            if (payload.kind === 'video' || payload.kind === 'live_teaser') {
+                videoWrap.classList.remove('hidden');
+                video.src = payload.media_url || payload.thumbnail_url || '';
+                video.play().catch(() => {});
+            } else if (payload.kind === 'audio') {
+                audioWrap.classList.remove('hidden');
+                audio.src = payload.media_url || '';
+                audio.play().catch(() => {});
+            } else if (payload.kind === 'article') {
+                articleWrap.classList.remove('hidden');
+                article.textContent = payload.body || payload.excerpt || 'Sem texto para este artigo.';
+            } else {
+                imageWrap.classList.remove('hidden');
+                image.src = payload.media_url || payload.thumbnail_url || '';
+            }
+
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.set('content', String(payload.id || ''));
+            window.history.replaceState({}, '', nextUrl.toString());
+        };
+
+        const closeModal = () => {
+            resetMedia();
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.delete('content');
+            window.history.replaceState({}, '', nextUrl.toString());
+        };
+
+        const openLockedModal = (payload) => {
+            closeModal();
+            lockedTitleNode.textContent = payload.title || 'Conteúdo exclusivo';
+            lockedVisibilityNode.textContent = visibilityLabels[payload.visibility] || 'Assinantes';
+            lockedMessageNode.textContent = payload.message || 'Adquira um plano para visualizar este conteúdo.';
+            lockedPlanNode.textContent = payload.plan_name ? `Plano sugerido: ${payload.plan_name}` : '';
+            lockedModal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.set('content', String(payload.id || ''));
+            window.history.replaceState({}, '', nextUrl.toString());
+        };
+
+        document.querySelectorAll('[data-profile-content]').forEach((button) => {
+            button.addEventListener('click', () => {
+                try {
+                    openModal(JSON.parse(button.getAttribute('data-profile-content') || '{}'));
+                } catch (error) {
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-profile-locked]').forEach((button) => {
+            button.addEventListener('click', () => {
+                try {
+                    openLockedModal(JSON.parse(button.getAttribute('data-profile-locked') || '{}'));
+                } catch (error) {
+                }
+            });
+        });
+
+        modal.querySelectorAll('[data-profile-content-close]').forEach((button) => button.addEventListener('click', closeModal));
+        lockedModal.querySelectorAll('[data-profile-locked-close]').forEach((button) => button.addEventListener('click', closeLockedModal));
+        modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+        lockedModal.addEventListener('click', (event) => { if (event.target === lockedModal) closeLockedModal(); });
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') {
+                return;
+            }
+
+            if (!modal.classList.contains('hidden')) {
+                closeModal();
+            }
+
+            if (!lockedModal.classList.contains('hidden')) {
+                closeLockedModal();
+            }
+        });
+
+        const selectedNode = document.getElementById('profile-selected-content');
+        if (selectedNode) {
+            try {
+                openModal(JSON.parse(selectedNode.textContent || '{}'));
+            } catch (error) {
+            }
+        }
+
+        const selectedLockedNode = document.getElementById('profile-selected-locked-content');
+        if (selectedLockedNode) {
+            try {
+                openLockedModal(JSON.parse(selectedLockedNode.textContent || '{}'));
+            } catch (error) {
+            }
+        }
+    })();
+</script>
+</body>
+</html>

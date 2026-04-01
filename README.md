@@ -1,60 +1,54 @@
 # SexyLua
 
-Aplicacao em PHP puro, JS, HTML e CSS, baseada no prototipo visual da pasta `Visual`.
+Aplicação em PHP puro com HTML, CSS e JavaScript, usando o protótipo visual como base e mantendo compatibilidade com Apache.
 
-## Rodar localmente
+## Requisitos
 
-1. Abra o projeto na pasta raiz.
-2. Opcional: copie `.env.example` para `.env` se quiser trocar o driver para PostgreSQL.
+- PHP 8.3+
+- Extensão PDO PostgreSQL opcional
+- Apache ou Nginx + Apache
+
+## Estrutura
+
+- `public/`: front controller, assets e `.htaccess`
+- `src/`: core, controladores, serviços e repositório
+- `templates/`: telas e layouts
+- `storage/`: dados locais, logs e temporários
+- `database/`: scripts de apoio para PostgreSQL
+
+## Ambiente local
+
+1. Copie `.env.example` para `.env`
+2. Ajuste o driver de armazenamento se necessário
 3. Rode:
 
 ```powershell
-php -S 127.0.0.1:8088 -t public
+php -S 127.0.0.1:8088 -t public public/index.php
 ```
 
 4. Acesse:
 
-`http://127.0.0.1:8088`
+- `http://127.0.0.1:8088`
 
-## Contas demo
-
-- Admin: `admin@sexylua.local` / `admin123`
-- Criador: `maria@sexylua.local` / `creator123`
-- Assinante: `assinante@sexylua.local` / `subscriber123`
-
-## Estrutura
-
-- `public/`: front controller, assets e `.htaccess` para Apache
-- `src/`: core, controladores e repositorio
-- `templates/`: layouts e telas
-- `storage/data/`: persistencia local em JSON
-- `database/postgresql-schema.sql`: schema usado pelo driver PostgreSQL
-
-## Resetar dados demo
-
-```powershell
-php scripts/reset_data.php
-```
-
-## Migrar JSON para PostgreSQL
-
-1. Ative no `.env`:
+## Variáveis principais
 
 ```ini
-SEXYLUA_STORAGE_DRIVER=postgresql
-SEXYLUA_PG_DSN=pgsql:host=127.0.0.1;port=5432;dbname=sexylua
-SEXYLUA_PG_USER=postgres
-SEXYLUA_PG_PASSWORD=sua_senha
+SEXYLUA_STORAGE_DRIVER=json
+SEXYLUA_BASE_URL=
+SEXYLUA_TIMEZONE=America/Sao_Paulo
 ```
 
-2. Rode a migracao:
+## Persistência
 
-```powershell
-php scripts/migrate_json_to_postgres.php
-```
+- `json`: usa `storage/data`
+- `postgresql`: usa as variáveis `SEXYLUA_PG_*`
 
-3. Teste o driver:
+## Pagamentos
 
-```powershell
-php scripts/postgres_smoke_test.php
-```
+As recargas de LuaCoins usam SyncPay via PIX. As chaves operacionais são configuradas no painel administrativo.
+
+## Observações
+
+- Arquivos sensíveis não devem ser versionados
+- Uploads públicos ficam em `public/uploads`
+- Dados locais em JSON ficam fora do repositório

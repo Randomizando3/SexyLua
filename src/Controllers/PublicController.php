@@ -8,6 +8,14 @@ use App\Core\Request;
 
 final class PublicController extends Controller
 {
+    private function expectsJson(Request $request): bool
+    {
+        $requestedWith = strtolower((string) $request->server('HTTP_X_REQUESTED_WITH', ''));
+        $accept = strtolower((string) $request->server('HTTP_ACCEPT', ''));
+
+        return $requestedWith === 'xmlhttprequest' || str_contains($accept, 'application/json');
+    }
+
     public function home(Request $request): void
     {
         $home = $this->app->repository->homepageData();
@@ -16,8 +24,6 @@ final class PublicController extends Controller
             'data' => $home,
             'prototype' => [
                 'page' => 'public.home',
-                'live' => ['id' => $home['live_now'][0]['id'] ?? 1],
-                'profile' => ['creator_id' => $home['featured_creators'][0]['id'] ?? 2],
             ],
         ], null);
     }
@@ -35,8 +41,6 @@ final class PublicController extends Controller
             'data' => $explore,
             'prototype' => [
                 'page' => 'public.explore',
-                'live' => ['id' => $explore['lives'][0]['id'] ?? 1],
-                'profile' => ['creator_id' => $explore['creators'][0]['id'] ?? 2],
             ],
         ], null);
     }
@@ -63,11 +67,6 @@ final class PublicController extends Controller
             'data' => $profileData = $this->app->repository->creatorProfileData((int) $creator['id'], $this->app->auth->id()),
             'prototype' => [
                 'page' => 'public.profile',
-                'profile' => [
-                    'creator_id' => (int) $creator['id'],
-                    'plan_id' => $profileData['plans'][0]['id'] ?? null,
-                    'redirect' => path_with_query('/profile', ['id' => (int) $creator['id']]),
-                ],
             ],
         ], null);
     }
@@ -91,12 +90,7 @@ final class PublicController extends Controller
             'title' => $data['live']['title'],
             'data' => $data,
             'prototype' => [
-                'page' => 'public.live-room',
-                'live' => [
-                    'id' => (int) $data['live']['id'],
-                    'creator_id' => (int) $data['live']['creator_id'],
-                    'redirect' => path_with_query('/live', ['id' => (int) $data['live']['id']]),
-                ],
+                'page' => 'public.live',
             ],
         ], null);
     }
@@ -125,13 +119,32 @@ final class PublicController extends Controller
     public function postLiveMessage(Request $request): void
     {
         $liveId = (int) $request->input('live_id', 0);
+        $expectsJson = $this->expectsJson($request);
 
         if ($this->app->auth->guest()) {
+            if ($expectsJson) {
+                $this->json(['ok' => false, 'message' => 'Entre para participar do chat ao vivo.'], 401);
+            }
+
             $this->redirect('/login', 'Entre para participar do chat ao vivo.', 'error');
         }
 
-        $this->validateCsrf($request, path_with_query('/live', ['id' => $liveId]));
+        if (! $this->app->csrf->validate((string) $request->input('_token'))) {
+            if ($expectsJson) {
+                $this->json(['ok' => false, 'message' => 'Sessao expirada. Envie o formulario novamente.'], 419);
+            }
+
+            $this->redirect(path_with_query('/live', ['id' => $liveId]), 'Sessao expirada. Envie o formulario novamente.', 'error');
+        }
+
         $ok = $this->app->repository->postLiveMessage($liveId, (int) $this->user()['id'], (string) $request->input('body'));
+
+        if ($expectsJson) {
+            $this->json([
+                'ok' => $ok,
+                'message' => $ok ? 'Mensagem enviada.' : 'Nao foi possivel enviar sua mensagem.',
+            ], $ok ? 200 : 422);
+        }
 
         $this->redirect(path_with_query('/live', ['id' => $liveId]), $ok ? 'Mensagem enviada.' : 'Nao foi possivel enviar sua mensagem.', $ok ? 'success' : 'error');
     }
@@ -165,7 +178,13 @@ final class PublicController extends Controller
 
     public function postTip(Request $request): void
     {
+        $expectsJson = $this->expectsJson($request);
+
         if ($this->app->auth->guest()) {
+            if ($expectsJson) {
+                $this->json(['ok' => false, 'message' => 'Entre para enviar gorjetas.'], 401);
+            }
+
             $this->redirect('/login', 'Entre para enviar gorjetas.', 'error');
         }
 
@@ -174,8 +193,20 @@ final class PublicController extends Controller
         $liveId = (int) $request->input('live_id', 0);
         $amount = (int) $request->input('amount', 0);
         $redirect = $liveId > 0 ? path_with_query('/live', ['id' => $liveId]) : path_with_query('/profile', ['id' => $creatorId]);
-        $this->validateCsrf($request, $redirect);
-        $result = $this->app->repository->tipCreator((int) $this->user()['id'], $creatorId, $amount, 'Gorjeta enviada ao criador');
+
+        if (! $this->app->csrf->validate((string) $request->input('_token'))) {
+            if ($expectsJson) {
+                $this->json(['ok' => false, 'message' => 'Sessao expirada. Envie o formulario novamente.'], 419);
+            }
+
+            $this->redirect($redirect, 'Sessao expirada. Envie o formulario novamente.', 'error');
+        }
+
+        $result = $this->app->repository->tipCreator((int) $this->user()['id'], $creatorId, $amount, 'Gorjeta enviada ao criador', $liveId);
+
+        if ($expectsJson) {
+            $this->json($result, (bool) ($result['ok'] ?? false) ? 200 : 422);
+        }
 
         $this->redirect($redirect, $result['message'], $result['ok'] ? 'success' : 'error');
     }

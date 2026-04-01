@@ -36,7 +36,7 @@ $router->post('/login', [AuthController::class, 'login']);
 $router->get('/register', [AuthController::class, 'showRegister']);
 $router->post('/register', [AuthController::class, 'register']);
 $router->post('/logout', [AuthController::class, 'logout']);
-$router->post('/webhook/mp', [WebhookController::class, 'mercadoPago']);
+$router->post('/webhook/syncpay', [WebhookController::class, 'syncPay']);
 
 $router->get('/subscriber', [SubscriberController::class, 'dashboard']);
 $router->get('/subscriber/subscriptions', [SubscriberController::class, 'subscriptions']);
@@ -57,6 +57,7 @@ $router->get('/creator/content', [CreatorController::class, 'content']);
 $router->get('/creator/favorites', [CreatorController::class, 'favorites']);
 $router->get('/creator/memberships', [CreatorController::class, 'memberships']);
 $router->get('/creator/live', [CreatorController::class, 'live']);
+$router->get('/creator/live/studio', [CreatorController::class, 'liveStudio']);
 $router->get('/creator/wallet', [CreatorController::class, 'wallet']);
 $router->get('/creator/settings', [CreatorController::class, 'settings']);
 $router->post('/creator/content/save', [CreatorController::class, 'saveContent']);
@@ -66,7 +67,9 @@ $router->post('/creator/content/delete', [CreatorController::class, 'deleteConte
 $router->post('/creator/memberships/save', [CreatorController::class, 'savePlan']);
 $router->post('/creator/memberships/delete', [CreatorController::class, 'deletePlan']);
 $router->post('/creator/memberships/subscription', [CreatorController::class, 'updateSubscription']);
+$router->post('/creator/memberships/message', [CreatorController::class, 'sendMemberMessage']);
 $router->post('/creator/live/save', [CreatorController::class, 'saveLive']);
+$router->post('/creator/live/studio', [CreatorController::class, 'updateLiveStudio']);
 $router->post('/creator/live/status', [CreatorController::class, 'updateLiveStatus']);
 $router->post('/creator/live/delete', [CreatorController::class, 'deleteLive']);
 $router->post('/creator/wallet/payout', [CreatorController::class, 'requestPayout']);

@@ -11,7 +11,7 @@ declare(strict_types=1);
 <section class="two-column">
     <article class="card">
         <h3>Para assinantes</h3>
-        <p>Use sua carteira de LuaCoins para assinar criadores, enviar gorjetas e desbloquear acessos. Se uma recarga via Mercado Pago nao confirmar, confira se o pagamento foi aprovado e aguarde o webhook em <code>/webhook/mp</code>.</p>
+        <p>Use sua carteira de LuaCoins para assinar criadores, enviar gorjetas e desbloquear acessos. Se uma recarga via SyncPay nao confirmar, confira o status do PIX e aguarde a conciliacao da plataforma.</p>
     </article>
     <article class="card">
         <h3>Para criadores</h3>
@@ -19,7 +19,7 @@ declare(strict_types=1);
     </article>
     <article class="card">
         <h3>Pagamentos</h3>
-        <p>O checkout usa Mercado Pago quando as chaves estiverem configuradas no admin. Para webhooks e retornos automaticos, a URL base da plataforma precisa estar em HTTPS.</p>
+        <p>As recargas usam SyncPay via PIX quando as chaves estiverem configuradas no admin. Para webhooks e retornos automaticos, a URL base da plataforma deve apontar para um ambiente publico.</p>
     </article>
     <article class="card">
         <h3>Contato operacional</h3>

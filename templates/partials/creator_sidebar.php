@@ -7,6 +7,7 @@ $creatorShellCurrent = (string) ($creatorShellCurrent ?? 'dashboard');
 $creatorShellCta = $creatorShellCta ?? null;
 $creatorMenuItems = [
     ['key' => 'dashboard', 'href' => '/creator', 'icon' => 'insights', 'label' => 'Metricas Lunares'],
+    ['key' => 'public_profile', 'href' => '/profile?id=' . (int) ($creatorShellCreator['id'] ?? 0), 'icon' => 'public', 'label' => 'Pagina Publica'],
     ['key' => 'content', 'href' => '/creator/content', 'icon' => 'movie', 'label' => 'Meu Conteudo'],
     ['key' => 'live', 'href' => '/creator/live', 'icon' => 'settings_input_antenna', 'label' => 'Configurar Live'],
     ['key' => 'memberships', 'href' => '/creator/memberships', 'icon' => 'star', 'label' => 'Minhas Assinaturas'],
@@ -14,6 +15,7 @@ $creatorMenuItems = [
     ['key' => 'wallet', 'href' => '/creator/wallet', 'icon' => 'account_balance_wallet', 'label' => 'Carteira'],
     ['key' => 'settings', 'href' => '/creator/settings', 'icon' => 'settings', 'label' => 'Configuracoes'],
 ];
+$creatorMenuItems = array_values(array_filter($creatorMenuItems, static fn (array $item): bool => $item['key'] !== 'public_profile' || (int) ($creatorShellCreator['id'] ?? 0) > 0));
 ?>
 <aside class="fixed left-0 top-0 z-50 hidden h-full w-64 flex-col rounded-r-[3rem] bg-zinc-50 px-4 pb-6 pt-20 font-['Plus_Jakarta_Sans'] font-medium shadow-xl lg:flex">
     <nav class="flex-1 space-y-1">

@@ -37,6 +37,8 @@ final class CreatorController extends Controller
                 'kind' => (string) $request->query('kind', ''),
                 'edit' => (int) $request->query('edit', 0),
             ]),
+            'open_form' => (bool) $request->query('open_form', false) || (int) $request->query('edit', 0) > 0,
+            'form_mode' => (string) $request->query('form_mode', ((int) $request->query('edit', 0) > 0) ? 'edit' : 'new'),
             'sidebar_role' => 'creator',
             'prototype' => [
                 'page' => 'creator.content',
@@ -89,9 +91,29 @@ final class CreatorController extends Controller
                 'status' => (string) $request->query('status', ''),
                 'live' => (int) $request->query('live', 0),
             ]),
+            'open_form' => $request->query('open_form', '') === '1',
+            'form_mode' => (string) $request->query('form_mode', ''),
             'sidebar_role' => 'creator',
             'prototype' => [
                 'page' => 'creator.live',
+            ],
+        ], null);
+    }
+
+    public function liveStudio(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+        $creatorId = (int) $this->user()['id'];
+        $liveId = (int) $request->query('live', 0);
+
+        $this->render('pages/creator/live_studio', [
+            'title' => 'Estudio da Live',
+            'data' => $this->app->repository->creatorLiveData($creatorId, [
+                'live' => $liveId,
+            ]),
+            'sidebar_role' => 'creator',
+            'prototype' => [
+                'page' => 'creator.live_studio',
             ],
         ], null);
     }
@@ -141,6 +163,7 @@ final class CreatorController extends Controller
         $payload = $request->all();
 
         if ($request->hasFile('media_file')) {
+            $payload['media_bytes'] = max(0, (int) (($request->file('media_file') ?? [])['size'] ?? 0));
             $mediaPath = store_uploaded_file($request->file('media_file'), 'creator/content', ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm', 'mp3', 'wav', 'm4a']);
             if ($mediaPath !== null) {
                 $payload['media_url'] = $mediaPath;
@@ -148,16 +171,22 @@ final class CreatorController extends Controller
         }
 
         if ($request->hasFile('thumbnail_file')) {
+            $payload['thumbnail_bytes'] = max(0, (int) (($request->file('thumbnail_file') ?? [])['size'] ?? 0));
             $thumbPath = store_uploaded_file($request->file('thumbnail_file'), 'creator/content/thumbs', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
             if ($thumbPath !== null) {
                 $payload['thumbnail_url'] = $thumbPath;
             }
         }
 
-        $item = $this->app->repository->saveContent((int) $this->user()['id'], $payload);
-        $redirect = path_with_query('/creator/content', ['edit' => (int) ($item['id'] ?? 0)]);
+        $result = $this->app->repository->saveContent((int) $this->user()['id'], $payload);
 
-        $this->redirect($redirect, isset($payload['id']) && (int) $payload['id'] > 0 ? 'Conteudo atualizado com sucesso.' : 'Conteudo criado com sucesso.');
+        if (! (bool) ($result['ok'] ?? false)) {
+            delete_public_media_file((string) ($payload['media_url'] ?? ''));
+            delete_public_media_file((string) ($payload['thumbnail_url'] ?? ''));
+            $this->redirect('/creator/content', (string) ($result['message'] ?? 'Não foi possível salvar o conteúdo.'), 'error');
+        }
+
+        $this->redirect('/creator/content', isset($payload['id']) && (int) $payload['id'] > 0 ? 'Conteúdo atualizado com sucesso.' : 'Conteúdo criado com sucesso.');
     }
 
     public function updateContentStatus(Request $request): void
@@ -209,6 +238,16 @@ final class CreatorController extends Controller
         $this->redirect($redirect, $result['message'], $result['ok'] ? 'success' : 'error');
     }
 
+    public function sendMemberMessage(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+        $redirect = (string) $request->input('redirect', '/creator/memberships');
+        $this->validateCsrf($request, $redirect);
+        $result = $this->app->repository->sendMessageToSubscriber((int) $this->user()['id'], (int) $request->input('subscriber_id', 0), (string) $request->input('body', ''));
+
+        $this->redirect($redirect, $result['message'] ?? 'Nao foi possivel enviar a mensagem.', (bool) ($result['ok'] ?? false) ? 'success' : 'error');
+    }
+
     public function saveLive(Request $request): void
     {
         $this->app->auth->requireRole('creator');
@@ -224,7 +263,15 @@ final class CreatorController extends Controller
 
         $live = $this->app->repository->saveLive((int) $this->user()['id'], $payload);
 
-        $this->redirect(path_with_query('/creator/live', ['live' => (int) ($live['id'] ?? 0)]), 'Live salva com sucesso.');
+        $isNewInstantLive = !isset($payload['id'])
+            && (string) ($payload['live_type'] ?? 'scheduled') === 'instant'
+            && (int) ($live['id'] ?? 0) > 0;
+
+        $redirect = $isNewInstantLive
+            ? path_with_query('/creator/live/studio', ['live' => (int) ($live['id'] ?? 0)])
+            : path_with_query('/creator/live', ['live' => (int) ($live['id'] ?? 0)]);
+
+        $this->redirect($redirect, 'Live salva com sucesso.');
     }
 
     public function updateLiveStatus(Request $request): void
@@ -245,6 +292,16 @@ final class CreatorController extends Controller
         $ok = $this->app->repository->deleteLive((int) $this->user()['id'], (int) $request->input('live_id', 0));
 
         $this->redirect($redirect, $ok ? 'Live removida.' : 'Nao foi possivel remover a live.', $ok ? 'success' : 'error');
+    }
+
+    public function updateLiveStudio(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+        $redirect = path_with_query('/creator/live/studio', ['live' => (int) $request->input('live_id', 0)]);
+        $this->validateCsrf($request, $redirect);
+        $ok = $this->app->repository->updateLiveStudioSettings((int) $this->user()['id'], (int) $request->input('live_id', 0), $request->all());
+
+        $this->redirect($redirect, $ok ? 'Configuracoes da sala atualizadas.' : 'Nao foi possivel salvar a sala.', $ok ? 'success' : 'error');
     }
 
     public function requestPayout(Request $request): void
@@ -281,6 +338,7 @@ final class CreatorController extends Controller
         $this->app->auth->requireRole('creator');
         $this->validateCsrf($request, '/creator/settings');
         $payload = $request->all();
+        $payload['payout_method'] = 'pix';
 
         foreach (['avatar_url', 'cover_url'] as $field) {
             if (array_key_exists($field, $payload)) {

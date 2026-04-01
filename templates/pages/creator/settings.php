@@ -5,26 +5,20 @@ declare(strict_types=1);
 $creator = $data['creator'] ?? [];
 $wallet = $data['wallet'] ?? [];
 $platform = $data['platform'] ?? [];
-$activeLive = $data['active_live'] ?? null;
-$nextLive = $data['next_live'] ?? null;
 $activeSubscribers = (int) ($data['active_subscribers'] ?? 0);
-$security = $data['security'] ?? [];
-$moods = ['Lua Nova', 'Lua Crescente', 'Lua Cheia', 'Lua Minguante', 'Aurora Rubi', 'Meia Noite', 'Eclipse Rosa'];
-$coverStyles = ['rose-dawn', 'amber-night', 'violet-haze', 'solar-flare', 'midnight-ruby', 'rose-lounge', 'noir-silk'];
-$payoutMethods = [
-    'pix' => 'PIX',
-    'bank_transfer' => 'Transferencia',
-    'paypal' => 'PayPal',
-];
+$liveDefaults = $data['live_defaults'] ?? [];
+$priorityTipTiers = $liveDefaults['priority_tip_tiers'] ?? [1, 10, 25, 50, 100, 150];
+$priorityTipMessages = $liveDefaults['priority_tip_messages'] ?? [];
 $avatarUrl = media_url((string) ($creator['avatar_url'] ?? ''));
 $coverUrl = media_url((string) ($creator['cover_url'] ?? ''));
+$publicProfileUrl = '/profile?slug=' . (string) ($creator['slug'] ?? 'criador');
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>SexyLua - Configuracoes do Criador</title>
+    <title>SexyLua - Configurações do Criador</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -72,7 +66,7 @@ $coverUrl = media_url((string) ($creator['cover_url'] ?? ''));
 <?php
 $creatorShellCreator = $creator;
 $creatorShellCurrent = 'settings';
-$creatorTopbarLabel = 'Configuracoes do Criador';
+$creatorTopbarLabel = 'Configurações do Criador';
 $creatorTopbarAction = ['href' => '/creator/wallet', 'label' => 'Carteira'];
 include base_path('templates/partials/creator_sidebar.php');
 include base_path('templates/partials/creator_topbar.php');
@@ -82,31 +76,31 @@ include base_path('templates/partials/creator_topbar.php');
     <div class="mx-auto max-w-7xl px-8 py-12">
         <header class="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-                <h2 class="mb-2 text-4xl font-extrabold tracking-tight">Configuracoes do Criador</h2>
-                <p class="text-on-surface-variant">Edite sua apresentacao, dados de repasse, identidade do perfil e o acesso tecnico da sua conta.</p>
+                <h2 class="mb-2 text-4xl font-extrabold tracking-tight">Configurações do Criador</h2>
+                <p class="text-on-surface-variant">Edite sua apresentação, identidade do perfil, recebimentos e padrões da sua sala ao vivo.</p>
             </div>
             <div class="rounded-full bg-surface-container-lowest px-6 py-3 shadow-sm">
                 <span class="text-sm font-bold text-primary"><?= e((string) $activeSubscribers) ?> assinantes ativos</span>
             </div>
         </header>
 
-        <div class="grid grid-cols-1 gap-8 xl:grid-cols-[1.2fr_0.8fr]">
+        <div class="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
             <section class="rounded-2xl bg-surface-container-lowest p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
                 <div class="mb-8">
-                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Perfil publico</p>
+                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Perfil público</p>
                     <h3 class="mt-3 text-3xl font-extrabold">Dados principais</h3>
                 </div>
 
-                <form action="/creator/settings/update" class="space-y-8" method="post" enctype="multipart/form-data">
+                <form action="/creator/settings/update" class="space-y-8" enctype="multipart/form-data" id="creator-settings-form" method="post">
                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
 
                     <div class="grid gap-6 md:grid-cols-2">
                         <label class="block space-y-2">
-                            <span class="text-sm font-semibold text-on-surface-variant">Nome artistico</span>
+                            <span class="text-sm font-semibold text-on-surface-variant">Nome artístico</span>
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="name" type="text" value="<?= e((string) ($creator['name'] ?? '')) ?>">
                         </label>
                         <label class="block space-y-2">
-                            <span class="text-sm font-semibold text-on-surface-variant">Slug publico</span>
+                            <span class="text-sm font-semibold text-on-surface-variant">Slug público</span>
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="slug" type="text" value="<?= e((string) ($creator['slug'] ?? '')) ?>">
                         </label>
                     </div>
@@ -127,72 +121,48 @@ include base_path('templates/partials/creator_topbar.php');
                         <textarea class="min-h-[160px] w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="bio"><?= e((string) ($creator['bio'] ?? '')) ?></textarea>
                     </label>
 
-                    <div class="grid gap-6 md:grid-cols-2">
-                        <label class="block space-y-2">
-                            <span class="text-sm font-semibold text-on-surface-variant">Fase do perfil</span>
-                            <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="mood">
-                                <?php foreach ($moods as $mood): ?>
-                                    <option value="<?= e($mood) ?>" <?= (string) ($creator['mood'] ?? '') === $mood ? 'selected' : '' ?>><?= e($mood) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </label>
-                        <label class="block space-y-2">
-                            <span class="text-sm font-semibold text-on-surface-variant">Estilo de capa</span>
-                            <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_style">
-                                <?php foreach ($coverStyles as $coverStyle): ?>
-                                    <option value="<?= e($coverStyle) ?>" <?= (string) ($creator['cover_style'] ?? '') === $coverStyle ? 'selected' : '' ?>><?= e(ucwords(str_replace('-', ' ', $coverStyle))) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </label>
-                    </div>
-
-                    <div class="grid gap-6 md:grid-cols-2">
-                        <div class="space-y-4 rounded-3xl bg-surface-container-low p-5">
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm font-semibold text-on-surface-variant">Avatar atual</span>
-                                <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">Perfil</span>
-                            </div>
-                            <div class="flex items-center gap-4">
-                                <?php if ($avatarUrl !== ''): ?>
-                                    <img alt="Avatar do criador" class="h-16 w-16 rounded-full object-cover" src="<?= e($avatarUrl) ?>">
-                                <?php else: ?>
-                                    <div class="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
-                                <?php endif; ?>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
-                                    <p class="text-xs text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
-                                </div>
-                            </div>
-                            <label class="block space-y-2">
-                                <span class="text-sm font-semibold text-on-surface-variant">URL do avatar</span>
-                                <input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_url" type="text" value="<?= e((string) ($creator['avatar_url'] ?? '')) ?>">
-                            </label>
-                            <label class="block space-y-2">
-                                <span class="text-sm font-semibold text-on-surface-variant">Upload de avatar</span>
-                                <input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_file" type="file" accept=".jpg,.jpeg,.png,.webp,.gif">
-                            </label>
+                    <div class="rounded-3xl bg-surface-container-low p-6">
+                        <div class="mb-5">
+                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Mídia do perfil</p>
+                            <h4 class="mt-2 text-2xl font-extrabold">Avatar e capa</h4>
+                            <p class="mt-2 text-sm text-on-surface-variant">Ao selecionar um arquivo, o preview abaixo já é atualizado para indicar que o envio foi preparado.</p>
                         </div>
-
-                        <div class="space-y-4 rounded-3xl bg-surface-container-low p-5">
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm font-semibold text-on-surface-variant">Capa atual</span>
-                                <span class="rounded-full bg-zinc-900/5 px-3 py-1 text-xs font-bold text-zinc-700">Studio</span>
-                            </div>
-                            <?php if ($coverUrl !== ''): ?>
-                                <img alt="Capa do criador" class="h-40 w-full rounded-3xl object-cover" src="<?= e($coverUrl) ?>">
-                            <?php else: ?>
-                                <div class="flex h-40 w-full items-center justify-center rounded-3xl bg-gradient-to-br from-pink-700 via-rose-600 to-orange-400 text-lg font-bold text-white">
-                                    <?= e((string) ($creator['mood'] ?? 'Lua Nova')) ?>
+                        <div class="grid gap-6 lg:grid-cols-2">
+                            <div class="space-y-4 rounded-3xl bg-white p-5 shadow-sm">
+                                <div class="flex items-center gap-4">
+                                    <div class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-lg font-bold text-primary" data-upload-preview-box="avatar" data-upload-preview-fallback="<?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?>">
+                                        <?php if ($avatarUrl !== ''): ?>
+                                            <img alt="Avatar do criador" class="h-full w-full object-cover" data-upload-preview-image="avatar" src="<?= e($avatarUrl) ?>">
+                                        <?php else: ?>
+                                            <span data-upload-preview-placeholder="avatar"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
+                                        <p class="text-xs text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
+                                    </div>
                                 </div>
-                            <?php endif; ?>
-                            <label class="block space-y-2">
-                                <span class="text-sm font-semibold text-on-surface-variant">URL da capa</span>
-                                <input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_url" type="text" value="<?= e((string) ($creator['cover_url'] ?? '')) ?>">
-                            </label>
-                            <label class="block space-y-2">
-                                <span class="text-sm font-semibold text-on-surface-variant">Upload da capa</span>
-                                <input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp,.gif">
-                            </label>
+                                <label class="block space-y-2">
+                                    <span class="text-sm font-semibold text-on-surface-variant">Novo avatar</span>
+                                    <input accept=".jpg,.jpeg,.png,.webp,.gif" class="w-full rounded-2xl border-none bg-surface-container-low px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" data-upload-preview-input="avatar" name="avatar_file" type="file">
+                                </label>
+                                <p class="text-xs font-semibold text-primary/80" data-upload-preview-status="avatar">Nenhum novo avatar selecionado.</p>
+                            </div>
+
+                            <div class="space-y-4 rounded-3xl bg-white p-5 shadow-sm">
+                                <div class="flex h-40 w-full items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-pink-700 via-rose-600 to-orange-400 text-lg font-bold text-white" data-upload-preview-box="cover" data-upload-preview-fallback="SexyLua">
+                                    <?php if ($coverUrl !== ''): ?>
+                                        <img alt="Capa do criador" class="h-full w-full object-cover" data-upload-preview-image="cover" src="<?= e($coverUrl) ?>">
+                                    <?php else: ?>
+                                        <span data-upload-preview-placeholder="cover">SexyLua</span>
+                                    <?php endif; ?>
+                                </div>
+                                <label class="block space-y-2">
+                                    <span class="text-sm font-semibold text-on-surface-variant">Nova capa</span>
+                                    <input accept=".jpg,.jpeg,.png,.webp,.gif" class="w-full rounded-2xl border-none bg-surface-container-low px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" data-upload-preview-input="cover" name="cover_file" type="file">
+                                </label>
+                                <p class="text-xs font-semibold text-primary/80" data-upload-preview-status="cover">Nenhuma nova capa selecionada.</p>
+                            </div>
                         </div>
                     </div>
 
@@ -201,10 +171,10 @@ include base_path('templates/partials/creator_topbar.php');
                             <span class="text-sm font-semibold text-on-surface-variant">Instagram</span>
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="instagram" type="text" value="<?= e((string) ($creator['instagram'] ?? '')) ?>">
                         </label>
-                        <label class="block space-y-2">
-                            <span class="text-sm font-semibold text-on-surface-variant">Telegram</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="telegram" type="text" value="<?= e((string) ($creator['telegram'] ?? '')) ?>">
-                        </label>
+                        <div class="rounded-2xl bg-surface-container-low px-5 py-4 text-sm text-on-surface-variant">
+                            <p class="font-semibold text-on-surface">Página pública</p>
+                            <p class="mt-2 break-all"><?= e($publicProfileUrl) ?></p>
+                        </div>
                     </div>
 
                     <div class="rounded-3xl bg-surface-container-low p-6">
@@ -212,32 +182,18 @@ include base_path('templates/partials/creator_topbar.php');
                             <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Financeiro</p>
                             <h4 class="mt-2 text-2xl font-extrabold">Recebimentos</h4>
                         </div>
-                        <div class="grid gap-6 md:grid-cols-2">
-                            <label class="block space-y-2">
-                                <span class="text-sm font-semibold text-on-surface-variant">Metodo de saque</span>
-                                <select class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="payout_method">
-                                    <?php foreach ($payoutMethods as $value => $label): ?>
-                                        <option value="<?= e($value) ?>" <?= (string) ($creator['payout_method'] ?? 'pix') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </label>
-                            <label class="block space-y-2">
-                                <span class="text-sm font-semibold text-on-surface-variant">Chave de recebimento</span>
-                                <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="payout_key" type="text" value="<?= e((string) ($creator['payout_key'] ?? '')) ?>">
-                            </label>
-                        </div>
+                        <label class="block space-y-2">
+                            <span class="text-sm font-semibold text-on-surface-variant">Chave PIX</span>
+                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="payout_key" type="text" value="<?= e((string) ($creator['payout_key'] ?? '')) ?>">
+                        </label>
                     </div>
 
                     <div class="rounded-3xl bg-surface-container-low p-6">
                         <div class="mb-5">
-                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Seguranca</p>
-                            <h4 class="mt-2 text-2xl font-extrabold">Acesso tecnico</h4>
+                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Segurança</p>
+                            <h4 class="mt-2 text-2xl font-extrabold">Acesso da conta</h4>
                         </div>
                         <div class="grid gap-6 md:grid-cols-2">
-                            <label class="block space-y-2 md:col-span-2">
-                                <span class="text-sm font-semibold text-on-surface-variant">Stream key</span>
-                                <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="stream_key" type="text" value="<?= e((string) ($creator['stream_key'] ?? '')) ?>">
-                            </label>
                             <label class="block space-y-2">
                                 <span class="text-sm font-semibold text-on-surface-variant">Nova senha</span>
                                 <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password" type="password">
@@ -249,16 +205,65 @@ include base_path('templates/partials/creator_topbar.php');
                         </div>
                     </div>
 
-                    <button class="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)] transition-transform duration-200 hover:scale-[1.02]" type="submit" data-prototype-skip="1">
-                        <span class="material-symbols-outlined">save</span>
-                        Salvar Configuracoes
-                    </button>
+                    <div class="rounded-3xl bg-surface-container-low p-6">
+                        <div class="mb-5">
+                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Lives e chat</p>
+                            <h4 class="mt-2 text-2xl font-extrabold">Padrões do estúdio</h4>
+                            <p class="mt-2 text-sm text-on-surface-variant">Defina quem pode falar no chat e personalize os alertas que aparecem sobre o player durante a transmissão.</p>
+                        </div>
+                        <div class="grid gap-6 md:grid-cols-2">
+                            <label class="block space-y-2">
+                                <span class="text-sm font-semibold text-on-surface-variant">Quem pode falar no chat</span>
+                                <select class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="live_chat_audience_default">
+                                    <option value="all" <?= (string) ($liveDefaults['chat_audience'] ?? 'all') === 'all' ? 'selected' : '' ?>>Assinantes e não assinantes</option>
+                                    <option value="subscriber" <?= (string) ($liveDefaults['chat_audience'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Só assinantes</option>
+                                    <option value="off" <?= (string) ($liveDefaults['chat_audience'] ?? '') === 'off' ? 'selected' : '' ?>>Chat fechado</option>
+                                </select>
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-sm font-semibold text-on-surface-variant">Visibilidade padrão do replay</span>
+                                <select class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="replay_visibility_default">
+                                    <option value="subscriber" <?= (string) ($liveDefaults['replay_visibility'] ?? 'subscriber') === 'subscriber' ? 'selected' : '' ?>>Só assinantes</option>
+                                    <option value="public" <?= (string) ($liveDefaults['replay_visibility'] ?? '') === 'public' ? 'selected' : '' ?>>Público</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div class="mt-6 space-y-4">
+                            <?php
+                            $alertRows = [
+                                ['label' => 'Destaque 1', 'price_field' => 'priority_tip_tier_1', 'message_field' => 'priority_tip_message_1', 'price' => (int) ($priorityTipTiers[0] ?? 1), 'message' => (string) ($priorityTipMessages[(string) ($priorityTipTiers[0] ?? 1)] ?? '')],
+                                ['label' => 'Destaque 2', 'price_field' => 'priority_tip_tier_2', 'message_field' => 'priority_tip_message_2', 'price' => (int) ($priorityTipTiers[1] ?? 10), 'message' => (string) ($priorityTipMessages[(string) ($priorityTipTiers[1] ?? 10)] ?? '')],
+                                ['label' => 'Destaque 3', 'price_field' => 'priority_tip_tier_3', 'message_field' => 'priority_tip_message_3', 'price' => (int) ($priorityTipTiers[2] ?? 25), 'message' => (string) ($priorityTipMessages[(string) ($priorityTipTiers[2] ?? 25)] ?? '')],
+                                ['label' => 'Destaque 4', 'price_field' => 'priority_tip_tier_4', 'message_field' => 'priority_tip_message_4', 'price' => (int) ($priorityTipTiers[3] ?? 50), 'message' => (string) ($priorityTipMessages[(string) ($priorityTipTiers[3] ?? 50)] ?? '')],
+                                ['label' => 'Destaque 5', 'price_field' => 'priority_tip_tier_5', 'message_field' => 'priority_tip_message_5', 'price' => (int) ($priorityTipTiers[4] ?? 100), 'message' => (string) ($priorityTipMessages[(string) ($priorityTipTiers[4] ?? 100)] ?? '')],
+                                ['label' => 'Valor personalizado', 'price_field' => 'priority_tip_custom', 'message_field' => 'priority_tip_message_custom', 'price' => (int) ($liveDefaults['priority_tip_custom'] ?? ($priorityTipTiers[5] ?? 150)), 'message' => (string) ($priorityTipMessages[(string) ($liveDefaults['priority_tip_custom'] ?? ($priorityTipTiers[5] ?? 150))] ?? '')],
+                            ];
+                            ?>
+                            <?php foreach ($alertRows as $row): ?>
+                                <div class="grid gap-4 rounded-3xl bg-white p-4 shadow-sm md:grid-cols-[180px_minmax(0,1fr)]">
+                                    <label class="block space-y-2">
+                                        <span class="text-sm font-semibold text-on-surface-variant"><?= e($row['label']) ?></span>
+                                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="<?= e($row['price_field']) ?>" step="1" type="number" value="<?= e((string) $row['price']) ?>">
+                                    </label>
+                                    <label class="block space-y-2">
+                                        <span class="text-sm font-semibold text-on-surface-variant">Mensagem do alerta</span>
+                                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="<?= e($row['message_field']) ?>" placeholder="Ex: {nome}, sua LuaCoin chegou brilhando!" type="text" value="<?= e($row['message']) ?>">
+                                    </label>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <div class="mt-5 rounded-3xl bg-white px-5 py-4 text-sm text-on-surface-variant shadow-sm">
+                            Use <strong>{nome}</strong>, <strong>{valor}</strong> ou <strong>{tier}</strong> dentro do texto para personalizar o alerta. O replay automático expira em <strong><?= e((string) ($liveDefaults['replay_expiration_days'] ?? 7)) ?> dias</strong> e cada live pode ficar no ar por até <strong><?= e((string) ($liveDefaults['max_duration_minutes'] ?? 30)) ?> minutos</strong>, conforme o painel do admin.
+                        </div>
+                    </div>
                 </form>
             </section>
 
-            <section class="space-y-8">
+            <section class="space-y-8 xl:sticky xl:top-28 xl:self-start">
                 <div class="rounded-2xl bg-primary p-8 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)]">
-                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Resumo rapido</p>
+                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Resumo rápido</p>
                     <h3 class="mt-3 text-3xl font-extrabold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h3>
                     <p class="mt-3 text-sm leading-relaxed text-white/80"><?= e(excerpt((string) ($creator['headline'] ?? ''), 100)) ?></p>
                     <div class="mt-6 grid grid-cols-2 gap-4 text-sm">
@@ -274,61 +279,67 @@ include base_path('templates/partials/creator_topbar.php');
                 </div>
 
                 <div class="rounded-2xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
-                    <h3 class="text-xl font-bold">Operacao da conta</h3>
-                    <div class="mt-5 space-y-4 text-sm">
-                        <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
-                            <span class="text-on-surface-variant">Saque minimo</span>
-                            <strong><?= luacoin_amount_html((int) ($platform['withdraw_min_luacoins'] ?? 50), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></strong>
-                        </div>
-                        <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
-                            <span class="text-on-surface-variant">Saque maximo</span>
-                            <strong><?= luacoin_amount_html((int) ($platform['withdraw_max_luacoins'] ?? 25000), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></strong>
-                        </div>
-                        <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
-                            <span class="text-on-surface-variant">Proxima live</span>
-                            <strong><?= $nextLive ? e(format_datetime((string) ($nextLive['scheduled_for'] ?? ''), 'd/m H:i')) : 'Sem agenda' ?></strong>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="rounded-2xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
-                    <h3 class="text-xl font-bold">Status atual</h3>
-                    <div class="mt-5 space-y-4 text-sm">
-                        <div class="rounded-2xl bg-surface-container-low p-4">
-                            <p class="text-on-surface-variant">Live ativa</p>
-                            <p class="mt-1 font-bold"><?= $activeLive ? e((string) ($activeLive['title'] ?? 'Em andamento')) : 'Nenhuma live ao vivo agora' ?></p>
-                        </div>
-                        <div class="rounded-2xl bg-surface-container-low p-4">
-                            <p class="text-on-surface-variant">Assinantes ativos</p>
-                            <p class="mt-1 font-bold"><?= e((string) $activeSubscribers) ?> membros pagantes</p>
-                        </div>
-                        <div class="rounded-2xl bg-surface-container-low p-4">
-                            <p class="text-on-surface-variant">Mood atual</p>
-                            <p class="mt-1 font-bold"><?= e((string) ($creator['mood'] ?? 'Lua Nova')) ?></p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="rounded-2xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
-                    <h3 class="text-xl font-bold">Chaves salvas</h3>
-                    <div class="mt-5 space-y-4 text-sm">
-                        <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
-                            <span class="text-on-surface-variant">Stream key</span>
-                            <strong><?= !empty($security['has_stream_key']) ? 'Configurada' : 'Pendente' ?></strong>
-                        </div>
-                        <div class="flex items-center justify-between rounded-2xl bg-surface-container-low p-4">
-                            <span class="text-on-surface-variant">Chave de saque</span>
-                            <strong><?= !empty($security['has_payout_key']) ? 'Configurada' : 'Pendente' ?></strong>
-                        </div>
-                        <div class="rounded-2xl bg-surface-container-low p-4">
-                            <p class="text-on-surface-variant">URL publica</p>
-                            <p class="mt-1 break-all font-bold">/profile?slug=<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
-                        </div>
+                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Ações</p>
+                    <h3 class="mt-3 text-2xl font-extrabold">Salvar alterações</h3>
+                    <p class="mt-3 text-sm text-on-surface-variant">Esse painel acompanha o scroll para você salvar avatar, capa e configurações sem precisar voltar ao topo ou ao fim da página.</p>
+                    <div class="mt-6 space-y-4">
+                        <button class="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)] transition-transform duration-200 hover:scale-[1.02]" data-prototype-skip="1" form="creator-settings-form" type="submit">
+                            <span class="material-symbols-outlined">save</span>
+                            Salvar Configurações
+                        </button>
+                        <a class="flex w-full items-center justify-center gap-2 rounded-full bg-surface-container-low px-6 py-4 text-sm font-bold text-on-surface-variant" href="<?= e($publicProfileUrl) ?>" target="_blank">
+                            <span class="material-symbols-outlined text-base">open_in_new</span>
+                            Ver perfil público
+                        </a>
                     </div>
                 </div>
             </section>
         </div>
     </div>
 </main>
+
+<script>
+    (() => {
+        const bindPreview = (key) => {
+            const input = document.querySelector(`[data-upload-preview-input="${key}"]`);
+            const box = document.querySelector(`[data-upload-preview-box="${key}"]`);
+            const status = document.querySelector(`[data-upload-preview-status="${key}"]`);
+            if (!input || !box || !status) {
+                return;
+            }
+
+            let objectUrl = null;
+            const fallbackText = box.dataset.uploadPreviewFallback || '';
+            const initialMarkup = box.innerHTML;
+
+            input.addEventListener('change', () => {
+                const file = input.files && input.files[0] ? input.files[0] : null;
+                if (objectUrl) {
+                    URL.revokeObjectURL(objectUrl);
+                    objectUrl = null;
+                }
+
+                if (!file) {
+                    box.innerHTML = initialMarkup || `<span>${fallbackText}</span>`;
+                    status.textContent = key === 'avatar' ? 'Nenhum novo avatar selecionado.' : 'Nenhuma nova capa selecionada.';
+                    return;
+                }
+
+                objectUrl = URL.createObjectURL(file);
+                box.innerHTML = '';
+                const image = document.createElement('img');
+                image.src = objectUrl;
+                image.alt = key === 'avatar' ? 'Preview do avatar' : 'Preview da capa';
+                image.className = 'h-full w-full object-cover';
+                image.setAttribute('data-upload-preview-image', key);
+                box.appendChild(image);
+                status.textContent = `Arquivo selecionado: ${file.name}`;
+            });
+        };
+
+        bindPreview('avatar');
+        bindPreview('cover');
+    })();
+</script>
 </body>
 </html>

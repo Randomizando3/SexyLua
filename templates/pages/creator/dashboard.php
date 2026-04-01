@@ -26,24 +26,17 @@ foreach (array_slice(array_reverse($incomingTransactions), 0, 7) as $index => $t
     $chartValues[$index] = max(0, (int) ($transaction['amount'] ?? 0));
 }
 
-if (max($chartValues) <= 0) {
-    $chartValues = [32, 54, 47, 70, 44, 86, 58];
-}
-
 $chartMax = max($chartValues);
+$hasChartData = $chartMax > 0;
 $chartLabels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 $estimatedViews = array_reduce(
     $recentContent,
-    static fn (int $carry, array $item): int => $carry + max(18, ((int) ($item['saved_count'] ?? 0) * 42)),
+    static fn (int $carry, array $item): int => $carry + max(0, ((int) ($item['saved_count'] ?? 0) * 42)),
     0
 );
 
-if ($estimatedViews === 0) {
-    $estimatedViews = max(2400, $approvedContent * 580);
-}
-
-$commentCount = max(12, count($transactions) * 3 + count($lives) * 4);
+$commentCount = count($transactions) * 3 + count($lives) * 4;
 $nextLive = $lives[0] ?? null;
 $nextLiveUrl = $nextLive ? path_with_query('/creator/live', ['live' => (int) ($nextLive['id'] ?? 0)]) : '/creator/live';
 $walletUrl = '/creator/wallet';
@@ -64,24 +57,17 @@ $contentUrl = '/creator/content';
             theme: {
                 extend: {
                     colors: {
-                        "error": "#ba1a1a",
                         "background": "#fbf9fb",
-                        "on-primary-container": "#fff2f4",
                         "on-background": "#1b1c1d",
-                        "inverse-surface": "#303032",
                         "surface-container-lowest": "#ffffff",
                         "surface-container-low": "#f5f3f5",
-                        "surface-bright": "#fbf9fb",
-                        "surface": "#fbf9fb",
+                        "surface-container": "#efedef",
+                        "surface-container-high": "#e9e7e9",
                         "surface-variant": "#e3e2e4",
                         "outline": "#8e6f74",
-                        "surface-container-high": "#e9e7e9",
-                        "primary": "#ab1155",
-                        "secondary": "#ab2c5d",
-                        "outline-variant": "#e3bdc3",
                         "on-surface": "#1b1c1d",
                         "on-surface-variant": "#5a4044",
-                        "surface-container": "#efedef",
+                        "primary": "#ab1155",
                         "primary-container": "#cc326e",
                         "on-primary": "#ffffff"
                     },
@@ -96,15 +82,9 @@ $contentUrl = '/creator/content';
         }
     </script>
     <style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-        }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
         body { font-family: 'Manrope', sans-serif; }
         h1, h2, h3 { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .lunar-glass {
-            background: rgba(251, 249, 251, 0.7);
-            backdrop-filter: blur(24px);
-        }
     </style>
 </head>
 <body class="min-h-screen bg-background text-on-background">
@@ -125,9 +105,7 @@ include base_path('templates/partials/creator_topbar.php');
                 <p class="max-w-2xl font-medium text-on-surface-variant"><?= e($creatorHeadline) ?></p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
-                <a class="rounded-full bg-surface-container-high px-6 py-3 text-sm font-bold transition-transform hover:scale-105 active:opacity-80" href="<?= e($walletUrl) ?>">
-                    Ver carteira
-                </a>
+                <a class="rounded-full bg-surface-container-high px-6 py-3 text-sm font-bold transition-transform hover:scale-105 active:opacity-80" href="<?= e($walletUrl) ?>">Ver carteira</a>
                 <a class="flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-105 active:opacity-80" href="<?= e($nextLiveUrl) ?>">
                     <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">sensors</span>
                     Ir para a live
@@ -150,14 +128,22 @@ include base_path('templates/partials/creator_topbar.php');
                         </p>
                     </div>
                 </div>
-                <div class="flex h-64 items-end justify-between gap-2 px-2">
-                    <?php foreach ($chartValues as $value): ?>
-                        <?php $barHeight = max(18, (int) round(($value / max(1, $chartMax)) * 100)); ?>
-                        <div class="relative h-full w-full rounded-t-full bg-surface-container-low transition-colors hover:bg-primary-container/20">
-                            <div class="absolute bottom-0 w-full rounded-t-full bg-primary/40" style="height: <?= e((string) $barHeight) ?>%"></div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
+
+                <?php if ($hasChartData): ?>
+                    <div class="flex h-64 items-end justify-between gap-2 px-2">
+                        <?php foreach ($chartValues as $value): ?>
+                            <?php $barHeight = max(8, (int) round(($value / max(1, $chartMax)) * 100)); ?>
+                            <div class="relative h-full w-full rounded-t-full bg-surface-container-low transition-colors hover:bg-primary-container/20">
+                                <div class="absolute bottom-0 w-full rounded-t-full bg-primary/40" style="height: <?= e((string) $barHeight) ?>%"></div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="flex h-64 items-center justify-center rounded-[2rem] bg-surface-container-low text-center text-sm font-semibold text-on-surface-variant">
+                        Sem movimentações de entrada ainda nesta semana.
+                    </div>
+                <?php endif; ?>
+
                 <div class="mt-4 flex justify-between px-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                     <?php foreach ($chartLabels as $label): ?>
                         <span><?= e($label) ?></span>
@@ -255,7 +241,7 @@ include base_path('templates/partials/creator_topbar.php');
                         <?php
                         $thumbnail = media_url((string) ($item['thumbnail_url'] ?? $item['media_url'] ?? ''));
                         $editUrl = path_with_query('/creator/content', ['edit' => (int) ($item['id'] ?? 0)]);
-                        $views = max(18, ((int) ($item['saved_count'] ?? 0) * 42));
+                        $views = max(0, ((int) ($item['saved_count'] ?? 0) * 42));
                         ?>
                         <a class="group block cursor-pointer" href="<?= e($editUrl) ?>">
                             <div class="relative mb-3 aspect-[3/4] overflow-hidden rounded-lg">

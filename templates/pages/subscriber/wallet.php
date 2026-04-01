@@ -9,11 +9,21 @@ $outflow = (int) ($data['outflow'] ?? 0);
 $transactions = $data['filtered_transactions'] ?? $data['transactions'] ?? [];
 $summary = $data['summary'] ?? [];
 $filters = $data['filters'] ?? [];
+$selectedTopUp = is_array($data['selected_topup'] ?? null) ? $data['selected_topup'] : null;
 $platformSettings = $app->repository->settings();
 $luacoinPrice = (float) ($platformSettings['luacoin_price_brl'] ?? 0.07);
-$mercadoPagoEnabled = trim((string) ($platformSettings['mercadopago_access_token'] ?? '')) !== '';
+$syncPayEnabled = (bool) ($data['syncpay_enabled'] ?? false);
 $siteBaseUrl = (string) ($platformSettings['site_base_url'] ?? app_base_url($app->config, $platformSettings));
 $paymentStatus = (string) ($_GET['payment_status'] ?? '');
+$selectedTopUpStatus = strtolower((string) ($selectedTopUp['status'] ?? ''));
+$selectedTopUpPixCode = (string) ($selectedTopUp['pix_code'] ?? '');
+if ($selectedTopUpPixCode === '' && $selectedTopUp !== null) {
+    $pixCodeBase64 = trim((string) ($selectedTopUp['pix_code_base64'] ?? ''));
+    $decodedPixCode = $pixCodeBase64 !== '' ? base64_decode($pixCodeBase64, true) : false;
+    if (is_string($decodedPixCode) && trim($decodedPixCode) !== '') {
+        $selectedTopUpPixCode = trim($decodedPixCode);
+    }
+}
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -103,8 +113,61 @@ $paymentStatus = (string) ($_GET['payment_status'] ?? '');
     <?php if ($paymentStatus !== ''): ?>
         <section class="mb-8 rounded-3xl <?= $paymentStatus === 'success' ? 'bg-emerald-50 text-emerald-900' : ($paymentStatus === 'pending' ? 'bg-amber-50 text-amber-900' : 'bg-rose-50 text-rose-900') ?> p-5 shadow-sm">
             <p class="text-sm font-bold">
-                <?= e($paymentStatus === 'success' ? 'Retorno do checkout recebido. Aguarde a confirmacao final do Mercado Pago para liberar as LuaCoins.' : ($paymentStatus === 'pending' ? 'Pagamento pendente. Assim que o Mercado Pago confirmar, as LuaCoins entram na carteira.' : 'Pagamento nao concluido. Confira o checkout e tente novamente.')) ?>
+                <?= e($paymentStatus === 'success' ? 'Pagamento SyncPay confirmado. As LuaCoins devem entrar na sua carteira em instantes.' : ($paymentStatus === 'pending' ? 'PIX criado com sucesso. Assim que a SyncPay confirmar o pagamento, as LuaCoins entram na carteira.' : 'Nao foi possivel gerar ou concluir o pagamento. Confira os dados e tente novamente.')) ?>
             </p>
+        </section>
+    <?php endif; ?>
+
+    <?php if ($selectedTopUp !== null): ?>
+        <section class="mb-8 rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
+            <div class="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Recarga PIX</p>
+                    <h3 class="mt-3 text-3xl font-extrabold">Pagamento via SyncPay</h3>
+                    <p class="mt-2 max-w-2xl text-sm text-on-surface-variant">Use o codigo PIX abaixo para pagar e depois atualize o status. A liberacao das LuaCoins acontece quando a transacao for aprovada.</p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <span class="rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] <?= $selectedTopUpStatus === 'approved' ? 'bg-emerald-100 text-emerald-700' : ($selectedTopUpStatus === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700') ?>">
+                        <?= e($selectedTopUpStatus === 'approved' ? 'Aprovado' : ($selectedTopUpStatus === 'pending' ? 'Aguardando pagamento' : ucfirst($selectedTopUpStatus))) ?>
+                    </span>
+                    <?php if ($selectedTopUpStatus === 'pending'): ?>
+                        <a class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" href="<?= e(path_with_query('/subscriber/wallet', ['topup' => (int) ($selectedTopUp['id'] ?? 0), 'refresh' => 1])) ?>">Atualizar status</a>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <article class="rounded-3xl bg-surface-container-low p-5">
+                    <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">LuaCoins</p>
+                    <div class="mt-3 text-3xl font-extrabold text-primary"><?= luacoin_amount_html((int) ($selectedTopUp['amount'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div>
+                </article>
+                <article class="rounded-3xl bg-surface-container-low p-5">
+                    <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Valor em BRL</p>
+                    <p class="mt-3 text-3xl font-extrabold text-primary"><?= e(brl_amount((float) ($selectedTopUp['amount_brl_expected'] ?? 0))) ?></p>
+                </article>
+                <article class="rounded-3xl bg-surface-container-low p-5">
+                    <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Referencia</p>
+                    <p class="mt-3 break-all text-sm font-bold text-on-surface"><?= e((string) ($selectedTopUp['external_reference'] ?? '')) ?></p>
+                </article>
+            </div>
+
+            <div class="mt-6 rounded-3xl bg-surface-container-low p-6">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Codigo PIX copia e cola</p>
+                        <p class="mt-2 text-sm text-on-surface-variant">Cole no banco, app ou carteira de pagamento para concluir a recarga.</p>
+                    </div>
+                    <?php if ($selectedTopUpPixCode !== ''): ?>
+                        <button class="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-700" data-copy-target="syncpay-pix-code" type="button">Copiar codigo</button>
+                    <?php endif; ?>
+                </div>
+
+                <?php if ($selectedTopUpPixCode !== ''): ?>
+                    <textarea class="mt-4 min-h-36 w-full rounded-3xl border-none bg-white px-5 py-4 text-sm text-slate-700 shadow-sm focus:ring-2 focus:ring-primary/20" id="syncpay-pix-code" readonly><?= e($selectedTopUpPixCode) ?></textarea>
+                <?php else: ?>
+                    <p class="mt-4 rounded-2xl bg-white px-5 py-4 text-sm text-on-surface-variant">O codigo PIX ainda nao foi retornado pela SyncPay. Atualize o status em alguns segundos.</p>
+                <?php endif; ?>
+            </div>
         </section>
     <?php endif; ?>
 
@@ -115,11 +178,14 @@ $paymentStatus = (string) ($_GET['payment_status'] ?? '');
                 <form action="/subscriber/wallet/add-funds" class="mt-6 space-y-4" method="post">
                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                     <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="luacoins" placeholder="Quantidade em LuaCoins" required type="number" value="100">
-                    <p class="text-sm text-on-surface-variant">Valor estimado: <?= e(brl_amount(100 * $luacoinPrice)) ?>. <?= $mercadoPagoEnabled ? 'O checkout sera aberto no Mercado Pago.' : 'Sem chave configurada, a recarga segue em modo local para demo.' ?></p>
-                    <?php if ($mercadoPagoEnabled && ! str_starts_with($siteBaseUrl, 'https://')): ?>
-                        <p class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">Configure uma Site URL HTTPS no admin para ativar o retorno automatico do Mercado Pago.</p>
+                    <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" maxlength="18" name="cpf" placeholder="CPF ou CNPJ do pagador" required type="text" value="">
+                    <p class="text-sm text-on-surface-variant">Valor estimado: <?= e(brl_amount(100 * $luacoinPrice)) ?>. A recarga gera um PIX copia e cola pela SyncPay.</p>
+                    <?php if (! $syncPayEnabled): ?>
+                        <p class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">Configure a SyncPay no admin para liberar a geracao de PIX nesta carteira.</p>
+                    <?php elseif ($siteBaseUrl === ''): ?>
+                        <p class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">Preencha a Site URL no admin para deixar o webhook de recarga pronto quando publicar a plataforma.</p>
                     <?php endif; ?>
-                    <button class="signature-glow w-full rounded-full px-5 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit"><?= $mercadoPagoEnabled ? 'Comprar com Mercado Pago' : 'Adicionar saldo demo' ?></button>
+                    <button class="signature-glow w-full rounded-full px-5 py-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" data-prototype-skip="1" type="submit" <?= ! $syncPayEnabled ? 'disabled' : '' ?>>Gerar PIX na SyncPay</button>
                 </form>
             </div>
             <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
@@ -167,5 +233,30 @@ $paymentStatus = (string) ($_GET['payment_status'] ?? '');
         </section>
     </div>
 </main>
+<script>
+    document.querySelectorAll('[data-copy-target]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var targetId = button.getAttribute('data-copy-target');
+            var target = targetId ? document.getElementById(targetId) : null;
+            if (!target) {
+                return;
+            }
+
+            target.select();
+            target.setSelectionRange(0, target.value.length);
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(target.value).catch(function () {});
+            } else {
+                document.execCommand('copy');
+            }
+
+            button.textContent = 'Codigo copiado';
+            window.setTimeout(function () {
+                button.textContent = 'Copiar codigo';
+            }, 1800);
+        });
+    });
+</script>
 </body>
 </html>

@@ -884,17 +884,17 @@
     bindCreatorNavigation()
 
     const pagePatches = {
-        'public.home': patchPublicHome,
-        'public.explore': patchPublicExplore,
-        'public.profile': patchPublicProfile,
-        'public.live': patchPublicLive,
+        'public.home': () => {},
+        'public.explore': () => {},
+        'public.profile': () => {},
+        'public.live': () => {},
         'subscriber.dashboard': () => {},
         'subscriber.subscriptions': () => {},
         'subscriber.favorites': () => {},
         'subscriber.messages': () => {},
         'subscriber.wallet': () => {},
         'subscriber.settings': () => {},
-        'creator.dashboard': patchCreatorDashboard,
+        'creator.dashboard': () => {},
         'creator.content': () => {},
         'creator.favorites': () => {},
         'creator.memberships': () => {},

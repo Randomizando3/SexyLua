@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Request;
-use App\Services\MercadoPagoGateway;
+use App\Services\SyncPayGateway;
 
 final class SubscriberController extends Controller
 {
@@ -87,14 +87,38 @@ final class SubscriberController extends Controller
     public function wallet(Request $request): void
     {
         $this->app->auth->requireRole('subscriber');
+        $settings = $this->app->repository->settings();
+        $topUpId = (int) $request->query('topup', 0);
+        $shouldRefresh = (string) $request->query('refresh', '0') === '1';
+
+        if ($topUpId > 0 && $shouldRefresh) {
+            $selectedTopUp = $this->app->repository->findWalletTransactionForUser((int) $this->user()['id'], $topUpId);
+            $gateway = new SyncPayGateway($settings);
+
+            if ($selectedTopUp !== null && (string) ($selectedTopUp['type'] ?? '') === 'top_up_pending' && $gateway->canFetchTransactionStatus()) {
+                try {
+                    $statusPayload = $gateway->fetchTransactionStatus((string) ($selectedTopUp['provider_payment_id'] ?? $selectedTopUp['provider_checkout_id'] ?? ''));
+                    $this->app->repository->syncSyncPayWalletTopUp($topUpId, $statusPayload);
+                } catch (\Throwable) {
+                    // Mantem a tela utilizavel mesmo se a SyncPay nao responder ou nao estiver acessivel agora.
+                }
+            }
+        }
+
         $wallet = $this->app->repository->walletData((int) $this->user()['id'], [
             'q' => (string) $request->query('q', ''),
             'type' => (string) $request->query('type', ''),
         ]);
+        $selectedTopUp = $topUpId > 0
+            ? $this->app->repository->findWalletTransactionForUser((int) $this->user()['id'], $topUpId)
+            : $this->app->repository->latestPendingWalletTopUpForUser((int) $this->user()['id']);
 
         $this->render('pages/subscriber/wallet', [
             'title' => 'Carteira e LuaCoins',
-            'data' => $wallet,
+            'data' => $wallet + [
+                'selected_topup' => $selectedTopUp,
+                'syncpay_enabled' => (new SyncPayGateway($settings))->configured(),
+            ],
             'sidebar_role' => 'subscriber',
             'prototype' => [
                 'page' => 'subscriber.wallet',
@@ -173,68 +197,55 @@ final class SubscriberController extends Controller
         $this->app->auth->requireRole('subscriber');
         $this->validateCsrf($request, '/subscriber/wallet');
         $luacoins = (int) $request->input('luacoins', (int) $request->input('tokens', 0));
+        $document = preg_replace('/\D+/', '', (string) $request->input('cpf', (string) $request->input('document', '')));
         $settings = $this->app->repository->settings();
-        $gateway = new MercadoPagoGateway($settings);
+        $gateway = new SyncPayGateway($settings);
 
-        if ($gateway->configured()) {
-            $baseUrl = app_base_url($this->app->config, $settings);
-
-            if (! str_starts_with($baseUrl, 'https://')) {
-                $this->redirect('/subscriber/wallet', 'Configure uma Site URL com HTTPS no admin para liberar o checkout do Mercado Pago.', 'error');
-            }
-
-            $topUp = $this->app->repository->createWalletTopUpRequest((int) $this->user()['id'], $luacoins);
-
-            if (! is_array($topUp)) {
-                $this->redirect('/subscriber/wallet', 'Informe uma quantidade valida de LuaCoins.', 'error');
-            }
-
-            try {
-                $statementDescriptor = mb_strtoupper(preg_replace('/[^a-z0-9 ]+/i', '', (string) ($settings['mercadopago_statement_descriptor'] ?? 'SEXYLUA')) ?: 'SEXYLUA');
-                $statementDescriptor = trim(mb_substr($statementDescriptor, 0, 13));
-                $reference = (string) ($topUp['external_reference'] ?? '');
-                $checkout = $gateway->createWalletTopUpPreference([
-                    'external_reference' => $reference,
-                    'notification_url' => webhook_url($this->app->config, $settings),
-                    'back_urls' => [
-                        'success' => path_with_query($baseUrl . '/subscriber/wallet', ['payment_status' => 'success', 'reference' => $reference]),
-                        'failure' => path_with_query($baseUrl . '/subscriber/wallet', ['payment_status' => 'failure', 'reference' => $reference]),
-                        'pending' => path_with_query($baseUrl . '/subscriber/wallet', ['payment_status' => 'pending', 'reference' => $reference]),
-                    ],
-                    'auto_return' => 'approved',
-                    'binary_mode' => false,
-                    'statement_descriptor' => $statementDescriptor !== '' ? $statementDescriptor : 'SEXYLUA',
-                    'items' => [[
-                        'id' => 'luacoins-' . (string) $luacoins,
-                        'title' => $luacoins . ' LuaCoins - SexyLua',
-                        'description' => 'Recarga de LuaCoins para assinaturas, gorjetas e desbloqueios.',
-                        'quantity' => 1,
-                        'currency_id' => 'BRL',
-                        'unit_price' => (float) ($topUp['amount_brl_expected'] ?? 0),
-                    ]],
-                    'metadata' => [
-                        'topup_transaction_id' => (int) ($topUp['id'] ?? 0),
-                        'user_id' => (int) $this->user()['id'],
-                        'luacoins' => $luacoins,
-                    ],
-                ]);
-
-                $this->app->repository->attachWalletTopUpCheckout((int) ($topUp['id'] ?? 0), $checkout);
-                $checkoutUrl = (string) ($checkout['init_point'] ?? '');
-
-                if ($checkoutUrl === '') {
-                    $this->redirect('/subscriber/wallet', 'O Mercado Pago nao retornou a URL de checkout.', 'error');
-                }
-
-                redirect_to($checkoutUrl);
-            } catch (\Throwable $exception) {
-                $this->redirect('/subscriber/wallet', 'Nao foi possivel iniciar o checkout do Mercado Pago: ' . $exception->getMessage(), 'error');
-            }
+        if (! $gateway->configured()) {
+            $this->redirect('/subscriber/wallet', 'Configure a SyncPay no admin antes de gerar recargas PIX.', 'error');
         }
 
-        $ok = $this->app->repository->addFunds((int) $this->user()['id'], $luacoins);
+        if ($document === '' || ! in_array(strlen($document), [11, 14], true)) {
+            $this->redirect('/subscriber/wallet', 'Informe um CPF ou CNPJ valido para gerar o PIX.', 'error');
+        }
 
-        $this->redirect('/subscriber/wallet', $ok ? 'Recarga de LuaCoins concluida.' : 'Informe um valor valido para a recarga.', $ok ? 'success' : 'error');
+        $topUp = $this->app->repository->createWalletTopUpRequest((int) $this->user()['id'], $luacoins, 'syncpay');
+
+        if (! is_array($topUp)) {
+            $this->redirect('/subscriber/wallet', 'Informe uma quantidade valida de LuaCoins.', 'error');
+        }
+
+        try {
+            $checkout = $gateway->createWalletTopUpCharge([
+                'amount' => (float) ($topUp['amount_brl_expected'] ?? 0),
+                'document' => $document,
+                'name' => (string) ($this->user()['name'] ?? 'Assinante SexyLua'),
+                'email' => (string) ($this->user()['email'] ?? ''),
+                'ip' => (string) $request->server('REMOTE_ADDR', ''),
+                'postback_url' => webhook_url($this->app->config, $settings, '/webhook/syncpay'),
+                'external_reference' => (string) ($topUp['external_reference'] ?? ''),
+                'pix_expires_in_days' => (int) ($settings['syncpay_pix_expires_in_days'] ?? 2),
+                'metadata' => [
+                    'topup_transaction_id' => (int) ($topUp['id'] ?? 0),
+                    'user_id' => (int) $this->user()['id'],
+                    'luacoins' => $luacoins,
+                    'external_reference' => (string) ($topUp['external_reference'] ?? ''),
+                ],
+            ]);
+
+            $this->app->repository->attachWalletTopUpCheckout((int) ($topUp['id'] ?? 0), $checkout);
+            $this->redirect(path_with_query('/subscriber/wallet', [
+                'topup' => (int) ($topUp['id'] ?? 0),
+                'payment_status' => 'pending',
+            ]), 'PIX gerado com sucesso. Copie o codigo e conclua o pagamento na sua carteira.', 'success');
+        } catch (\Throwable $exception) {
+            $this->app->repository->syncSyncPayWalletTopUp((int) ($topUp['id'] ?? 0), [
+                'status' => 'failed',
+                'message' => $exception->getMessage(),
+            ]);
+
+            $this->redirect('/subscriber/wallet', 'Nao foi possivel gerar o PIX na SyncPay: ' . $exception->getMessage(), 'error');
+        }
     }
 
     public function updateSettings(Request $request): void

@@ -260,6 +260,10 @@ include base_path('templates/partials/creator_topbar.php');
                                     <input name="redirect" type="hidden" value="<?= e($redirectBase) ?>">
                                     <button class="w-full rounded-full bg-[#ab1155]/10 px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#ab1155]" data-prototype-skip="1" type="submit"><?= (bool) ($subscription['vip'] ?? false) ? 'Remover VIP' : 'Marcar VIP' ?></button>
                                 </form>
+                                <button class="w-full rounded-full bg-white px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1b1c1d]" data-member-message='<?= e((string) json_encode([
+                                    'subscriber_id' => (int) ($subscriber['id'] ?? 0),
+                                    'subscriber_name' => (string) ($subscriber['name'] ?? 'Assinante'),
+                                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>' type="button">Mensagem</button>
                                 <form action="/creator/memberships/subscription" method="post">
                                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                     <input name="subscription_id" type="hidden" value="<?= e((string) ($subscription['id'] ?? 0)) ?>">
@@ -291,8 +295,8 @@ include base_path('templates/partials/creator_topbar.php');
     </div>
 </main>
 
-<div class="fixed inset-0 z-[90] hidden items-center justify-center bg-slate-950/40 px-4 py-6 backdrop-blur-sm" data-plan-modal>
-    <div class="w-full max-w-3xl rounded-3xl bg-white p-8 shadow-[0px_30px_80px_rgba(27,28,29,0.22)]">
+<div class="fixed inset-0 z-[90] hidden items-start justify-center overflow-y-auto bg-slate-950/40 px-4 py-8 sm:py-12 backdrop-blur-sm" data-plan-modal>
+    <div class="my-auto w-full max-w-3xl rounded-3xl bg-white p-8 shadow-[0px_30px_80px_rgba(27,28,29,0.22)] max-h-[calc(100vh-4rem)] overflow-y-auto sm:max-h-[calc(100vh-6rem)]">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#ab1155]" data-plan-modal-kicker>Novo plano</p>
@@ -339,6 +343,37 @@ include base_path('templates/partials/creator_topbar.php');
             <div class="flex flex-wrap gap-3">
                 <button class="signature-glow rounded-full px-7 py-4 text-sm font-bold text-white shadow-[0px_20px_40px_rgba(171,17,85,0.2)]" data-prototype-skip="1" type="submit">Salvar plano</button>
                 <button class="rounded-full bg-[#f5f3f5] px-6 py-4 text-sm font-bold text-[#5a4044]" data-plan-close type="button">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="fixed inset-0 z-[95] hidden items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm" data-member-message-modal>
+    <div class="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-[0px_30px_80px_rgba(27,28,29,0.22)]">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#ab1155]">Mensagem direta</p>
+                <h3 class="mt-2 text-3xl font-extrabold" data-member-message-title>Enviar mensagem</h3>
+                <p class="mt-2 text-sm text-slate-500">A mensagem vai aparecer na conversa do assinante para ele responder na área privada.</p>
+            </div>
+            <button class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#f5f3f5] text-slate-500" data-member-message-close type="button">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <form action="/creator/memberships/message" class="mt-8 space-y-5" method="post" data-member-message-form>
+            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+            <input name="redirect" type="hidden" value="<?= e($redirectBase) ?>">
+            <input name="subscriber_id" type="hidden" value="" data-member-message-field="subscriber_id">
+
+            <label class="block space-y-2">
+                <span class="text-sm font-semibold text-[#5a4044]">Mensagem</span>
+                <textarea class="min-h-[180px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4 shadow-sm focus:ring-2 focus:ring-[#ab1155]/20" data-member-message-field="body" name="body" placeholder="Escreva uma mensagem para este assinante..." required></textarea>
+            </label>
+
+            <div class="flex flex-wrap gap-3">
+                <button class="signature-glow rounded-full px-7 py-4 text-sm font-bold text-white shadow-[0px_20px_40px_rgba(171,17,85,0.2)]" data-prototype-skip="1" type="submit">Enviar mensagem</button>
+                <button class="rounded-full bg-[#f5f3f5] px-6 py-4 text-sm font-bold text-[#5a4044]" data-member-message-close type="button">Cancelar</button>
             </div>
         </form>
     </div>
@@ -414,6 +449,59 @@ include base_path('templates/partials/creator_topbar.php');
         if (selectedPlanNode) {
             try { openModal(JSON.parse(selectedPlanNode.textContent || '{}')); } catch (error) {}
         }
+    })();
+</script>
+<script>
+    (() => {
+        const modal = document.querySelector('[data-member-message-modal]');
+        const form = document.querySelector('[data-member-message-form]');
+        if (!modal || !form) return;
+
+        const title = modal.querySelector('[data-member-message-title]');
+        const subscriberField = form.querySelector('[data-member-message-field="subscriber_id"]');
+        const bodyField = form.querySelector('[data-member-message-field="body"]');
+
+        const openModal = (payload) => {
+            if (subscriberField instanceof HTMLInputElement) {
+                subscriberField.value = String(payload.subscriber_id || '');
+            }
+            if (bodyField instanceof HTMLTextAreaElement) {
+                bodyField.value = '';
+                bodyField.focus();
+            }
+            if (title) {
+                title.textContent = `Mensagem para ${payload.subscriber_name || 'assinante'}`;
+            }
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.classList.add('overflow-hidden');
+        };
+
+        const closeModal = () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        document.querySelectorAll('[data-member-message]').forEach((button) => {
+            button.addEventListener('click', () => {
+                try {
+                    openModal(JSON.parse(button.getAttribute('data-member-message') || '{}'));
+                } catch (error) {
+                    console.warn('Nao foi possivel abrir o modal de mensagem', error);
+                }
+            });
+        });
+
+        modal.querySelectorAll('[data-member-message-close]').forEach((button) => {
+            button.addEventListener('click', closeModal);
+        });
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
     })();
 </script>
 </body>

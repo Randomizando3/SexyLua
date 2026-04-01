@@ -146,6 +146,58 @@ function media_url(?string $value): string
     return '/' . ltrim($value, '/');
 }
 
+function public_media_local_path(?string $value): ?string
+{
+    $value = trim((string) $value);
+
+    if ($value === '' || preg_match('#^https?://#i', $value) === 1) {
+        return null;
+    }
+
+    return public_path(ltrim($value, '/'));
+}
+
+function public_media_file_bytes(?string $value): int
+{
+    $path = public_media_local_path($value);
+
+    if ($path === null || ! is_file($path)) {
+        return 0;
+    }
+
+    $bytes = @filesize($path);
+
+    return $bytes === false ? 0 : max(0, (int) $bytes);
+}
+
+function delete_public_media_file(?string $value): void
+{
+    $path = public_media_local_path($value);
+
+    if ($path !== null && is_file($path)) {
+        @unlink($path);
+    }
+}
+
+function human_file_size(int $bytes, int $precision = 1): string
+{
+    $bytes = max(0, $bytes);
+
+    if ($bytes >= 1024 * 1024 * 1024) {
+        return number_format($bytes / (1024 * 1024 * 1024), $precision, ',', '.') . ' GB';
+    }
+
+    if ($bytes >= 1024 * 1024) {
+        return number_format($bytes / (1024 * 1024), $precision, ',', '.') . ' MB';
+    }
+
+    if ($bytes >= 1024) {
+        return number_format($bytes / 1024, $precision, ',', '.') . ' KB';
+    }
+
+    return number_format($bytes, 0, ',', '.') . ' B';
+}
+
 function app_base_url(array $config = [], array $settings = []): string
 {
     $baseUrl = trim((string) ($settings['site_base_url'] ?? $config['app']['base_url'] ?? ''));
@@ -176,7 +228,7 @@ function app_base_url(array $config = [], array $settings = []): string
     return $scheme . '://' . $host;
 }
 
-function webhook_url(array $config = [], array $settings = [], string $path = '/webhook/mp'): string
+function webhook_url(array $config = [], array $settings = [], string $path = '/webhook/syncpay'): string
 {
     return rtrim(app_base_url($config, $settings), '/') . '/' . ltrim($path, '/');
 }
@@ -317,6 +369,16 @@ function prototype_runtime_html(array $payload): string
     }
 
     if (! $app || ! isset($app->auth, $app->csrf)) {
+        return prototype_flash_stack_html(is_array($flashMessages) ? $flashMessages : []);
+    }
+
+    $page = (string) ($prototype['page'] ?? '');
+
+    if ($page !== '' && str_starts_with($page, 'public.')) {
+        return prototype_flash_stack_html(is_array($flashMessages) ? $flashMessages : []);
+    }
+
+    if (($prototype['runtime_scripts'] ?? false) !== true) {
         return prototype_flash_stack_html(is_array($flashMessages) ? $flashMessages : []);
     }
 
@@ -523,5 +585,6 @@ function prototype_flash_stack_html(array $messages): string
             '</div>';
     }
 
-    return '<div id="prototype-flash-stack" class="fixed right-4 top-20 z-[9999] flex max-w-sm flex-col gap-3">' . implode('', $items) . '</div>';
+    return '<div id="prototype-flash-stack" class="fixed right-4 top-20 z-[9999] flex max-w-sm flex-col gap-3">' . implode('', $items) . '</div>' .
+        '<script>(function(){var stack=document.getElementById("prototype-flash-stack");if(!stack){return;}stack.querySelectorAll("[data-prototype-flash-close]").forEach(function(button){button.addEventListener("click",function(){var item=button.closest("[data-prototype-flash]");if(item){item.remove();}});});setTimeout(function(){stack.querySelectorAll("[data-prototype-flash]").forEach(function(item){item.remove();});},5000);})();</script>';
 }

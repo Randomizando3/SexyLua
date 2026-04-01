@@ -121,7 +121,7 @@ $suggestedContent = $data['suggested_content'] ?? [];
                         <div class="rounded-3xl bg-surface-container-low p-5">
                             <div class="flex items-start justify-between gap-4">
                                 <div class="min-w-0">
-                                    <p class="truncate text-lg font-bold"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></p>
+                                    <a class="truncate text-lg font-bold hover:text-primary" href="<?= e(path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0), 'content' => (int) ($item['id'] ?? 0)])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></p>
                                     <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 100)) ?></p>
                                 </div>
@@ -145,7 +145,7 @@ $suggestedContent = $data['suggested_content'] ?? [];
                         <div class="rounded-3xl bg-surface-container-low p-5">
                             <div class="flex items-start justify-between gap-4">
                                 <div class="min-w-0">
-                                    <p class="truncate text-lg font-bold"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></p>
+                                    <a class="truncate text-lg font-bold hover:text-primary" href="<?= e(path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0), 'content' => (int) ($item['id'] ?? 0)])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></p>
                                     <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 100)) ?></p>
                                 </div>

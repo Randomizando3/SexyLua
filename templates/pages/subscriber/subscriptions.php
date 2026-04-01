@@ -106,14 +106,10 @@ $summary = $data['summary'] ?? [];
             <h2 class="mt-2 text-5xl font-extrabold tracking-tight">Minhas <span class="italic text-primary">Assinaturas</span></h2>
             <p class="mt-4 max-w-2xl text-on-surface-variant">Gerencie seus planos ativos, descubra novas assinaturas e acompanhe o custo mensal da sua curadoria.</p>
         </div>
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm">
                 <p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Ativas</p>
                 <p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['active_count'] ?? 0)) ?></p>
-            </article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm">
-                <p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Disponiveis</p>
-                <p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['available_count'] ?? 0)) ?></p>
             </article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm">
                 <p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Mensal</p>
@@ -180,7 +176,7 @@ $summary = $data['summary'] ?? [];
                     <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <h4 class="text-xl font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h4>
+                                <a class="text-xl font-bold hover:text-primary" href="<?= e('/profile?id=' . (int) ($creator['id'] ?? 0)) ?>"><?= e((string) ($creator['name'] ?? 'Criador')) ?></a>
                                 <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
                             </div>
                             <span class="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary"><?= luacoin_amount_html((int) ($plan['price_tokens'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3 w-3 shrink-0') ?></span>

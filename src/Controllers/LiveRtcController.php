@@ -37,7 +37,7 @@ final class LiveRtcController extends Controller
             (string) $request->input('peer_id', ''),
             session_id(),
             [
-                'segment_duration_seconds' => (int) $request->input('segment_duration_seconds', 6),
+                'segment_duration_seconds' => (int) $request->input('segment_duration_seconds', 5),
                 'max_bitrate_kbps' => (int) $request->input('max_bitrate_kbps', 1200),
                 'video_width' => (int) $request->input('video_width', 960),
                 'video_height' => (int) $request->input('video_height', 540),
@@ -196,13 +196,31 @@ final class LiveRtcController extends Controller
         }
 
         $file = $request->file('recording_file') ?? [];
+        $thumbnailPath = '';
+
+        if ($request->hasFile('thumbnail_file')) {
+            $thumbnailPath = store_uploaded_file(
+                $request->file('thumbnail_file'),
+                'creator/live/recordings/thumbs',
+                ['jpg', 'jpeg', 'png', 'webp'],
+                1024 * 1024 * 8
+            ) ?? '';
+        }
+
         $result = $this->app->repository->saveLiveRecording((int) $this->user()['id'], (int) $request->input('live_id', 0), [
             'recording_url' => $recordingPath,
+            'thumbnail_url' => $thumbnailPath,
             'recording_mime_type' => (string) ($file['type'] ?? 'video/webm'),
             'recording_bytes' => (int) ($file['size'] ?? 0),
+            'thumbnail_bytes' => (int) (($request->file('thumbnail_file') ?? [])['size'] ?? 0),
             'recording_duration_seconds' => max(0, (int) $request->input('recording_duration_seconds', 0)),
             'recording_label' => trim((string) $request->input('recording_label', 'Replay local')),
         ]);
+
+        if (! (bool) ($result['ok'] ?? false)) {
+            delete_public_media_file($recordingPath);
+            delete_public_media_file($thumbnailPath);
+        }
 
         $this->json($result, (bool) ($result['ok'] ?? false) ? 200 : 422);
     }

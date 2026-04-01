@@ -108,10 +108,12 @@ final class SeedFactory
             'theme' => 'lunar-metamorphosis',
             'announcement' => '',
             'site_base_url' => '',
-            'mercadopago_access_token' => '',
-            'mercadopago_public_key' => '',
-            'mercadopago_webhook_secret' => '',
-            'mercadopago_statement_descriptor' => 'SEXYLUA',
+            'syncpay_api_base_url' => 'https://api.syncpay.pro',
+            'syncpay_client_id' => '',
+            'syncpay_client_secret' => '',
+            'syncpay_api_key' => '',
+            'syncpay_webhook_token' => '',
+            'syncpay_pix_expires_in_days' => 2,
         ];
     }
 }

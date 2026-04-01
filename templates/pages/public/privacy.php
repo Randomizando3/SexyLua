@@ -15,7 +15,7 @@ declare(strict_types=1);
     </article>
     <article class="card">
         <h3>Dados financeiros</h3>
-        <p>As recargas via Mercado Pago usam identificadores de transacao, status e referencias externas para conciliar pagamentos e liberar LuaCoins.</p>
+        <p>As recargas via SyncPay usam identificadores de transacao, status, referencias externas e codigos PIX para conciliar pagamentos e liberar LuaCoins.</p>
     </article>
     <article class="card">
         <h3>Dados de uso</h3>

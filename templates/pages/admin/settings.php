@@ -7,7 +7,7 @@ $admin = $app->auth->user() ?? [];
 $adminAvatarUrl = media_url((string) ($admin['avatar_url'] ?? ''));
 $adminCoverUrl = media_url((string) ($admin['cover_url'] ?? ''));
 $siteBaseUrl = (string) ($settings['site_base_url'] ?? app_base_url($app->config, $settings));
-$mercadoPagoWebhookUrl = (string) ($settings['mercadopago_webhook_url'] ?? webhook_url($app->config, $settings));
+$syncPayWebhookUrl = (string) ($settings['syncpay_webhook_url'] ?? webhook_url($app->config, $settings, '/webhook/syncpay'));
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -217,8 +217,8 @@ $mercadoPagoWebhookUrl = (string) ($settings['mercadopago_webhook_url'] ?? webho
 
                 <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                     <div class="mb-6">
-                        <h3 class="text-2xl font-extrabold">Mercado Pago</h3>
-                        <p class="mt-2 text-sm text-on-surface-variant">Configure as chaves do checkout real e mantenha o webhook padrao em <code>/webhook/mp</code>.</p>
+                        <h3 class="text-2xl font-extrabold">SyncPay PIX</h3>
+                        <p class="mt-2 text-sm text-on-surface-variant">Configure a SyncPay para recarga de LuaCoins. Saques continuam manuais pelo admin.</p>
                     </div>
                     <div class="grid grid-cols-1 gap-5">
                         <label class="block space-y-2">
@@ -226,24 +226,32 @@ $mercadoPagoWebhookUrl = (string) ($settings['mercadopago_webhook_url'] ?? webho
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="site_base_url" placeholder="https://seusite.com" type="url" value="<?= e($siteBaseUrl) ?>">
                         </label>
                         <label class="block space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Webhook Mercado Pago</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface-variant shadow-sm" readonly type="text" value="<?= e($mercadoPagoWebhookUrl) ?>">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Webhook SyncPay</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface-variant shadow-sm" readonly type="text" value="<?= e($syncPayWebhookUrl) ?>">
                         </label>
                         <label class="block space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Access Token</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="mercadopago_access_token" type="text" value="<?= e((string) ($settings['mercadopago_access_token'] ?? '')) ?>">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">API Base URL</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="syncpay_api_base_url" placeholder="https://api.syncpay.pro" type="url" value="<?= e((string) ($settings['syncpay_api_base_url'] ?? 'https://api.syncpay.pro')) ?>">
                         </label>
                         <label class="block space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Public Key</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="mercadopago_public_key" type="text" value="<?= e((string) ($settings['mercadopago_public_key'] ?? '')) ?>">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Client ID</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="syncpay_client_id" type="text" value="<?= e((string) ($settings['syncpay_client_id'] ?? '')) ?>">
                         </label>
                         <label class="block space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Webhook Secret</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="mercadopago_webhook_secret" type="text" value="<?= e((string) ($settings['mercadopago_webhook_secret'] ?? '')) ?>">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Client Secret</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="syncpay_client_secret" type="text" value="<?= e((string) ($settings['syncpay_client_secret'] ?? '')) ?>">
                         </label>
                         <label class="block space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Descricao da fatura</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" maxlength="13" name="mercadopago_statement_descriptor" type="text" value="<?= e((string) ($settings['mercadopago_statement_descriptor'] ?? 'SEXYLUA')) ?>">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">API Key (fallback/status)</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="syncpay_api_key" type="text" value="<?= e((string) ($settings['syncpay_api_key'] ?? '')) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Webhook Token</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="syncpay_webhook_token" type="text" value="<?= e((string) ($settings['syncpay_webhook_token'] ?? '')) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Validade do PIX (dias)</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="syncpay_pix_expires_in_days" step="1" type="number" value="<?= e((string) ($settings['syncpay_pix_expires_in_days'] ?? 2)) ?>">
                         </label>
                     </div>
                 </div>
@@ -258,6 +266,16 @@ $mercadoPagoWebhookUrl = (string) ($settings['mercadopago_webhook_url'] ?? webho
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Slow mode do chat (segundos)</span>
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="slow_mode_seconds" step="1" type="number" value="<?= e((string) ($settings['slow_mode_seconds'] ?? 0)) ?>">
                         </label>
+                        <div class="grid gap-5 md:grid-cols-2">
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Expiração do replay (dias)</span>
+                                <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="live_replay_expiration_days" step="1" type="number" value="<?= e((string) ($settings['live_replay_expiration_days'] ?? 7)) ?>">
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Duração máxima da live (min)</span>
+                                <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="5" name="live_max_duration_minutes" step="1" type="number" value="<?= e((string) ($settings['live_max_duration_minutes'] ?? 30)) ?>">
+                            </label>
+                        </div>
                         <label class="block space-y-2">
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Anuncio global</span>
                             <textarea class="min-h-36 w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="announcement" placeholder="Mensagem exibida para criadores e assinantes."><?= e((string) ($settings['announcement'] ?? '')) ?></textarea>
@@ -333,11 +351,27 @@ $mercadoPagoWebhookUrl = (string) ($settings['mercadopago_webhook_url'] ?? webho
                         </div>
                         <div class="rounded-3xl bg-surface-container-low p-5">
                             <p class="text-sm text-on-surface-variant">Webhook pronto</p>
-                            <p class="mt-2 break-all text-sm font-bold text-primary"><?= e($mercadoPagoWebhookUrl) ?></p>
+                            <p class="mt-2 break-all text-sm font-bold text-primary"><?= e($syncPayWebhookUrl) ?></p>
+                        </div>
+                        <div class="rounded-3xl bg-surface-container-low p-5">
+                            <p class="text-sm text-on-surface-variant">Gateway</p>
+                            <p class="mt-2 text-2xl font-extrabold text-primary">SyncPay</p>
                         </div>
                         <div class="rounded-3xl bg-surface-container-low p-5">
                             <p class="text-sm text-on-surface-variant">Slow mode</p>
                             <p class="mt-2 text-2xl font-extrabold text-primary"><?= e((string) ($settings['slow_mode_seconds'] ?? 0)) ?>s</p>
+                        </div>
+                        <div class="rounded-3xl bg-surface-container-low p-5">
+                            <p class="text-sm text-on-surface-variant">PIX expira em</p>
+                            <p class="mt-2 text-2xl font-extrabold text-primary"><?= e((string) ($settings['syncpay_pix_expires_in_days'] ?? 2)) ?> dias</p>
+                        </div>
+                        <div class="rounded-3xl bg-surface-container-low p-5">
+                            <p class="text-sm text-on-surface-variant">Replay expira em</p>
+                            <p class="mt-2 text-2xl font-extrabold text-primary"><?= e((string) ($settings['live_replay_expiration_days'] ?? 7)) ?> dias</p>
+                        </div>
+                        <div class="rounded-3xl bg-surface-container-low p-5">
+                            <p class="text-sm text-on-surface-variant">Limite por live</p>
+                            <p class="mt-2 text-2xl font-extrabold text-primary"><?= e((string) ($settings['live_max_duration_minutes'] ?? 30)) ?> min</p>
                         </div>
                     </div>
                 </div>

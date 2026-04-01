@@ -5,40 +5,74 @@ declare(strict_types=1);
 $creator = $data['creator'] ?? [];
 $lives = $data['filtered_lives'] ?? $data['lives'] ?? [];
 $selected = $data['selected_live'] ?? null;
-$messages = $data['messages'] ?? [];
 $filters = $data['filters'] ?? [];
 $summary = $data['summary'] ?? [];
-$categories = ['Chatting & Chill', 'Dancing', 'ASMR Lunar', 'Cosplay', 'Editorial', 'Backstage'];
-$schedule = $selected && (string) ($selected['scheduled_for'] ?? '') !== '' ? date('Y-m-d\TH:i', strtotime((string) $selected['scheduled_for'])) : '';
-$selectedStatus = (string) ($selected['status'] ?? 'scheduled');
-$redirect = path_with_query('/creator/live', ['q' => $filters['q'] ?? '', 'status' => $filters['status'] ?? '', 'live' => (int) ($selected['id'] ?? 0)]);
-$cover = media_url((string) ($selected['cover_url'] ?? ''));
+$openForm = (bool) ($open_form ?? false);
+$formMode = (string) ($form_mode ?? '');
+
 $selectedLiveId = (int) ($selected['id'] ?? 0);
-$roomUrl = $selectedLiveId > 0 ? path_with_query('/live', ['id' => $selectedLiveId]) : '';
-$streamStatus = (string) ($selected['stream_status'] ?? 'idle');
-$viewerCount = (int) ($selected['viewer_count'] ?? 0);
-$bitrate = (int) ($selected['max_bitrate_kbps'] ?? 1200);
-$videoWidth = (int) ($selected['video_width'] ?? 960);
-$videoHeight = (int) ($selected['video_height'] ?? 540);
-$videoFps = (int) ($selected['video_fps'] ?? 24);
-$segmentDurationSeconds = (int) ($selected['segment_duration_seconds'] ?? 6);
-$replayUrl = media_url((string) ($selected['recording_url'] ?? ''));
-$replayDuration = (int) ($selected['recording_duration_seconds'] ?? 0);
-$hasReplay = $replayUrl !== '';
-$iceServers = base64_encode((string) json_encode($app->config['app']['rtc_ice_servers'] ?? [], JSON_UNESCAPED_SLASHES));
-$iceTransportPolicy = (string) ($app->config['app']['rtc_ice_transport_policy'] ?? 'all');
-$qualityLabel = $bitrate >= 1500 ? 'Alta' : ($bitrate >= 1100 ? 'Equilibrada' : 'Leve');
-$startButtonLabel = $selectedStatus === 'scheduled' ? 'Iniciar live agendada' : 'Iniciar live';
+$selectedStatus = (string) ($selected['status'] ?? 'scheduled');
+$selectedStatusBucket = (string) ($selected['status_bucket'] ?? 'scheduled');
+$selectedStatusLabel = match ($selectedStatus) {
+    'live' => 'Ao vivo',
+    'ended' => 'Concluída',
+    'expired' => 'Expirada',
+    default => 'Agendada',
+};
 $selectedScheduleLabel = $selected ? format_datetime((string) ($selected['scheduled_for'] ?? '')) : '';
-$selectedTitle = (string) ($selected['title'] ?? 'Selecione uma live');
-$selectedDescription = (string) ($selected['description'] ?? 'Escolha uma live para abrir o estúdio.');
+$selectedStartedAt = $selected ? format_datetime((string) ($selected['started_at'] ?? '')) : '';
+$selectedEndedAt = $selected ? format_datetime((string) ($selected['ended_at'] ?? '')) : '';
+$selectedLiveDuration = (int) ($selected['duration_seconds'] ?? 0);
+$selectedDurationLabel = $selectedLiveDuration > 0 ? gmdate($selectedLiveDuration >= 3600 ? 'H:i:s' : 'i:s', $selectedLiveDuration) : '00:00';
+$selectedRoomUrl = $selectedLiveId > 0 ? path_with_query('/live', ['id' => $selectedLiveId]) : '';
+$selectedCover = media_url((string) ($selected['cover_url'] ?? ''));
+$selectedReplayUrl = media_url((string) ($selected['recording_url'] ?? ''));
+$selectedReplayThumb = media_url((string) ($selected['recording_thumbnail_url'] ?? $selected['cover_url'] ?? ''));
+$selectedHasReplay = $selectedReplayUrl !== '' && (bool) ($selected['recording_enabled'] ?? false);
+$selectedReplayLabel = (string) ($selected['recording_label'] ?? 'Replay automático');
+$selectedIsConcluded = $selectedStatus === 'ended';
+$viewerCount = (int) ($selected['viewer_count'] ?? 0);
+$chatAudienceLabels = [
+    'all' => 'Assinantes e não assinantes',
+    'subscriber' => 'Só assinantes',
+    'off' => 'Chat desabilitado',
+];
+$selectedChatAudience = (string) ($selected['chat_audience'] ?? 'all');
+$selectedReplayVisibility = (string) ($selected['replay_visibility'] ?? 'subscriber');
+$selectedReplayVisibilityLabel = $selectedReplayVisibility === 'public' ? 'Público' : 'Só assinantes';
+$selectedAccessMode = (string) ($selected['access_mode'] ?? 'public');
+$selectedAccessLabel = $selectedAccessMode === 'subscriber' ? 'Assinantes' : 'Público';
+$selectedMaxDurationMinutes = max(5, (int) ($selected['max_live_duration_minutes'] ?? 30));
+$categories = ['Chatting & Chill', 'Dancing', 'ASMR Lunar', 'Cosplay', 'Editorial', 'Backstage'];
+$statusTabs = [
+    'scheduled' => ['label' => 'Agendadas', 'count' => (int) ($summary['scheduled'] ?? 0)],
+    'ended' => ['label' => 'Concluídas', 'count' => (int) ($summary['ended'] ?? 0)],
+    'expired' => ['label' => 'Expiradas', 'count' => (int) ($summary['expired'] ?? 0)],
+];
+
+$newLiveUrl = path_with_query('/creator/live', ['status' => $filters['status'] ?? 'scheduled', 'q' => $filters['q'] ?? '', 'open_form' => 1, 'form_mode' => 'new']);
+$editLiveUrl = $selectedLiveId > 0
+    ? path_with_query('/creator/live', ['status' => $selectedStatusBucket, 'q' => $filters['q'] ?? '', 'live' => $selectedLiveId, 'open_form' => 1, 'form_mode' => 'edit'])
+    : '';
+$selectedStudioUrl = $selectedLiveId > 0 ? path_with_query('/creator/live/studio', ['live' => $selectedLiveId]) : '';
+$closeModalUrl = path_with_query('/creator/live', ['status' => $filters['status'] ?? 'scheduled', 'q' => $filters['q'] ?? '', 'live' => $selectedLiveId > 0 ? $selectedLiveId : null]);
+$formLive = ($openForm && $formMode === 'new') ? null : $selected;
+$formLiveId = (int) ($formLive['id'] ?? 0);
+$formLiveType = (string) ($formLive['live_type'] ?? 'scheduled');
+$formSchedule = $formLive && (string) ($formLive['scheduled_for'] ?? '') !== '' ? date('Y-m-d\TH:i', strtotime((string) ($formLive['scheduled_for'] ?? ''))) : '';
+$formPriceValueRaw = (int) ($formLive['price_tokens'] ?? 0);
+$formGoalValueRaw = (int) ($formLive['goal_tokens'] ?? 0);
+$formPriceValue = $formPriceValueRaw > 0 ? (string) $formPriceValueRaw : '';
+$formGoalValue = $formGoalValueRaw > 0 ? (string) $formGoalValueRaw : '';
+$modalTitle = $formLiveId > 0 ? 'Editar live' : 'Nova live';
+$modalSubmitLabel = $formLiveId > 0 ? 'Salvar alterações' : 'Salvar live';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>SexyLua - Estúdio de Live</title>
+    <title>SexyLua - Lives do Criador</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -51,252 +85,415 @@ $selectedDescription = (string) ($selected['description'] ?? 'Escolha uma live p
 </head>
 <body>
 <?php
-ob_start();
-?>
-<form action="/creator/live" class="hidden items-center gap-4 lg:flex" method="get">
-    <div class="relative">
-        <input class="w-72 rounded-full border-none bg-white/10 px-5 py-2 pr-12 text-sm text-white outline-none placeholder:text-white/70 focus:ring-1 focus:ring-white/40" name="q" placeholder="Buscar lives..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
-        <span class="material-symbols-outlined absolute right-4 top-2 text-white/70">search</span>
-    </div>
-    <?php if (($filters['status'] ?? '') !== ''): ?>
-        <input name="status" type="hidden" value="<?= e((string) $filters['status']) ?>">
-    <?php endif; ?>
-</form>
-<?php
-$creatorTopbarSearch = (string) ob_get_clean();
+$creatorTopbarSearch = '';
 $creatorShellCreator = $creator;
 $creatorShellCurrent = 'live';
-$creatorTopbarLabel = 'Estúdio de Live';
+$creatorTopbarLabel = 'Lives';
 $creatorTopbarAction = ['href' => '/creator/content', 'label' => 'Conteúdo'];
 include base_path('templates/partials/creator_sidebar.php');
 include base_path('templates/partials/creator_topbar.php');
 ?>
 
 <main class="px-6 pb-12 pt-24 lg:ml-64 lg:px-10">
-    <div class="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
             <p class="text-xs font-bold uppercase tracking-[0.3em] text-[#D81B60]">Creator Studio</p>
-            <h2 class="headline mt-2 text-4xl font-extrabold">Transmissão ao vivo</h2>
-            <p class="mt-3 max-w-3xl text-slate-500">Agende, prepare e inicie suas lives em um fluxo simples para o criador.</p>
+            <h1 class="headline mt-2 text-4xl font-extrabold">Minhas lives</h1>
+            <p class="mt-3 max-w-3xl text-slate-500">Crie lives instantâneas ou agendadas, acompanhe a agenda em ordem cronológica e abra o estúdio só quando a sala estiver pronta.</p>
         </div>
-        <div class="grid grid-cols-1 gap-4 text-center sm:grid-cols-3">
-            <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Agendadas</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= e((string) ($summary['scheduled'] ?? 0)) ?></p></div>
-            <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Ao vivo</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]"><?= e((string) ($summary['live'] ?? 0)) ?></p></div>
-            <div class="rounded-2xl bg-white p-4 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Viewers</p><p class="headline mt-2 text-2xl font-extrabold text-[#D81B60]" data-live-viewer-count><?= e((string) $viewerCount) ?></p></div>
-        </div>
+        <a class="signature-glow inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-white xl:w-auto" href="<?= e($newLiveUrl) ?>">
+            <span class="material-symbols-outlined text-lg">add</span>
+            Nova live
+        </a>
     </div>
 
-    <div class="grid grid-cols-1 gap-8 xl:grid-cols-[1.05fr_0.95fr]">
-        <section class="space-y-6">
-            <div
-                class="overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)]"
-                data-live-rtc-mode="creator"
-                data-live-id="<?= e((string) $selectedLiveId) ?>"
-                data-csrf="<?= e($app->csrf->token()) ?>"
-                data-can-broadcast="<?= $selectedLiveId > 0 ? '1' : '0' ?>"
-                data-join-url="/live/rtc/join"
-                data-start-url="/live/rtc/start"
-                data-stop-url="/live/rtc/stop"
-                data-signal-url="/live/rtc/signal"
-                data-poll-url="/live/rtc/poll"
-                data-heartbeat-url="/live/rtc/heartbeat"
-                data-leave-url="/live/rtc/leave"
-                data-chunk-upload-url="/live/rtc/chunk"
-                data-recording-upload-url="/live/rtc/recording"
-                data-recording-enabled="<?= (bool) ($selected['recording_enabled'] ?? false) ? '1' : '0' ?>"
-                data-replay-url="<?= e($replayUrl) ?>"
-                data-ice-servers="<?= e($iceServers) ?>"
-                data-ice-transport-policy="<?= e($iceTransportPolicy) ?>"
-                data-max-bitrate-kbps="<?= e((string) $bitrate) ?>"
-                data-video-width="<?= e((string) $videoWidth) ?>"
-                data-video-height="<?= e((string) $videoHeight) ?>"
-                data-video-fps="<?= e((string) $videoFps) ?>"
-                data-segment-duration-ms="<?= e((string) ($segmentDurationSeconds * 1000)) ?>"
-            >
-                <div class="relative aspect-video bg-slate-950">
-                    <video autoplay class="h-full w-full object-cover" data-live-local-video muted playsinline></video>
-                    <?php if ($cover !== ''): ?><img alt="Capa da live" class="absolute inset-0 h-full w-full object-cover opacity-25" src="<?= e($cover) ?>"><?php endif; ?>
-                    <div class="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/80 via-black/20 to-black/40 p-6 text-white">
-                        <div class="flex items-start justify-between gap-4">
-                            <span class="rounded-full bg-[#D81B60] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-status-text><?= e($streamStatus === 'live' ? 'ao vivo' : ($selectedLiveId > 0 ? 'aguardando' : 'sem live')) ?></span>
-                            <span class="rounded-full bg-white/15 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]"><span data-live-viewer-count><?= e((string) $viewerCount) ?></span> viewers</span>
-                        </div>
-                        <div>
-                            <p class="headline text-3xl font-extrabold"><?= e($selectedTitle) ?></p>
-                            <p class="mt-2 max-w-2xl text-sm text-white/80"><?= e($selectedDescription) ?></p>
-                        </div>
-                    </div>
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/50 px-6 text-center text-white" data-live-waiting>
-                        <div class="max-w-md">
-                            <p class="headline text-3xl font-extrabold">Estúdio local</p>
-                            <p class="mt-3 text-sm text-white/75" data-live-waiting-text><?= $selectedLiveId > 0 ? 'Preview pronto. Clique em iniciar live para entrar no ar.' : 'Crie ou selecione uma live para abrir o estúdio.' ?></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="space-y-5 p-6">
-                    <div class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800" data-live-error></div>
-
-                    <?php if ($selected && $selectedStatus === 'scheduled'): ?>
-                        <div class="rounded-2xl bg-[#f5f3f5] px-5 py-4 text-sm text-slate-600">
-                            <p class="font-bold text-slate-800">Live agendada</p>
-                            <p class="mt-2">Agendada para <?= e($selectedScheduleLabel !== '' ? $selectedScheduleLabel : 'em breve') ?>. Quando estiver tudo pronto, clique em <strong>Iniciar live agendada</strong> para começar.</p>
-                        </div>
-                    <?php endif; ?>
-
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Status</p>
-                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedStatus === 'live' ? 'Ao vivo' : ($selectedStatus === 'ended' ? 'Encerrada' : 'Agendada')) ?></p>
-                        </div>
-                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Qualidade</p>
-                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e($qualityLabel) ?></p>
-                        </div>
-                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Vídeo</p>
-                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) $videoWidth) ?>x<?= e((string) $videoHeight) ?></p>
-                        </div>
-                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Fluidez</p>
-                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) $videoFps) ?> fps</p>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col gap-3 sm:flex-row">
-                        <button class="signature-glow flex-1 rounded-full px-6 py-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" data-live-start data-prototype-skip="1" type="button"><?= e($startButtonLabel) ?></button>
-                        <button class="flex-1 rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" data-live-stop data-prototype-skip="1" type="button">Encerrar live</button>
-                    </div>
-
-                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Preview local</p>
-                            <p class="mt-2 text-sm text-slate-600">Ajuste câmera e áudio antes de entrar no ar. Você pode ouvir o retorno local e controlar o espelhamento da imagem.</p>
-                            <div class="mt-4 flex flex-col gap-3 sm:flex-row">
-                                <button class="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-700" data-live-preview-audio data-prototype-skip="1" type="button">Ouvir preview</button>
-                                <button class="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-700" data-live-preview-mirror data-prototype-skip="1" type="button">Desespelhar câmera</button>
-                            </div>
-                        </div>
-                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Replay da live</p>
-                            <p class="mt-2 text-sm font-bold text-slate-800" data-live-record-status><?= $hasReplay ? 'Replay pronto para assistir' : 'Ative a gravação para guardar o replay da live.' ?></p>
-                            <p class="mt-1 text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Duração <span data-live-record-duration><?= e($replayDuration > 0 ? gmdate('H:i:s', $replayDuration) : '00:00:00') ?></span></p>
-                            <a class="<?= $hasReplay ? '' : 'hidden ' ?>mt-3 block break-all text-sm font-bold text-[#D81B60] underline" data-live-record-link href="<?= e($replayUrl) ?>" target="_blank"><?= e($replayUrl !== '' ? $replayUrl : '') ?></a>
-                            <div class="mt-4 flex flex-col gap-3 sm:flex-row">
-                                <button class="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50" data-live-record-start data-prototype-skip="1" type="button">Gravar local</button>
-                                <button class="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50" data-live-record-stop data-prototype-skip="1" type="button">Parar gravação</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="rounded-2xl bg-[#f5f3f5] p-4 text-sm text-slate-600">
-                        <p class="font-bold text-slate-800">Sala pública da live</p>
-                        <?php if ($roomUrl !== ''): ?>
-                            <a class="mt-2 block break-all text-[#D81B60] underline" data-live-room-link href="<?= e($roomUrl) ?>" target="_blank"><?= e($roomUrl) ?></a>
-                        <?php else: ?>
-                            <p class="mt-2">Salve uma live para gerar a sala pública.</p>
-                        <?php endif; ?>
-                        <p class="mt-3 text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Recomendação inicial: conexão estável acima de 10 Mbps para transmitir com mais folga.</p>
-                    </div>
-                </div>
+    <section class="mt-8 rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:p-8">
+        <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div class="flex flex-wrap gap-3">
+                <?php foreach ($statusTabs as $key => $tab): ?>
+                    <?php $tabUrl = path_with_query('/creator/live', ['status' => $key, 'q' => $filters['q'] ?? '']); ?>
+                    <a class="<?= ($filters['status'] ?? 'scheduled') === $key ? 'signature-glow text-white' : 'bg-[#f7f4f7] text-slate-600' ?> rounded-full px-5 py-3 text-sm font-bold" href="<?= e($tabUrl) ?>">
+                        <?= e($tab['label']) ?>
+                        <span class="ml-2 rounded-full <?= ($filters['status'] ?? 'scheduled') === $key ? 'bg-white/20 text-white' : 'bg-white text-slate-500' ?> px-2.5 py-1 text-[11px]"><?= e((string) $tab['count']) ?></span>
+                    </a>
+                <?php endforeach; ?>
             </div>
 
-            <div class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-                <h4 class="headline text-xl font-extrabold">Últimas mensagens da live selecionada</h4>
-                <div class="mt-4 space-y-3">
-                    <?php foreach (array_slice($messages, -6) as $message): ?>
-                        <div class="rounded-2xl bg-[#f5f3f5] p-4 text-sm">
-                            <span class="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[#D81B60]"><?= e((string) ($message['sender']['name'] ?? 'Convidado')) ?></span>
-                            <?= e((string) ($message['body'] ?? '')) ?>
-                        </div>
-                    <?php endforeach; ?>
-                    <?php if ($messages === []): ?><p class="text-sm text-slate-500">Sem mensagens para esta live ainda.</p><?php endif; ?>
-                </div>
-            </div>
-        </section>
-
-        <section class="rounded-3xl bg-white p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-            <h3 class="headline text-2xl font-extrabold"><?= $selected ? 'Editar live' : 'Nova live' ?></h3>
-            <form action="/creator/live/save" class="mt-6 space-y-4" enctype="multipart/form-data" method="post">
-                <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                <?php if ($selected): ?><input name="id" type="hidden" value="<?= e((string) ($selected['id'] ?? 0)) ?>"><?php endif; ?>
-                <input class="w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="title" placeholder="Título da live" required type="text" value="<?= e((string) ($selected['title'] ?? '')) ?>">
-                <textarea class="min-h-[120px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="description" placeholder="Descrição"><?= e((string) ($selected['description'] ?? '')) ?></textarea>
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="scheduled_for" type="datetime-local" value="<?= e($schedule) ?>">
-                    <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="category"><?php foreach ($categories as $category): ?><option value="<?= e($category) ?>" <?= (string) ($selected['category'] ?? 'Chatting & Chill') === $category ? 'selected' : '' ?>><?= e($category) ?></option><?php endforeach; ?></select>
-                    <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="price_luacoins" placeholder="Preço em LuaCoins" type="number" value="<?= e((string) ($selected['price_tokens'] ?? 0)) ?>">
-                    <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="goal_luacoins" placeholder="Meta em LuaCoins" type="number" value="<?= e((string) ($selected['goal_tokens'] ?? 0)) ?>">
-                </div>
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="cover_url" placeholder="URL da capa (opcional)" type="url" value="<?= e((string) ($selected['cover_url'] ?? '')) ?>">
-                    <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" name="cover_file" type="file">
-                    <input name="max_bitrate_kbps" type="hidden" value="<?= e((string) $bitrate) ?>">
-                    <input name="video_width" type="hidden" value="<?= e((string) $videoWidth) ?>">
-                    <input name="video_height" type="hidden" value="<?= e((string) $videoHeight) ?>">
-                    <input name="video_fps" type="hidden" value="<?= e((string) $videoFps) ?>">
-                </div>
-                <textarea class="min-h-[92px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="pinned_notice" placeholder="Aviso fixado"><?= e((string) ($selected['pinned_notice'] ?? '')) ?></textarea>
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <label class="rounded-2xl bg-[#f5f3f5] p-4 text-sm font-semibold"><input <?= (string) ($selected['access_mode'] ?? 'public') === 'public' ? 'checked' : '' ?> class="mr-3" name="access_mode" type="radio" value="public"> Público</label>
-                    <label class="rounded-2xl bg-[#f5f3f5] p-4 text-sm font-semibold"><input <?= (string) ($selected['access_mode'] ?? '') === 'subscriber' ? 'checked' : '' ?> class="mr-3" name="access_mode" type="radio" value="subscriber"> Assinantes</label>
-                </div>
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <label class="rounded-2xl bg-[#f5f3f5] p-4 text-sm font-semibold"><input <?= !isset($selected['chat_enabled']) || (bool) ($selected['chat_enabled'] ?? false) ? 'checked' : '' ?> class="mr-3" name="chat_enabled" type="checkbox" value="1"> Chat habilitado</label>
-                    <label class="rounded-2xl bg-[#f5f3f5] p-4 text-sm font-semibold"><input <?= (bool) ($selected['recording_enabled'] ?? false) ? 'checked' : '' ?> class="mr-3" name="recording_enabled" type="checkbox" value="1"> Gravar replay</label>
-                </div>
-                <div class="rounded-2xl bg-[#f5f3f5] p-4 text-sm text-slate-600">
-                    <p class="font-bold text-slate-800">Qualidade padrão da live</p>
-                    <p class="mt-2">A live usa um perfil leve e estável para facilitar o envio e a reprodução, mantendo imagem nítida e boa fluidez.</p>
-                </div>
-                <button class="signature-glow w-full rounded-full px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit"><?= $selected ? 'Salvar alterações' : 'Salvar live' ?></button>
+            <form action="/creator/live" class="grid w-full grid-cols-1 gap-3 md:w-auto md:grid-cols-[minmax(0,340px)_auto_auto]" method="get">
+                <input name="status" type="hidden" value="<?= e((string) ($filters['status'] ?? 'scheduled')) ?>">
+                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-3.5" name="q" placeholder="Buscar live..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
+                <button class="rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
+                <a class="rounded-full bg-[#f5f3f5] px-6 py-3 text-center text-sm font-bold text-slate-600" href="<?= e(path_with_query('/creator/live', ['status' => $filters['status'] ?? 'scheduled'])) ?>">Reset</a>
             </form>
-        </section>
-    </div>
+        </div>
 
-    <form action="/creator/live" class="mt-10 grid grid-cols-1 gap-4 rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)_auto]" method="get">
-        <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="q" placeholder="Buscar live..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
-        <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="status"><option value="">Todos os status</option><option value="scheduled" <?= (string) ($filters['status'] ?? '') === 'scheduled' ? 'selected' : '' ?>>Agendada</option><option value="live" <?= (string) ($filters['status'] ?? '') === 'live' ? 'selected' : '' ?>>Ao vivo</option><option value="ended" <?= (string) ($filters['status'] ?? '') === 'ended' ? 'selected' : '' ?>>Encerrada</option></select>
-        <div class="flex flex-wrap items-end gap-3 md:col-span-2 xl:col-span-1"><button class="min-w-[120px] rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button><a class="min-w-[110px] rounded-full bg-[#f5f3f5] px-5 py-4 text-center text-sm font-bold text-slate-600" href="/creator/live">Reset</a></div>
-    </form>
+        <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+            <?php foreach ($lives as $live): ?>
+                <?php
+                $liveId = (int) ($live['id'] ?? 0);
+                $isSelected = $selectedLiveId > 0 && $selectedLiveId === $liveId;
+                $status = (string) ($live['status'] ?? 'scheduled');
+                $statusLabel = match ($status) {
+                    'live' => 'Ao vivo',
+                    'ended' => 'Concluída',
+                    'expired' => 'Expirada',
+                    default => 'Agendada',
+                };
+                $selectUrl = path_with_query('/creator/live', ['status' => (string) ($live['status_bucket'] ?? 'scheduled'), 'q' => $filters['q'] ?? '', 'live' => $liveId]);
+                ?>
+                <a class="<?= $isSelected ? 'ring-2 ring-[#D81B60]' : 'ring-1 ring-[#f0e8ee]' ?> overflow-hidden rounded-3xl bg-[#fbf9fb] transition-transform hover:-translate-y-1" href="<?= e($selectUrl) ?>">
+                    <div class="p-5">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="headline truncate text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
+                                <p class="mt-2 text-sm text-slate-500"><?= e(excerpt((string) ($live['description'] ?? ''), 110)) ?></p>
+                            </div>
+                            <span class="<?= $status === 'live' ? 'bg-emerald-500 text-white' : ($status === 'expired' ? 'bg-amber-100 text-amber-700' : 'bg-[#f2dce6] text-[#ab1155]') ?> shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em]"><?= e($statusLabel) ?></span>
+                        </div>
 
-    <div class="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-        <?php foreach ($lives as $live): ?>
-            <?php
-            $status = (string) ($live['status'] ?? 'scheduled');
-            $next = $status === 'live' ? ['ended', 'Encerrar live'] : ($status === 'ended' ? ['scheduled', 'Agendar de novo'] : ['live', 'Iniciar live agendada']);
-            $liveRoomUrl = path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)]);
-            $statusLabel = $status === 'live' ? 'Ao vivo' : ($status === 'ended' ? 'Encerrada' : 'Agendada');
-            ?>
-            <article class="overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-                <div class="signature-glow p-5 text-white">
-                    <p class="headline truncate text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
-                    <p class="mt-2 text-sm text-white/80"><?= e(format_datetime((string) ($live['scheduled_for'] ?? ''), 'd/m H:i')) ?></p>
+                        <div class="mt-5 grid grid-cols-2 gap-3 text-sm">
+                            <div class="rounded-2xl bg-white px-4 py-3">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Agenda</p>
+                                <p class="mt-2 font-bold text-slate-700"><?= e(format_datetime((string) ($live['scheduled_for'] ?? ''))) ?></p>
+                            </div>
+                            <div class="rounded-2xl bg-white px-4 py-3">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Viewers</p>
+                                <p class="mt-2 font-bold text-slate-700"><?= e((string) ((int) ($live['viewer_count'] ?? 0))) ?></p>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            <?php endforeach; ?>
+
+            <?php if ($lives === []): ?>
+                <div class="rounded-3xl bg-[#fbf9fb] p-8 text-sm text-slate-500 ring-1 ring-[#f0e8ee] xl:col-span-2 2xl:col-span-3">
+                    Nenhuma live encontrada neste filtro ainda.
                 </div>
-                <div class="space-y-4 p-5">
-                    <p class="text-sm text-slate-500"><?= e(excerpt((string) ($live['description'] ?? ''), 120)) ?></p>
-                    <div class="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-slate-500">
-                        <span><?= e((string) ($live['category'] ?? 'Studio')) ?></span>
-                        <span><?= e((string) ($live['viewer_count'] ?? 0)) ?> viewers</span>
+            <?php endif; ?>
+        </div>
+    </section>
+
+    <section class="mt-8">
+        <?php if ($selected === null): ?>
+            <div class="rounded-3xl bg-white p-10 text-center shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
+                <h2 class="headline text-3xl font-extrabold">Escolha uma live para ver os detalhes</h2>
+                <p class="mt-3 text-slate-500">A agenda fica separada do estúdio. Selecione uma live acima para abrir os detalhes e, quando estiver pronta, entrar no estúdio.</p>
+                <a class="signature-glow mt-6 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-white" href="<?= e($newLiveUrl) ?>">
+                    <span class="material-symbols-outlined text-lg">add</span>
+                    Criar nova live
+                </a>
+            </div>
+        <?php elseif ($selectedIsConcluded): ?>
+            <section class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:p-8">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Resumo da transmissão</p>
+                        <h2 class="headline mt-2 text-3xl font-extrabold"><?= e((string) ($selected['title'] ?? 'Live')) ?></h2>
+                        <p class="mt-3 max-w-3xl text-sm text-slate-500"><?= e((string) ($selected['description'] ?? '')) ?></p>
                     </div>
-                    <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-500">
-                        status <?= e($statusLabel) ?>
-                    </div>
-                    <?php if ((string) ($live['recording_url'] ?? '') !== ''): ?>
-                        <a class="block rounded-2xl bg-[#D81B60]/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]" href="<?= e(media_url((string) ($live['recording_url'] ?? ''))) ?>" target="_blank">Replay salvo</a>
-                    <?php endif; ?>
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <a class="rounded-full bg-[#f5f3f5] px-4 py-3 text-center text-xs font-bold text-slate-700" href="<?= e(path_with_query('/creator/live', ['q' => $filters['q'] ?? '', 'status' => $filters['status'] ?? '', 'live' => (int) ($live['id'] ?? 0)])) ?>">Editar</a>
-                        <a class="rounded-full bg-[#D81B60]/10 px-4 py-3 text-center text-xs font-bold text-[#D81B60]" href="<?= e($liveRoomUrl) ?>" target="_blank">Abrir sala</a>
-                        <form action="/creator/live/status" method="post"><input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>"><input name="live_id" type="hidden" value="<?= e((string) ($live['id'] ?? 0)) ?>"><input name="status" type="hidden" value="<?= e((string) $next[0]) ?>"><input name="redirect" type="hidden" value="<?= e($redirect) ?>"><button class="w-full rounded-full bg-slate-900 px-4 py-3 text-xs font-bold text-white" data-prototype-skip="1" type="submit"><?= e((string) $next[1]) ?></button></form>
-                        <form action="/creator/live/delete" method="post" onsubmit="return confirm('Remover esta live?');"><input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>"><input name="live_id" type="hidden" value="<?= e((string) ($live['id'] ?? 0)) ?>"><input name="redirect" type="hidden" value="<?= e($redirect) ?>"><button class="w-full rounded-full bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700" data-prototype-skip="1" type="submit">Excluir</button></form>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <?php if ($editLiveUrl !== ''): ?>
+                            <a class="rounded-full bg-[#f7f4f7] px-5 py-3 text-sm font-bold text-slate-600" href="<?= e($editLiveUrl) ?>">Editar dados</a>
+                        <?php endif; ?>
+                        <?php if ($selectedHasReplay): ?>
+                            <a class="signature-glow rounded-full px-5 py-3 text-sm font-bold text-white" href="<?= e($selectedReplayUrl) ?>" target="_blank">Abrir replay</a>
+                        <?php endif; ?>
+                        <span class="rounded-full bg-[#f2dce6] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.25em] text-[#ab1155]"><?= e($selectedStatusLabel) ?></span>
                     </div>
                 </div>
-            </article>
-        <?php endforeach; ?>
-        <?php if ($lives === []): ?><p class="rounded-3xl bg-white p-8 text-sm text-slate-500 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">Nenhuma live cadastrada ainda.</p><?php endif; ?>
-    </div>
+
+                <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Agendada</p>
+                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedScheduleLabel !== '' ? $selectedScheduleLabel : 'Sem agenda') ?></p>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Iniciada em</p>
+                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedStartedAt !== '' ? $selectedStartedAt : 'Não iniciou') ?></p>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Encerrada em</p>
+                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedEndedAt !== '' ? $selectedEndedAt : 'Sem registro') ?></p>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Duração</p>
+                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedDurationLabel) ?></p>
+                    </div>
+                </div>
+
+                <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
+                    <div class="overflow-hidden rounded-3xl bg-[#f7f4f7]">
+                        <div class="relative aspect-video bg-slate-950">
+                            <?php if ($selectedReplayThumb !== ''): ?>
+                                <img alt="Thumb do replay" class="h-full w-full object-cover" src="<?= e($selectedReplayThumb) ?>">
+                            <?php elseif ($selectedCover !== ''): ?>
+                                <img alt="Capa da live" class="h-full w-full object-cover" src="<?= e($selectedCover) ?>">
+                            <?php else: ?>
+                                <div class="signature-glow flex h-full w-full items-center justify-center text-white">
+                                    <span class="headline text-2xl font-extrabold">REPLAY</span>
+                                </div>
+                            <?php endif; ?>
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent"></div>
+                            <div class="absolute inset-x-0 bottom-0 p-5 text-white">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-white/75"><?= e($selectedReplayLabel) ?></p>
+                                <p class="mt-2 text-sm text-white/80"><?= $selectedHasReplay ? 'Replay salvo automaticamente ao encerrar a live.' : 'O replay ainda está sendo preparado.' ?></p>
+                            </div>
+                            <?php if ($selectedHasReplay): ?>
+                                <a class="absolute inset-0 flex items-center justify-center" href="<?= e($selectedReplayUrl) ?>" target="_blank">
+                                    <span class="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-[#ab1155] shadow-lg">
+                                        <span class="material-symbols-outlined text-4xl">play_arrow</span>
+                                    </span>
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="rounded-3xl bg-[#f7f4f7] p-5">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Sala e visibilidade</p>
+                            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div class="rounded-2xl bg-white px-4 py-4">
+                                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Acesso</p>
+                                    <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedAccessLabel) ?></p>
+                                </div>
+                                <div class="rounded-2xl bg-white px-4 py-4">
+                                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Replay</p>
+                                    <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedReplayVisibilityLabel) ?></p>
+                                </div>
+                                <div class="rounded-2xl bg-white px-4 py-4 md:col-span-2">
+                                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Chat</p>
+                                    <p class="mt-2 text-sm font-bold text-slate-700"><?= e($chatAudienceLabels[$selectedChatAudience] ?? 'Assinantes e não assinantes') ?></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-3xl bg-[#f7f4f7] p-5">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Sala pública</p>
+                            <a class="mt-3 block break-all text-sm font-bold text-[#D81B60] underline" href="<?= e($selectedRoomUrl) ?>" target="_blank"><?= e($selectedRoomUrl) ?></a>
+                            <p class="mt-4 text-sm text-slate-500">Para controlar o replay, disponibilidade e visibilidade, vá em Meus Conteúdos.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        <?php else: ?>
+            <section class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:p-8">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Detalhes da live</p>
+                        <h2 class="headline mt-2 text-3xl font-extrabold"><?= e((string) ($selected['title'] ?? 'Live')) ?></h2>
+                        <p class="mt-3 max-w-3xl text-sm text-slate-500"><?= e((string) ($selected['description'] ?? '')) ?></p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <?php if ($editLiveUrl !== ''): ?>
+                            <a class="rounded-full bg-[#f7f4f7] px-5 py-3 text-sm font-bold text-slate-600" href="<?= e($editLiveUrl) ?>">Editar dados</a>
+                        <?php endif; ?>
+                        <?php if ($selectedStatus === 'expired'): ?>
+                            <a class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" href="<?= e($editLiveUrl) ?>">Editar live</a>
+                        <?php elseif ($selectedStudioUrl !== ''): ?>
+                            <a class="signature-glow rounded-full px-5 py-3 text-sm font-bold text-white" href="<?= e($selectedStudioUrl) ?>"><?= e($selectedStatus === 'live' ? 'Abrir estúdio' : 'Iniciar live agendada') ?></a>
+                        <?php endif; ?>
+                        <span class="<?= $selectedStatus === 'live' ? 'bg-emerald-500 text-white' : ($selectedStatus === 'expired' ? 'bg-amber-100 text-amber-700' : 'bg-[#f2dce6] text-[#ab1155]') ?> rounded-full px-4 py-2 text-[11px] font-bold uppercase tracking-[0.25em]"><?= e($selectedStatusLabel) ?></span>
+                    </div>
+                </div>
+
+                <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Agenda</p>
+                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedScheduleLabel !== '' ? $selectedScheduleLabel : 'Sem agenda') ?></p>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Acesso</p>
+                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedAccessLabel) ?></p>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Chat</p>
+                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e($chatAudienceLabels[$selectedChatAudience] ?? 'Assinantes e não assinantes') ?></p>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Duração máxima</p>
+                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) $selectedMaxDurationMinutes) ?> min</p>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Meta</p>
+                        <div class="mt-2 text-sm font-bold text-slate-700"><?= luacoin_amount_html((int) ($selected['goal_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></div>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Ingresso</p>
+                        <div class="mt-2 text-sm font-bold text-slate-700"><?= luacoin_amount_html((int) ($selected['price_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></div>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Viewers</p>
+                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) $viewerCount) ?></p>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Replay</p>
+                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedReplayVisibilityLabel) ?></p>
+                    </div>
+                </div>
+
+                <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
+                    <div class="overflow-hidden rounded-3xl bg-[#f7f4f7]">
+                        <div class="relative aspect-video bg-slate-950">
+                            <?php if ($selectedCover !== ''): ?>
+                                <img alt="Capa da live" class="h-full w-full object-cover" src="<?= e($selectedCover) ?>">
+                            <?php else: ?>
+                                <div class="signature-glow flex h-full w-full items-center justify-center text-white">
+                                    <span class="headline text-2xl font-extrabold"><?= e(mb_strtoupper(mb_substr((string) ($selected['title'] ?? 'LIVE'), 0, 18))) ?></span>
+                                </div>
+                            <?php endif; ?>
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent"></div>
+                            <div class="absolute inset-x-0 bottom-0 p-5 text-white">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-white/75"><?= e($selectedStatusLabel) ?></p>
+                                <p class="mt-2 text-sm text-white/80"><?= $selectedStatus === 'expired' ? 'Esta live expirou porque a data passou sem transmissão.' : 'Quando estiver pronta, abra o estúdio em uma tela separada para ajustar câmera, microfone e iniciar a sala.' ?></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="rounded-3xl bg-[#f7f4f7] p-5">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Sala pública</p>
+                            <a class="mt-3 block break-all text-sm font-bold text-[#D81B60] underline" href="<?= e($selectedRoomUrl) ?>" target="_blank"><?= e($selectedRoomUrl) ?></a>
+                            <p class="mt-4 text-sm text-slate-500"><?= $selectedStatus === 'expired' ? 'Reagende ou edite esta live antes de tentar entrar no ar novamente.' : 'Ao iniciar a live no estúdio, esta será a sala aberta para o público.' ?></p>
+                        </div>
+
+                        <?php if (trim((string) ($selected['pinned_notice'] ?? '')) !== ''): ?>
+                            <div class="rounded-3xl bg-[#f7f4f7] p-5">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Aviso fixado</p>
+                                <p class="mt-3 text-sm text-slate-600"><?= e((string) ($selected['pinned_notice'] ?? '')) ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($selectedStatus === 'live'): ?>
+                            <div class="rounded-3xl bg-emerald-50 p-5">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-600">Live em andamento</p>
+                                <p class="mt-3 text-sm text-emerald-800">Esta live já está no ar. Abra o estúdio para acompanhar preview, chat e encerrar quando quiser.</p>
+                                <?php if ($selectedStartedAt !== ''): ?>
+                                    <p class="mt-3 text-sm font-bold text-emerald-900">Iniciada em <?= e($selectedStartedAt) ?></p>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </section>
+        <?php endif; ?>
+    </section>
 </main>
 
-<script src="<?= e(asset('js/live-segment.js')) ?>"></script>
+<div class="<?= $openForm ? '' : 'hidden ' ?>fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 py-8" data-live-modal>
+    <div class="w-full max-w-4xl rounded-3xl bg-white p-6 shadow-[0px_30px_80px_rgba(27,28,29,0.18)] sm:p-8">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+                <h3 class="headline text-2xl font-extrabold"><?= e($modalTitle) ?></h3>
+                <p class="mt-2 text-sm text-slate-500">Crie uma live instantânea para entrar no ar hoje ou agende uma sessão completa para depois.</p>
+            </div>
+            <a class="rounded-full bg-[#f5f3f5] px-5 py-3 text-sm font-bold text-slate-600" href="<?= e($closeModalUrl) ?>">Fechar</a>
+        </div>
+
+        <form action="/creator/live/save" class="mt-6 space-y-4" enctype="multipart/form-data" method="post" data-live-form>
+            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+            <?php if ($formLiveId > 0): ?><input name="id" type="hidden" value="<?= e((string) $formLiveId) ?>"><?php endif; ?>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <label class="rounded-2xl bg-[#f5f3f5] p-4 text-sm font-semibold">
+                    <input <?= $formLiveType === 'instant' ? 'checked' : '' ?> class="mr-3" name="live_type" type="radio" value="instant">
+                    Live instantânea
+                </label>
+                <label class="rounded-2xl bg-[#f5f3f5] p-4 text-sm font-semibold">
+                    <input <?= $formLiveType !== 'instant' ? 'checked' : '' ?> class="mr-3" name="live_type" type="radio" value="scheduled">
+                    Agendar live
+                </label>
+            </div>
+
+            <input class="w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="title" placeholder="Título da live" required type="text" value="<?= e((string) ($formLive['title'] ?? '')) ?>">
+            <textarea class="min-h-[120px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="description" placeholder="Descrição"><?= e((string) ($formLive['description'] ?? '')) ?></textarea>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div data-live-form-schedule-group>
+                    <input class="w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="scheduled_for" type="datetime-local" value="<?= e($formSchedule) ?>">
+                </div>
+                <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="category">
+                    <?php foreach ($categories as $category): ?>
+                        <option value="<?= e($category) ?>" <?= (string) ($formLive['category'] ?? 'Chatting & Chill') === $category ? 'selected' : '' ?>><?= e($category) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="price_luacoins" placeholder="Preço em LuaCoins" type="number" value="<?= e($formPriceValue) ?>">
+                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="goal_luacoins" placeholder="Meta em LuaCoins" type="number" value="<?= e($formGoalValue) ?>">
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="access_mode">
+                    <option value="public" <?= (string) ($formLive['access_mode'] ?? 'public') === 'public' ? 'selected' : '' ?>>Público</option>
+                    <option value="subscriber" <?= (string) ($formLive['access_mode'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Assinantes</option>
+                </select>
+                <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="replay_visibility">
+                    <option value="subscriber" <?= (string) ($formLive['replay_visibility'] ?? 'subscriber') === 'subscriber' ? 'selected' : '' ?>>Replay só para assinantes</option>
+                    <option value="public" <?= (string) ($formLive['replay_visibility'] ?? '') === 'public' ? 'selected' : '' ?>>Replay público</option>
+                </select>
+                <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="chat_audience">
+                    <option value="all" <?= (string) ($formLive['chat_audience'] ?? 'all') === 'all' ? 'selected' : '' ?>>Chat para assinantes e não assinantes</option>
+                    <option value="subscriber" <?= (string) ($formLive['chat_audience'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Chat só para assinantes</option>
+                    <option value="off" <?= (string) ($formLive['chat_audience'] ?? '') === 'off' ? 'selected' : '' ?>>Chat desabilitado</option>
+                </select>
+                <div class="flex items-center rounded-2xl bg-[#f5f3f5] px-5 py-4 text-sm font-semibold text-slate-500">
+                    O chat segue automaticamente a opção escolhida acima.
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="cover_url" placeholder="URL da capa (opcional)" type="url" value="<?= e((string) ($formLive['cover_url'] ?? '')) ?>">
+                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" name="cover_file" type="file">
+            </div>
+
+            <textarea class="min-h-[92px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="pinned_notice" placeholder="Aviso fixado"><?= e((string) ($formLive['pinned_notice'] ?? '')) ?></textarea>
+
+            <input name="max_bitrate_kbps" type="hidden" value="<?= e((string) ((int) ($formLive['max_bitrate_kbps'] ?? 1200))) ?>">
+            <input name="video_width" type="hidden" value="<?= e((string) ((int) ($formLive['video_width'] ?? 960))) ?>">
+            <input name="video_height" type="hidden" value="<?= e((string) ((int) ($formLive['video_height'] ?? 540))) ?>">
+            <input name="video_fps" type="hidden" value="<?= e((string) ((int) ($formLive['video_fps'] ?? 24))) ?>">
+
+            <div class="rounded-2xl bg-[#f5f3f5] p-4 text-sm text-slate-600">
+                <p class="font-bold text-slate-800">Fluxo da live</p>
+                <p class="mt-2">1. Salve a live. 2. Selecione a live na agenda. 3. Abra o estúdio em uma tela separada. 4. Ajuste câmera e microfone. 5. Clique em começar live quando tudo estiver pronto.</p>
+            </div>
+
+            <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <a class="rounded-full bg-[#f5f3f5] px-6 py-4 text-center text-sm font-bold text-slate-600" href="<?= e($closeModalUrl) ?>">Cancelar</a>
+                <button class="signature-glow rounded-full px-8 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit"><?= e($modalSubmitLabel) ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    (() => {
+        const form = document.querySelector('[data-live-form]');
+        if (!form) {
+            return;
+        }
+
+        const updateScheduleVisibility = () => {
+            const selected = form.querySelector('input[name="live_type"]:checked');
+            const scheduleGroup = form.querySelector('[data-live-form-schedule-group]');
+            const scheduleInput = form.querySelector('input[name="scheduled_for"]');
+
+            if (!scheduleGroup || !(scheduleInput instanceof HTMLInputElement)) {
+                return;
+            }
+
+            const isInstant = selected && selected.value === 'instant';
+            scheduleGroup.classList.toggle('hidden', !!isInstant);
+            scheduleInput.required = !isInstant;
+            if (isInstant) {
+                scheduleInput.value = '';
+            }
+        };
+
+        form.querySelectorAll('input[name="live_type"]').forEach((field) => {
+            field.addEventListener('change', updateScheduleVisibility);
+        });
+
+        updateScheduleVisibility();
+    })();
+</script>
 </body>
 </html>

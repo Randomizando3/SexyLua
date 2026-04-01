@@ -5,63 +5,42 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Request;
-use App\Services\MercadoPagoGateway;
+use App\Services\SyncPayGateway;
 
 final class WebhookController extends Controller
 {
-    public function mercadoPago(Request $request): void
+    public function syncPay(Request $request): void
     {
         $settings = $this->app->repository->settings();
-        $gateway = new MercadoPagoGateway($settings);
+        $gateway = new SyncPayGateway($settings);
 
         if (! $gateway->configured()) {
-            $this->json(['ok' => true, 'ignored' => 'mercadopago_not_configured'], 202);
+            $this->json(['ok' => true, 'ignored' => 'syncpay_not_configured'], 202);
         }
 
         $payload = json_decode((string) file_get_contents('php://input'), true);
         $payload = is_array($payload) ? $payload : [];
-        $topic = strtolower(trim((string) (
-            $payload['type']
-            ?? $payload['topic']
-            ?? $payload['action']
-            ?? $request->query('type')
-            ?? $request->query('topic')
-            ?? $request->query('action')
-            ?? ''
-        )));
-        $dataId = trim((string) (
-            $payload['data']['id']
-            ?? $payload['id']
-            ?? $request->query('data_id')
-            ?? $request->query('id')
-            ?? ''
-        ));
+        $authorization = trim((string) $request->server('HTTP_AUTHORIZATION', ''));
 
-        if ($dataId === '' && isset($payload['resource']) && is_string($payload['resource'])) {
-            $resourceParts = explode('/', trim($payload['resource'], '/'));
-            $dataId = trim((string) end($resourceParts));
+        if (! $gateway->isValidWebhookAuthorization($authorization)) {
+            $this->json(['ok' => false, 'message' => 'Authorization do webhook SyncPay invalido.'], 401);
         }
 
-        if ($dataId === '') {
-            $this->json(['ok' => true, 'ignored' => 'missing_payment_id'], 202);
-        }
-
-        $requestId = trim((string) $request->server('HTTP_X_REQUEST_ID', ''));
-        $signature = trim((string) $request->server('HTTP_X_SIGNATURE', ''));
-
-        if (! $gateway->isValidWebhookSignature($signature, $requestId, $dataId)) {
-            $this->json(['ok' => false, 'message' => 'Assinatura do webhook invalida.'], 401);
-        }
-
-        if ($topic !== '' && ! str_contains($topic, 'payment')) {
-            $this->json(['ok' => true, 'ignored' => 'unsupported_topic'], 202);
-        }
-
-        $payment = $gateway->fetchPayment($dataId);
-        $transactionId = (int) ($payment['metadata']['topup_transaction_id'] ?? 0);
+        $transactionId = (int) (
+            $payload['metadata']['topup_transaction_id']
+            ?? $payload['data']['metadata']['topup_transaction_id']
+            ?? 0
+        );
 
         if ($transactionId <= 0) {
-            $externalReference = (string) ($payment['external_reference'] ?? '');
+            $externalReference = (string) (
+                $payload['data']['externalreference']
+                ?? $payload['externalreference']
+                ?? $payload['data']['external_reference']
+                ?? $payload['external_reference']
+                ?? ''
+            );
+
             if (preg_match('/^topup-(\d+)-/i', $externalReference, $matches) === 1) {
                 $transactionId = (int) $matches[1];
             }
@@ -71,12 +50,18 @@ final class WebhookController extends Controller
             $this->json(['ok' => true, 'ignored' => 'missing_topup_reference'], 202);
         }
 
-        $ok = $this->app->repository->syncMercadoPagoWalletTopUp($transactionId, $payment);
+        $ok = $this->app->repository->syncSyncPayWalletTopUp($transactionId, $payload);
+        $rawStatus = (string) (
+            $payload['data']['status']
+            ?? $payload['status_transaction']
+            ?? $payload['status']
+            ?? ''
+        );
 
         $this->json([
             'ok' => $ok,
             'transaction_id' => $transactionId,
-            'status' => (string) ($payment['status'] ?? 'pending'),
+            'status' => $rawStatus !== '' ? $rawStatus : 'pending',
         ]);
     }
 }
