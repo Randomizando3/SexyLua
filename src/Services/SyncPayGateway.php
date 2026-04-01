@@ -8,7 +8,7 @@ use RuntimeException;
 
 final class SyncPayGateway
 {
-    private const DEFAULT_API_BASE = 'https://api.syncpay.pro';
+    private const DEFAULT_API_BASE = 'https://api.syncpayments.com.br';
 
     public function __construct(
         private readonly array $settings,

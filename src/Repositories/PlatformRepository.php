@@ -3577,7 +3577,7 @@ final class PlatformRepository
         $settings['live_chat_enabled'] = ($data['live_chat_enabled'] ?? '0') === '1';
         $settings['announcement'] = trim((string) ($data['announcement'] ?? $settings['announcement']));
         $settings['site_base_url'] = rtrim(trim((string) ($data['site_base_url'] ?? $settings['site_base_url'] ?? '')), '/');
-        $settings['syncpay_api_base_url'] = rtrim(trim((string) ($data['syncpay_api_base_url'] ?? $settings['syncpay_api_base_url'] ?? 'https://api.syncpay.pro')), '/');
+        $settings['syncpay_api_base_url'] = rtrim(trim((string) ($data['syncpay_api_base_url'] ?? $settings['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $settings['syncpay_client_id'] = trim((string) ($data['syncpay_client_id'] ?? $settings['syncpay_client_id'] ?? ''));
         $settings['syncpay_client_secret'] = trim((string) ($data['syncpay_client_secret'] ?? $settings['syncpay_client_secret'] ?? ''));
         $settings['syncpay_api_key'] = trim((string) ($data['syncpay_api_key'] ?? $settings['syncpay_api_key'] ?? ''));
@@ -4563,7 +4563,7 @@ final class PlatformRepository
         $normalized['live_replay_expiration_days'] = max(1, (int) ($normalized['live_replay_expiration_days'] ?? 7));
         $normalized['live_max_duration_minutes'] = max(5, (int) ($normalized['live_max_duration_minutes'] ?? 30));
         $normalized['site_base_url'] = rtrim(trim((string) ($normalized['site_base_url'] ?? '')), '/');
-        $normalized['syncpay_api_base_url'] = rtrim(trim((string) ($normalized['syncpay_api_base_url'] ?? 'https://api.syncpay.pro')), '/');
+        $normalized['syncpay_api_base_url'] = rtrim(trim((string) ($normalized['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $normalized['syncpay_client_id'] = trim((string) ($normalized['syncpay_client_id'] ?? ''));
         $normalized['syncpay_client_secret'] = trim((string) ($normalized['syncpay_client_secret'] ?? ''));
         $normalized['syncpay_api_key'] = trim((string) ($normalized['syncpay_api_key'] ?? ''));
@@ -4594,7 +4594,7 @@ final class PlatformRepository
             'theme' => 'lunar-metamorphosis',
             'announcement' => 'Noite especial com criadores em destaque e novas colecoes em aprovacao.',
             'site_base_url' => trim((string) ($this->config['app']['base_url'] ?? '')),
-            'syncpay_api_base_url' => 'https://api.syncpay.pro',
+            'syncpay_api_base_url' => 'https://api.syncpayments.com.br',
             'syncpay_client_id' => '',
             'syncpay_client_secret' => '',
             'syncpay_api_key' => '',

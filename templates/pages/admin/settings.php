@@ -231,7 +231,7 @@ $syncPayWebhookUrl = (string) ($settings['syncpay_webhook_url'] ?? webhook_url($
                         </label>
                         <label class="block space-y-2">
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">API Base URL</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="syncpay_api_base_url" placeholder="https://api.syncpay.pro" type="url" value="<?= e((string) ($settings['syncpay_api_base_url'] ?? 'https://api.syncpay.pro')) ?>">
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="syncpay_api_base_url" placeholder="https://api.syncpayments.com.br" type="url" value="<?= e((string) ($settings['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')) ?>">
                         </label>
                         <label class="block space-y-2">
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Client ID</span>

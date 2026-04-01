@@ -108,7 +108,7 @@ final class SeedFactory
             'theme' => 'lunar-metamorphosis',
             'announcement' => '',
             'site_base_url' => '',
-            'syncpay_api_base_url' => 'https://api.syncpay.pro',
+            'syncpay_api_base_url' => 'https://api.syncpayments.com.br',
             'syncpay_client_id' => '',
             'syncpay_client_secret' => '',
             'syncpay_api_key' => '',
