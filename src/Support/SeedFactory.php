@@ -19,6 +19,8 @@ final class SeedFactory
             'saved_items' => [],
             'conversations' => [],
             'messages' => [],
+            'notifications' => [],
+            'announcements' => [],
             'live_messages' => [],
             'live_signals' => [],
             'live_presence' => [],

@@ -66,6 +66,24 @@ final class AdminController extends Controller
         ], null);
     }
 
+    public function messages(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $filters = [
+            'q' => (string) $request->query('q', ''),
+            'audience' => (string) $request->query('audience', ''),
+        ];
+
+        $this->render('pages/admin/messages', [
+            'title' => 'Comunicados Gerais',
+            'data' => $this->app->repository->adminMessagesData($filters),
+            'sidebar_role' => 'admin',
+            'prototype' => [
+                'page' => 'admin.messages',
+            ],
+        ], null);
+    }
+
     public function finance(Request $request): void
     {
         $this->app->auth->requireRole('admin');
@@ -136,6 +154,15 @@ final class AdminController extends Controller
         $ok = $this->app->repository->createAdminManagedUser($request->all());
 
         $this->redirect('/admin/users', $ok ? 'Usuario criado com sucesso.' : 'Nao foi possivel criar o usuario.', $ok ? 'success' : 'error');
+    }
+
+    public function sendAnnouncement(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $this->validateCsrf($request, '/admin/messages');
+        $result = $this->app->repository->sendAdminAnnouncement((int) ($this->user()['id'] ?? 0), $request->all());
+
+        $this->redirect('/admin/messages', (string) ($result['message'] ?? 'Nao foi possivel enviar o comunicado.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
     }
 
     public function reviewContent(Request $request): void

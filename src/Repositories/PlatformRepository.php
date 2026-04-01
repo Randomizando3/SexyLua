@@ -26,6 +26,8 @@ final class PlatformRepository
         'saved_items',
         'conversations',
         'messages',
+        'notifications',
+        'announcements',
         'live_messages',
         'wallet_transactions',
         'settings',
@@ -553,6 +555,112 @@ final class PlatformRepository
         ];
     }
 
+    public function creatorConversationsData(int $creatorId, ?int $conversationId = null, array $filters = []): array
+    {
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $conversations = $this->creatorConversationList($creatorId);
+        $filteredConversations = array_values(array_filter($conversations, static function (array $conversation) use ($query): bool {
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower(
+                (string) (($conversation['subscriber']['name'] ?? '') . ' ' . ($conversation['subscriber']['email'] ?? '') . ' ' . ($conversation['latest_message']['body'] ?? ''))
+            );
+
+            return str_contains($haystack, $query);
+        }));
+        $selected = null;
+
+        if ($conversationId !== null) {
+            foreach ($filteredConversations as $conversation) {
+                if ((int) ($conversation['id'] ?? 0) === $conversationId) {
+                    $selected = $conversation;
+                    break;
+                }
+            }
+        }
+
+        if ($selected === null) {
+            $selected = $filteredConversations[0] ?? null;
+        }
+
+        $messages = [];
+
+        if ($selected !== null) {
+            $messages = $this->messagesForConversation((int) ($selected['id'] ?? 0));
+        }
+
+        return [
+            'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
+            'conversations' => $conversations,
+            'filtered_conversations' => $filteredConversations,
+            'selected_conversation' => $selected,
+            'messages' => $messages,
+            'filters' => [
+                'q' => $query,
+            ],
+            'summary' => [
+                'conversation_count' => count($conversations),
+                'visible_count' => count($filteredConversations),
+            ],
+        ];
+    }
+
+    public function adminMessagesData(array $filters = []): array
+    {
+        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
+        $audience = trim((string) ($filters['audience'] ?? ''));
+        $announcements = $this->sortByDate($this->announcements(), 'created_at');
+        $filtered = array_values(array_filter($announcements, static function (array $announcement) use ($query, $audience): bool {
+            if ($audience !== '' && (string) ($announcement['audience'] ?? '') !== $audience) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower(
+                (string) (($announcement['title'] ?? '') . ' ' . ($announcement['body'] ?? '') . ' ' . ($announcement['audience'] ?? ''))
+            );
+
+            return str_contains($haystack, $query);
+        }));
+
+        return [
+            'announcements' => $filtered,
+            'recent_announcements' => array_slice($announcements, 0, 8),
+            'filters' => [
+                'q' => $query,
+                'audience' => $audience,
+            ],
+            'summary' => [
+                'total' => count($announcements),
+                'all' => count(array_filter($announcements, static fn (array $item): bool => (string) ($item['audience'] ?? '') === 'all')),
+                'creators' => count(array_filter($announcements, static fn (array $item): bool => (string) ($item['audience'] ?? '') === 'creator')),
+                'subscribers' => count(array_filter($announcements, static fn (array $item): bool => (string) ($item['audience'] ?? '') === 'subscriber')),
+            ],
+        ];
+    }
+
+    public function topbarFeedDataForUser(int $userId): array
+    {
+        $user = $this->findUserById($userId);
+
+        if ($user === null) {
+            return [
+                'notifications' => ['items' => [], 'latest_marker' => 0],
+                'messages' => ['items' => [], 'latest_marker' => 0],
+            ];
+        }
+
+        return [
+            'notifications' => $this->notificationFeedForUser($user),
+            'messages' => $this->messageFeedForUser($user),
+        ];
+    }
+
     public function walletData(int $userId, array $filters = []): array
     {
         $transactions = array_map(function (array $transaction): array {
@@ -742,6 +850,9 @@ final class PlatformRepository
     {
         $transactions = $this->walletTransactions();
         $changed = false;
+        $notifyUserId = 0;
+        $notifyStatus = '';
+        $notifyAmount = 0;
         $rawStatus = (string) (
             $payment['data']['status']
             ?? $payment['status_transaction']
@@ -809,6 +920,9 @@ final class PlatformRepository
                 return true;
             }
 
+            $previousType = (string) ($transaction['type'] ?? '');
+            $previousStatus = (string) ($transaction['status'] ?? 'pending');
+
             $transaction['provider'] = 'syncpay';
             $transaction['provider_payment_id'] = $paymentId !== '' ? $paymentId : (string) ($transaction['provider_payment_id'] ?? '');
             $transaction['provider_status'] = $status;
@@ -828,9 +942,19 @@ final class PlatformRepository
                 $transaction['status'] = 'approved';
                 $transaction['note'] = 'Recarga SyncPay aprovada';
                 $transaction['approved_at'] = $approvedAt;
+                if (! in_array($previousStatus, ['approved', 'completed', 'paid'], true) || $previousType !== 'top_up') {
+                    $notifyUserId = (int) ($transaction['user_id'] ?? 0);
+                    $notifyStatus = 'approved';
+                    $notifyAmount = (int) ($transaction['amount'] ?? 0);
+                }
             } elseif (in_array($status, ['rejected', 'cancelled', 'canceled', 'expired', 'failed', 'refunded', 'charged_back'], true)) {
                 $transaction['status'] = $status;
                 $transaction['note'] = 'Recarga SyncPay nao aprovada';
+                if (! in_array($previousStatus, ['rejected', 'cancelled', 'canceled', 'expired', 'failed', 'refunded', 'charged_back'], true)) {
+                    $notifyUserId = (int) ($transaction['user_id'] ?? 0);
+                    $notifyStatus = 'rejected';
+                    $notifyAmount = (int) ($transaction['amount'] ?? 0);
+                }
             } else {
                 $transaction['status'] = $status !== '' ? $status : 'pending';
                 $transaction['note'] = 'Recarga de LuaCoins aguardando pagamento';
@@ -843,6 +967,14 @@ final class PlatformRepository
 
         if ($changed) {
             $this->save('wallet_transactions', $transactions);
+        }
+
+        if ($notifyUserId > 0) {
+            $title = $notifyStatus === 'approved' ? 'Recarga confirmada' : 'Recarga nao aprovada';
+            $body = $notifyStatus === 'approved'
+                ? 'Sua recarga de ' . $notifyAmount . ' LuaCoins foi aprovada.'
+                : 'Sua tentativa de recarga de ' . $notifyAmount . ' LuaCoins nao foi aprovada.';
+            $this->notifyUser($notifyUserId, 'wallet', $title, $body, '/subscriber/wallet');
         }
 
         return $changed;
@@ -900,6 +1032,26 @@ final class PlatformRepository
         $this->save('subscriptions', $subscriptions);
 
         $this->chargeSubscriberAndCreditCreator($subscriberId, (int) $plan['creator_id'], $price, 'subscription', 'Assinatura ' . $plan['name']);
+        $subscriber = $this->findUserById($subscriberId);
+        $creator = $this->findCreatorBySlugOrId(null, (int) ($plan['creator_id'] ?? 0));
+        $creatorName = (string) ($creator['name'] ?? 'criador');
+        $subscriberName = (string) ($subscriber['name'] ?? 'Novo assinante');
+        $planName = (string) ($plan['name'] ?? 'Plano');
+
+        $this->notifyUser(
+            $subscriberId,
+            'subscription',
+            'Assinatura ativada',
+            'Sua assinatura no plano ' . $planName . ' de ' . $creatorName . ' esta ativa.',
+            '/subscriber/subscriptions'
+        );
+        $this->notifyUser(
+            (int) ($plan['creator_id'] ?? 0),
+            'subscription',
+            'Novo assinante confirmado',
+            $subscriberName . ' assinou o plano ' . $planName . '.',
+            '/creator/memberships'
+        );
 
         return ['ok' => true, 'message' => 'Assinatura ativada com sucesso.'];
     }
@@ -908,10 +1060,12 @@ final class PlatformRepository
     {
         $subscriptions = $this->subscriptions();
         $changed = false;
+        $targetSubscription = null;
 
         foreach ($subscriptions as &$subscription) {
             if ((int) $subscription['id'] === $subscriptionId && (int) $subscription['subscriber_id'] === $subscriberId) {
                 $subscription['status'] = 'cancelled';
+                $targetSubscription = $subscription;
                 $changed = true;
                 break;
             }
@@ -920,6 +1074,17 @@ final class PlatformRepository
 
         if ($changed) {
             $this->save('subscriptions', $subscriptions);
+            if (is_array($targetSubscription)) {
+                $creator = $this->findCreatorBySlugOrId(null, (int) ($targetSubscription['creator_id'] ?? 0));
+                $subscriber = $this->findUserById($subscriberId);
+                $this->notifyUser(
+                    (int) ($targetSubscription['creator_id'] ?? 0),
+                    'subscription',
+                    'Assinatura cancelada',
+                    (string) ($subscriber['name'] ?? 'Um assinante') . ' cancelou a assinatura' . (($creator['name'] ?? '') !== '' ? ' em ' . (string) ($creator['name'] ?? '') : '') . '.',
+                    '/creator/memberships'
+                );
+            }
         }
 
         return $changed;
@@ -993,6 +1158,7 @@ final class PlatformRepository
             'body' => $body,
             'created_at' => date('Y-m-d H:i:s'),
         ];
+        $messageId = (int) (($messages[array_key_last($messages)] ?? [])['id'] ?? 0);
         $this->save('messages', $messages);
 
         $conversations = $this->conversations();
@@ -1004,6 +1170,27 @@ final class PlatformRepository
         }
         unset($item);
         $this->save('conversations', $conversations);
+
+        $sender = $this->findUserById($senderId);
+        $recipientId = (int) ($conversation['subscriber_id'] ?? 0) === $senderId
+            ? (int) ($conversation['creator_id'] ?? 0)
+            : (int) ($conversation['subscriber_id'] ?? 0);
+        $recipientHref = (int) ($conversation['subscriber_id'] ?? 0) === $senderId
+            ? path_with_query('/creator/messages', ['conversation' => $conversationId])
+            : path_with_query('/subscriber/messages', ['conversation' => $conversationId]);
+
+        $this->notifyUser(
+            $recipientId,
+            'message',
+            'Nova mensagem de ' . (string) ($sender['name'] ?? 'Conta'),
+            excerpt($body, 90),
+            $recipientHref,
+            [
+                'conversation_id' => $conversationId,
+                'message_id' => $messageId,
+                'sender_id' => $senderId,
+            ]
+        );
 
         return true;
     }
@@ -1049,6 +1236,19 @@ final class PlatformRepository
                 $this->appendPriorityTipMessage($live, $subscriberId, $amount);
             }
         }
+
+        $subscriber = $this->findUserById($subscriberId);
+        $this->notifyUser(
+            $creatorId,
+            'tip',
+            'Nova gorjeta recebida',
+            (string) ($subscriber['name'] ?? 'Um assinante') . ' enviou ' . $amount . ' LuaCoins.',
+            $liveId > 0 ? path_with_query('/creator/live/studio', ['live' => $liveId]) : '/creator/wallet',
+            [
+                'amount' => $amount,
+                'live_id' => $liveId,
+            ]
+        );
 
         return ['ok' => true, 'message' => 'Gorjeta enviada com sucesso.'];
     }
@@ -2714,6 +2914,12 @@ final class PlatformRepository
             'created_at' => date('Y-m-d H:i:s'),
         ];
         $this->save('wallet_transactions', $transactions);
+        $this->notifyAdmins(
+            'payout',
+            'Novo saque solicitado',
+            (string) ($creator['name'] ?? 'Criador') . ' solicitou saque de ' . $tokens . ' LuaCoins.',
+            '/admin/finance'
+        );
 
         return ['ok' => true, 'message' => 'Pedido de saque registrado.'];
     }
@@ -2747,6 +2953,72 @@ final class PlatformRepository
             'top_creators' => array_slice($creators, 0, 5),
             'pending_payouts' => array_slice($pendingPayouts, 0, 5),
         ];
+    }
+
+    public function sendAdminAnnouncement(int $adminId, array $data): array
+    {
+        $title = trim((string) ($data['title'] ?? ''));
+        $body = trim((string) ($data['body'] ?? ''));
+        $audience = in_array(($data['audience'] ?? 'all'), ['all', 'creator', 'subscriber', 'admin'], true)
+            ? (string) ($data['audience'] ?? 'all')
+            : 'all';
+        $href = trim((string) ($data['href'] ?? ''));
+
+        if ($title === '' || $body === '') {
+            return ['ok' => false, 'message' => 'Preencha o titulo e a mensagem do comunicado.'];
+        }
+
+        $targets = array_values(array_filter($this->users(), static function (array $user) use ($audience): bool {
+            if ((string) ($user['status'] ?? 'active') !== 'active') {
+                return false;
+            }
+
+            if ($audience === 'all') {
+                return true;
+            }
+
+            return (string) ($user['role'] ?? '') === $audience;
+        }));
+
+        $announcements = $this->announcements();
+        $announcementId = $this->store->nextId($announcements);
+        $createdAt = date('Y-m-d H:i:s');
+        $announcements[] = [
+            'id' => $announcementId,
+            'admin_id' => $adminId,
+            'title' => $title,
+            'body' => $body,
+            'audience' => $audience,
+            'href' => $href,
+            'recipient_count' => count($targets),
+            'created_at' => $createdAt,
+        ];
+        $this->save('announcements', $announcements);
+
+        foreach ($targets as $target) {
+            $targetRole = (string) ($target['role'] ?? 'subscriber');
+            $targetHref = $href !== '' ? $href : match ($targetRole) {
+                'creator' => '/creator',
+                'subscriber' => '/subscriber',
+                'admin' => '/admin',
+                default => '/',
+            };
+
+            $this->notifyUser(
+                (int) ($target['id'] ?? 0),
+                'announcement',
+                $title,
+                $body,
+                $targetHref,
+                [
+                    'announcement_id' => $announcementId,
+                    'audience' => $audience,
+                ],
+                $createdAt
+            );
+        }
+
+        return ['ok' => true, 'message' => 'Comunicado enviado com sucesso.'];
     }
 
     public function adminUsersData(string|array $filters = ''): array
@@ -3119,6 +3391,8 @@ final class PlatformRepository
 
         $items = $this->contentItems();
         $changed = false;
+        $creatorId = 0;
+        $contentTitle = 'Conteudo';
 
         foreach ($items as &$item) {
             if ((int) $item['id'] === $contentId) {
@@ -3126,6 +3400,8 @@ final class PlatformRepository
                 if ($feedback !== '') {
                     $item['moderation_feedback'] = trim($feedback);
                 }
+                $creatorId = (int) ($item['creator_id'] ?? 0);
+                $contentTitle = (string) ($item['title'] ?? 'Conteudo');
                 $changed = true;
                 break;
             }
@@ -3134,6 +3410,13 @@ final class PlatformRepository
 
         if ($changed) {
             $this->save('content_items', $items);
+            $this->notifyUser(
+                $creatorId,
+                'moderation',
+                $decision === 'approved' ? 'Conteudo aprovado' : 'Conteudo reprovado',
+                $contentTitle . ($decision === 'approved' ? ' foi aprovado pela moderacao.' : ' recebeu uma revisao da moderacao.'),
+                '/creator/content'
+            );
         }
 
         return $changed;
@@ -3245,6 +3528,19 @@ final class PlatformRepository
         ];
 
         $this->save('wallet_transactions', $transactions);
+        $this->notifyUser(
+            $userId,
+            'wallet',
+            $direction === 'credit' ? 'LuaCoins adicionadas' : 'LuaCoins ajustadas',
+            $direction === 'credit'
+                ? 'O admin adicionou ' . $luacoins . ' LuaCoins na sua carteira.'
+                : 'O admin ajustou ' . $luacoins . ' LuaCoins da sua carteira.',
+            match ((string) ($this->findUserById($userId)['role'] ?? 'subscriber')) {
+                'creator' => '/creator/wallet',
+                'subscriber' => '/subscriber/wallet',
+                default => '/admin/finance',
+            }
+        );
 
         return true;
     }
@@ -3257,6 +3553,8 @@ final class PlatformRepository
 
         $transactions = $this->walletTransactions();
         $changed = false;
+        $userId = 0;
+        $amount = 0;
 
         foreach ($transactions as &$transaction) {
             if ((int) ($transaction['id'] ?? 0) !== $transactionId || (string) ($transaction['type'] ?? '') !== 'top_up_pending') {
@@ -3273,6 +3571,8 @@ final class PlatformRepository
             } else {
                 $transaction['note'] = 'Recarga rejeitada manualmente pelo admin';
             }
+            $userId = (int) ($transaction['user_id'] ?? 0);
+            $amount = (int) ($transaction['amount'] ?? 0);
             $changed = true;
             break;
         }
@@ -3283,6 +3583,15 @@ final class PlatformRepository
         }
 
         $this->save('wallet_transactions', $transactions);
+        $this->notifyUser(
+            $userId,
+            'wallet',
+            $status === 'approved' ? 'Recarga aprovada' : 'Recarga rejeitada',
+            $status === 'approved'
+                ? 'Sua recarga manual de ' . $amount . ' LuaCoins foi aprovada.'
+                : 'Sua recarga manual de ' . $amount . ' LuaCoins foi rejeitada.',
+            '/subscriber/wallet'
+        );
 
         return true;
     }
@@ -3600,6 +3909,17 @@ final class PlatformRepository
         }
 
         $this->save('wallet_transactions', $transactions);
+        $title = match ($status) {
+            'paid' => 'Saque pago',
+            'rejected' => 'Saque rejeitado',
+            default => 'Saque em analise',
+        };
+        $body = match ($status) {
+            'paid' => 'Seu saque de ' . (int) ($target['amount'] ?? 0) . ' LuaCoins foi marcado como pago.',
+            'rejected' => 'Seu saque de ' . (int) ($target['amount'] ?? 0) . ' LuaCoins foi rejeitado pelo admin.',
+            default => 'Seu saque de ' . (int) ($target['amount'] ?? 0) . ' LuaCoins esta em processamento.',
+        };
+        $this->notifyUser((int) ($target['user_id'] ?? 0), 'payout', $title, $body, '/creator/wallet');
 
         return true;
     }
@@ -3699,6 +4019,16 @@ final class PlatformRepository
     private function messages(): array
     {
         return $this->readCollection('messages');
+    }
+
+    private function notifications(): array
+    {
+        return $this->readCollection('notifications');
+    }
+
+    private function announcements(): array
+    {
+        return $this->readCollection('announcements');
     }
 
     private function liveMessages(): array
@@ -4663,6 +4993,257 @@ final class PlatformRepository
                 'last_message' => $lastMessage,
             ];
         }, $rows);
+    }
+
+    private function creatorConversationList(int $creatorId): array
+    {
+        $rows = array_values(array_filter($this->conversations(), static fn (array $conversation): bool => (int) ($conversation['creator_id'] ?? 0) === $creatorId));
+        $rows = $this->sortByDate($rows, 'updated_at');
+
+        return array_map(function (array $conversation): array {
+            $subscriber = $this->findUserById((int) ($conversation['subscriber_id'] ?? 0));
+            $messages = array_values(array_filter($this->messages(), static fn (array $message): bool => (int) ($message['conversation_id'] ?? 0) === (int) ($conversation['id'] ?? 0)));
+            $messages = $this->sortByDate($messages, 'created_at');
+            $lastMessage = $messages[0] ?? null;
+
+            return $conversation + [
+                'subscriber' => $subscriber,
+                'latest_message' => $lastMessage,
+                'last_message' => $lastMessage,
+            ];
+        }, $rows);
+    }
+
+    private function messagesForConversation(int $conversationId): array
+    {
+        $messages = array_values(array_filter($this->messages(), static fn (array $message): bool => (int) ($message['conversation_id'] ?? 0) === $conversationId));
+        $messages = $this->sortByDate($messages, 'created_at');
+
+        return array_map(function (array $message): array {
+            $message['sender'] = $this->findUserById((int) ($message['sender_id'] ?? 0));
+
+            return $message;
+        }, $messages);
+    }
+
+    private function notificationFeedForUser(array $user, int $limit = 6): array
+    {
+        if ((string) ($user['role'] ?? '') === 'admin') {
+            return $this->adminNotificationFeed($limit);
+        }
+
+        $userId = (int) ($user['id'] ?? 0);
+        $rows = array_values(array_filter($this->notifications(), static fn (array $notification): bool => (int) ($notification['user_id'] ?? 0) === $userId));
+        $rows = $this->sortByDate($rows, 'created_at');
+        $items = array_map(function (array $notification): array {
+            $marker = $this->feedMarker((string) ($notification['created_at'] ?? ''), (int) ($notification['id'] ?? 0));
+
+            return [
+                'id' => (int) ($notification['id'] ?? 0),
+                'marker' => $marker,
+                'title' => (string) ($notification['title'] ?? 'Atualizacao'),
+                'body' => (string) ($notification['body'] ?? ''),
+                'href' => (string) ($notification['href'] ?? ''),
+                'icon' => $this->notificationIconForKind((string) ($notification['kind'] ?? 'notification')),
+                'time' => format_datetime((string) ($notification['created_at'] ?? ''), 'd/m H:i'),
+            ];
+        }, array_slice($rows, 0, $limit));
+
+        return [
+            'items' => $items,
+            'latest_marker' => (int) ($items[0]['marker'] ?? 0),
+        ];
+    }
+
+    private function messageFeedForUser(array $user, int $limit = 6): array
+    {
+        $role = (string) ($user['role'] ?? 'subscriber');
+        $items = [];
+
+        if ($role === 'admin') {
+            $announcements = array_slice($this->sortByDate($this->announcements(), 'created_at'), 0, $limit);
+            $items = array_map(function (array $announcement): array {
+                return [
+                    'id' => (int) ($announcement['id'] ?? 0),
+                    'marker' => $this->feedMarker((string) ($announcement['created_at'] ?? ''), (int) ($announcement['id'] ?? 0)),
+                    'title' => (string) ($announcement['title'] ?? 'Comunicado'),
+                    'body' => (string) ($announcement['body'] ?? ''),
+                    'href' => '/admin/messages',
+                    'icon' => 'campaign',
+                    'time' => format_datetime((string) ($announcement['created_at'] ?? ''), 'd/m H:i'),
+                ];
+            }, $announcements);
+        } elseif ($role === 'creator') {
+            $conversations = array_slice($this->creatorConversationList((int) ($user['id'] ?? 0)), 0, $limit);
+            $items = array_map(function (array $conversation): array {
+                $lastMessage = $conversation['latest_message'] ?? null;
+
+                return [
+                    'id' => (int) ($conversation['id'] ?? 0),
+                    'marker' => max(
+                        (int) ($lastMessage['id'] ?? 0),
+                        $this->feedMarker((string) ($conversation['updated_at'] ?? ''), (int) ($conversation['id'] ?? 0))
+                    ),
+                    'title' => (string) ($conversation['subscriber']['name'] ?? 'Assinante'),
+                    'body' => excerpt((string) ($lastMessage['body'] ?? 'Sem mensagens ainda.'), 80),
+                    'href' => path_with_query('/creator/messages', ['conversation' => (int) ($conversation['id'] ?? 0)]),
+                    'icon' => 'chat',
+                    'time' => format_datetime((string) ($lastMessage['created_at'] ?? $conversation['updated_at'] ?? ''), 'd/m H:i'),
+                ];
+            }, $conversations);
+        } else {
+            $conversations = array_slice($this->conversationList((int) ($user['id'] ?? 0)), 0, $limit);
+            $items = array_map(function (array $conversation): array {
+                $lastMessage = $conversation['latest_message'] ?? null;
+
+                return [
+                    'id' => (int) ($conversation['id'] ?? 0),
+                    'marker' => max(
+                        (int) ($lastMessage['id'] ?? 0),
+                        $this->feedMarker((string) ($conversation['updated_at'] ?? ''), (int) ($conversation['id'] ?? 0))
+                    ),
+                    'title' => (string) ($conversation['creator']['name'] ?? 'Criador'),
+                    'body' => excerpt((string) ($lastMessage['body'] ?? 'Sem mensagens ainda.'), 80),
+                    'href' => path_with_query('/subscriber/messages', ['conversation' => (int) ($conversation['id'] ?? 0)]),
+                    'icon' => 'chat',
+                    'time' => format_datetime((string) ($lastMessage['created_at'] ?? $conversation['updated_at'] ?? ''), 'd/m H:i'),
+                ];
+            }, $conversations);
+        }
+
+        return [
+            'items' => $items,
+            'latest_marker' => (int) ($items[0]['marker'] ?? 0),
+        ];
+    }
+
+    private function adminNotificationFeed(int $limit = 6): array
+    {
+        $finance = $this->financeData();
+        $items = [];
+
+        foreach (array_slice(array_values(array_filter($this->contentsWithCreators(), static fn (array $item): bool => (string) ($item['status'] ?? '') === 'pending')), 0, 3) as $item) {
+            $items[] = [
+                'id' => 'content-' . (int) ($item['id'] ?? 0),
+                'marker' => $this->feedMarker((string) ($item['created_at'] ?? ''), (int) ($item['id'] ?? 0)),
+                'title' => 'Conteudo aguardando revisao',
+                'body' => (string) ($item['title'] ?? 'Conteudo') . ' de ' . (string) ($item['creator']['name'] ?? 'criador'),
+                'href' => '/admin/moderation',
+                'icon' => 'gavel',
+                'time' => format_datetime((string) ($item['created_at'] ?? ''), 'd/m H:i'),
+            ];
+        }
+
+        foreach (array_slice((array) ($finance['pending_payouts'] ?? []), 0, 2) as $transaction) {
+            $items[] = [
+                'id' => 'payout-' . (int) ($transaction['id'] ?? 0),
+                'marker' => $this->feedMarker((string) ($transaction['created_at'] ?? ''), (int) ($transaction['id'] ?? 0)),
+                'title' => 'Saque pendente',
+                'body' => (string) ($transaction['user']['name'] ?? 'Criador') . ' solicitou ' . (int) ($transaction['amount'] ?? 0) . ' LuaCoins.',
+                'href' => '/admin/finance',
+                'icon' => 'payments',
+                'time' => format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m H:i'),
+            ];
+        }
+
+        foreach (array_slice((array) ($finance['pending_topups'] ?? []), 0, 2) as $transaction) {
+            $items[] = [
+                'id' => 'topup-' . (int) ($transaction['id'] ?? 0),
+                'marker' => $this->feedMarker((string) ($transaction['created_at'] ?? ''), (int) ($transaction['id'] ?? 0)),
+                'title' => 'Recarga aguardando acao',
+                'body' => (string) ($transaction['user']['name'] ?? 'Assinante') . ' tentou recarregar ' . (int) ($transaction['amount'] ?? 0) . ' LuaCoins.',
+                'href' => '/admin/finance',
+                'icon' => 'account_balance_wallet',
+                'time' => format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m H:i'),
+            ];
+        }
+
+        foreach (array_slice($this->sortByDate($this->users(), 'created_at'), 0, 2) as $user) {
+            $items[] = [
+                'id' => 'user-' . (int) ($user['id'] ?? 0),
+                'marker' => $this->feedMarker((string) ($user['created_at'] ?? ''), (int) ($user['id'] ?? 0)),
+                'title' => 'Novo usuario na plataforma',
+                'body' => (string) ($user['name'] ?? 'Usuario') . ' entrou como ' . role_label((string) ($user['role'] ?? 'subscriber')) . '.',
+                'href' => '/admin/users',
+                'icon' => 'person_add',
+                'time' => format_datetime((string) ($user['created_at'] ?? ''), 'd/m H:i'),
+            ];
+        }
+
+        usort($items, static fn (array $left, array $right): int => ((int) ($right['marker'] ?? 0)) <=> ((int) ($left['marker'] ?? 0)));
+        $items = array_slice($items, 0, $limit);
+
+        return [
+            'items' => $items,
+            'latest_marker' => (int) ($items[0]['marker'] ?? 0),
+        ];
+    }
+
+    private function notifyAdmins(string $kind, string $title, string $body, string $href = '/admin'): void
+    {
+        foreach ($this->users() as $user) {
+            if ((string) ($user['role'] ?? '') !== 'admin' || (string) ($user['status'] ?? 'active') !== 'active') {
+                continue;
+            }
+
+            $this->notifyUser((int) ($user['id'] ?? 0), $kind, $title, $body, $href);
+        }
+    }
+
+    private function notifyUser(
+        int $userId,
+        string $kind,
+        string $title,
+        string $body,
+        string $href = '',
+        array $meta = [],
+        ?string $createdAt = null
+    ): ?array {
+        if ($userId <= 0 || $this->findUserById($userId) === null) {
+            return null;
+        }
+
+        $notifications = $this->notifications();
+        $createdAt = $createdAt !== null && $createdAt !== '' ? $createdAt : date('Y-m-d H:i:s');
+        $notification = [
+            'id' => $this->store->nextId($notifications),
+            'user_id' => $userId,
+            'kind' => $kind,
+            'title' => $title,
+            'body' => $body,
+            'href' => $href,
+            'meta' => $meta,
+            'created_at' => $createdAt,
+        ];
+        $notifications[] = $notification;
+        $this->save('notifications', $notifications);
+
+        return $notification;
+    }
+
+    private function notificationIconForKind(string $kind): string
+    {
+        return match ($kind) {
+            'message' => 'chat',
+            'subscription' => 'workspace_premium',
+            'wallet' => 'account_balance_wallet',
+            'tip' => 'local_fire_department',
+            'payout' => 'payments',
+            'moderation' => 'gavel',
+            'announcement' => 'campaign',
+            default => 'notifications',
+        };
+    }
+
+    private function feedMarker(string $createdAt, int $fallback): int
+    {
+        $timestamp = strtotime($createdAt);
+
+        if ($timestamp === false) {
+            return $fallback;
+        }
+
+        return ((int) $timestamp * 1000) + max(0, $fallback);
     }
 
     private function cleanupLiveRtcData(): void

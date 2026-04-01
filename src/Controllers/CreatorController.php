@@ -60,6 +60,28 @@ final class CreatorController extends Controller
         ], null);
     }
 
+    public function messages(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+        $conversationId = $request->query('conversation') !== null ? (int) $request->query('conversation') : null;
+        $messages = $this->app->repository->creatorConversationsData(
+            (int) $this->user()['id'],
+            $conversationId,
+            [
+                'q' => (string) $request->query('q', ''),
+            ]
+        );
+
+        $this->render('pages/creator/messages', [
+            'title' => 'Mensagens do Criador',
+            'data' => $messages,
+            'sidebar_role' => 'creator',
+            'prototype' => [
+                'page' => 'creator.messages',
+            ],
+        ], null);
+    }
+
     public function memberships(Request $request): void
     {
         $this->app->auth->requireRole('creator');
@@ -246,6 +268,17 @@ final class CreatorController extends Controller
         $result = $this->app->repository->sendMessageToSubscriber((int) $this->user()['id'], (int) $request->input('subscriber_id', 0), (string) $request->input('body', ''));
 
         $this->redirect($redirect, $result['message'] ?? 'Nao foi possivel enviar a mensagem.', (bool) ($result['ok'] ?? false) ? 'success' : 'error');
+    }
+
+    public function sendConversationMessage(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+        $conversationId = (int) $request->input('conversation_id', 0);
+        $redirect = path_with_query('/creator/messages', ['conversation' => $conversationId]);
+        $this->validateCsrf($request, $redirect);
+        $ok = $this->app->repository->sendConversationMessage($conversationId, (int) ($this->user()['id'] ?? 0), (string) $request->input('body', ''));
+
+        $this->redirect($redirect, $ok ? 'Mensagem enviada.' : 'Nao foi possivel enviar a mensagem.', $ok ? 'success' : 'error');
     }
 
     public function saveLive(Request $request): void

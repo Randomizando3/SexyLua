@@ -55,6 +55,7 @@ $router->post('/subscriber/settings/update', [SubscriberController::class, 'upda
 $router->get('/creator', [CreatorController::class, 'dashboard']);
 $router->get('/creator/content', [CreatorController::class, 'content']);
 $router->get('/creator/favorites', [CreatorController::class, 'favorites']);
+$router->get('/creator/messages', [CreatorController::class, 'messages']);
 $router->get('/creator/memberships', [CreatorController::class, 'memberships']);
 $router->get('/creator/live', [CreatorController::class, 'live']);
 $router->get('/creator/live/studio', [CreatorController::class, 'liveStudio']);
@@ -68,6 +69,7 @@ $router->post('/creator/memberships/save', [CreatorController::class, 'savePlan'
 $router->post('/creator/memberships/delete', [CreatorController::class, 'deletePlan']);
 $router->post('/creator/memberships/subscription', [CreatorController::class, 'updateSubscription']);
 $router->post('/creator/memberships/message', [CreatorController::class, 'sendMemberMessage']);
+$router->post('/creator/messages/send', [CreatorController::class, 'sendConversationMessage']);
 $router->post('/creator/live/save', [CreatorController::class, 'saveLive']);
 $router->post('/creator/live/studio', [CreatorController::class, 'updateLiveStudio']);
 $router->post('/creator/live/status', [CreatorController::class, 'updateLiveStatus']);
@@ -80,11 +82,13 @@ $router->post('/creator/settings/update', [CreatorController::class, 'updateSett
 $router->get('/admin', [AdminController::class, 'dashboard']);
 $router->get('/admin/users', [AdminController::class, 'users']);
 $router->get('/admin/moderation', [AdminController::class, 'moderation']);
+$router->get('/admin/messages', [AdminController::class, 'messages']);
 $router->get('/admin/finance', [AdminController::class, 'finance']);
 $router->get('/admin/operations', [AdminController::class, 'operations']);
 $router->get('/admin/settings', [AdminController::class, 'settings']);
 $router->post('/admin/users/create', [AdminController::class, 'createUser']);
 $router->post('/admin/users/update', [AdminController::class, 'updateUser']);
+$router->post('/admin/messages/send', [AdminController::class, 'sendAnnouncement']);
 $router->post('/admin/moderation/review', [AdminController::class, 'reviewContent']);
 $router->post('/admin/finance/review-payout', [AdminController::class, 'reviewPayout']);
 $router->post('/admin/finance/adjust-wallet', [AdminController::class, 'adjustWallet']);
