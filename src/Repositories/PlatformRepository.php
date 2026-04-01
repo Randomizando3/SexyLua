@@ -1013,6 +1013,70 @@ final class PlatformRepository
         return null;
     }
 
+    public function latestSyncableWalletTopUpForUser(int $userId): ?array
+    {
+        $terminalStatuses = ['rejected', 'cancelled', 'canceled', 'expired', 'failed', 'refunded', 'charged_back'];
+
+        foreach ($this->walletTransactionsFor($userId) as $transaction) {
+            if ((string) ($transaction['type'] ?? '') !== 'top_up_pending') {
+                continue;
+            }
+
+            $status = strtolower((string) ($transaction['status'] ?? 'pending'));
+            if (in_array($status, $terminalStatuses, true)) {
+                continue;
+            }
+
+            $providerPaymentId = trim((string) ($transaction['provider_payment_id'] ?? $transaction['provider_checkout_id'] ?? ''));
+            if ($providerPaymentId === '') {
+                continue;
+            }
+
+            return $transaction;
+        }
+
+        return null;
+    }
+
+    public function findWalletTopUpByProviderReference(string $providerPaymentId = '', string $externalReference = ''): ?array
+    {
+        $providerPaymentId = trim($providerPaymentId);
+        $externalReference = trim($externalReference);
+
+        foreach ($this->walletTransactions() as $transaction) {
+            if (! in_array((string) ($transaction['type'] ?? ''), ['top_up_pending', 'top_up'], true)) {
+                continue;
+            }
+
+            if ($providerPaymentId !== '') {
+                $knownIds = array_filter([
+                    (string) ($transaction['provider_payment_id'] ?? ''),
+                    (string) ($transaction['provider_checkout_id'] ?? ''),
+                ], static fn (string $value): bool => $value !== '');
+
+                if (in_array($providerPaymentId, $knownIds, true)) {
+                    return $transaction;
+                }
+            }
+
+            if ($externalReference !== '' && hash_equals((string) ($transaction['external_reference'] ?? ''), $externalReference)) {
+                return $transaction;
+            }
+        }
+
+        if ($externalReference !== '' && preg_match('/^topup-(\d+)-/i', $externalReference, $matches) === 1) {
+            $transactionId = (int) $matches[1];
+
+            foreach ($this->walletTransactions() as $transaction) {
+                if ((int) ($transaction['id'] ?? 0) === $transactionId) {
+                    return $transaction;
+                }
+            }
+        }
+
+        return null;
+    }
+
     public function subscribeToPlan(int $subscriberId, int $planId): array
     {
         $plan = $this->findPlanById($planId);
@@ -5056,7 +5120,7 @@ final class PlatformRepository
         $status = str_replace([' ', '-'], '_', $status);
 
         return match ($status) {
-            'success', 'approved', 'authorized', 'paid', 'completed', 'confirmado', 'aprovado' => 'approved',
+            'success', 'approved', 'authorized', 'paid', 'completed', 'confirmado', 'aprovado', 'paid_out', 'paidout', 'settled', 'liquidated', 'received', 'confirmed' => 'approved',
             'waiting_for_approval', 'waiting_payment', 'waiting_for_payment', 'aguardando_pagamento', 'pending', 'created', 'processing', 'in_process', 'em_processamento' => 'pending',
             'cancelled', 'canceled', 'expired', 'failed', 'rejected', 'denied', 'refunded', 'charged_back', 'recusado', 'expirado' => $status,
             default => $status !== '' ? $status : 'pending',

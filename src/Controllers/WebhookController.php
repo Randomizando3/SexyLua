@@ -51,6 +51,33 @@ final class WebhookController extends Controller
         }
 
         if ($transactionId <= 0) {
+            $providerPaymentId = (string) (
+                $payload['data']['reference_id']
+                ?? $payload['reference_id']
+                ?? $payload['data']['identifier']
+                ?? $payload['identifier']
+                ?? $payload['data']['idtransaction']
+                ?? $payload['data']['idTransaction']
+                ?? $payload['idTransaction']
+                ?? $payload['data']['id']
+                ?? $payload['id']
+                ?? ''
+            );
+            $externalReference = (string) (
+                $payload['data']['externalreference']
+                ?? $payload['externalreference']
+                ?? $payload['data']['external_reference']
+                ?? $payload['external_reference']
+                ?? ''
+            );
+            $transaction = $this->app->repository->findWalletTopUpByProviderReference($providerPaymentId, $externalReference);
+
+            if ($transaction !== null) {
+                $transactionId = (int) ($transaction['id'] ?? 0);
+            }
+        }
+
+        if ($transactionId <= 0) {
             $this->json(['ok' => true, 'ignored' => 'missing_topup_reference'], 202);
         }
 

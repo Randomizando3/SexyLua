@@ -91,18 +91,24 @@ final class SubscriberController extends Controller
         $settings = $this->app->repository->settings();
         $topUpId = (int) $request->query('topup', 0);
         $shouldRefresh = (string) $request->query('refresh', '0') === '1';
+        $gateway = new SyncPayGateway($settings);
 
-        if ($topUpId > 0 && $shouldRefresh) {
-            $selectedTopUp = $this->app->repository->findWalletTransactionForUser((int) $this->user()['id'], $topUpId);
-            $gateway = new SyncPayGateway($settings);
+        $selectedTopUp = $topUpId > 0
+            ? $this->app->repository->findWalletTransactionForUser((int) $this->user()['id'], $topUpId)
+            : $this->app->repository->latestPendingWalletTopUpForUser((int) $this->user()['id']);
+        $syncCandidate = $selectedTopUp ?? $this->app->repository->latestSyncableWalletTopUpForUser((int) $this->user()['id']);
 
-            if ($selectedTopUp !== null && (string) ($selectedTopUp['type'] ?? '') === 'top_up_pending' && $gateway->canFetchTransactionStatus()) {
-                try {
-                    $statusPayload = $gateway->fetchTransactionStatus((string) ($selectedTopUp['provider_payment_id'] ?? $selectedTopUp['provider_checkout_id'] ?? ''));
-                    $this->app->repository->syncSyncPayWalletTopUp($topUpId, $statusPayload);
-                } catch (\Throwable) {
-                    // Mantem a tela utilizavel mesmo se a SyncPay nao responder ou nao estiver acessivel agora.
-                }
+        if (
+            $syncCandidate !== null
+            && (string) ($syncCandidate['type'] ?? '') === 'top_up_pending'
+            && $gateway->canFetchTransactionStatus()
+            && ($shouldRefresh || strtolower((string) ($syncCandidate['status'] ?? 'pending')) === 'pending' || trim((string) ($syncCandidate['provider_status_raw'] ?? '')) !== '')
+        ) {
+            try {
+                $statusPayload = $gateway->fetchTransactionStatus((string) ($syncCandidate['provider_payment_id'] ?? $syncCandidate['provider_checkout_id'] ?? ''));
+                $this->app->repository->syncSyncPayWalletTopUp((int) ($syncCandidate['id'] ?? 0), $statusPayload);
+            } catch (\Throwable) {
+                // Mantem a tela utilizavel mesmo se a SyncPay nao responder ou nao estiver acessivel agora.
             }
         }
 
@@ -118,7 +124,7 @@ final class SubscriberController extends Controller
             'title' => 'Carteira e LuaCoins',
             'data' => $wallet + [
                 'selected_topup' => $selectedTopUp,
-                'syncpay_enabled' => (new SyncPayGateway($settings))->configured(),
+                'syncpay_enabled' => $gateway->configured(),
             ],
             'sidebar_role' => 'subscriber',
             'prototype' => [
