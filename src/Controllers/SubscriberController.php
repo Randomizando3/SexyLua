@@ -22,7 +22,6 @@ final class SubscriberController extends Controller
                 'page' => 'subscriber.dashboard',
                 'wallet_topup' => true,
                 'wallet_topup_luacoins' => 100,
-                'wallet_topup_tokens' => 100,
             ],
         ], null);
     }
@@ -131,7 +130,6 @@ final class SubscriberController extends Controller
                 'page' => 'subscriber.wallet',
                 'wallet_topup' => true,
                 'wallet_topup_luacoins' => 100,
-                'wallet_topup_tokens' => 100,
             ],
         ], null);
     }
@@ -221,9 +219,14 @@ final class SubscriberController extends Controller
         $document = preg_replace('/\D+/', '', (string) $request->input('cpf', (string) $request->input('document', '')));
         $settings = $this->app->repository->settings();
         $gateway = new SyncPayGateway($settings);
+        $minimumDeposit = max(1, (int) ($settings['deposit_min_luacoins'] ?? 100));
 
         if (! $gateway->configured()) {
             $this->redirect('/subscriber/wallet', 'Configure a SyncPay no admin antes de gerar recargas PIX.', 'error');
+        }
+
+        if ($luacoins < $minimumDeposit) {
+            $this->redirect('/subscriber/wallet', 'A recarga minima configurada hoje e de ' . $minimumDeposit . ' LuaCoins.', 'error');
         }
 
         if ($document === '' || ! in_array(strlen($document), [11, 14], true)) {

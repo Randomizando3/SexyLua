@@ -767,7 +767,9 @@ final class PlatformRepository
 
     public function createWalletTopUpRequest(int $userId, int $luacoins, string $provider = 'syncpay'): ?array
     {
-        if ($luacoins <= 0 || ! $this->findUserById($userId)) {
+        $minimumDeposit = (int) ($this->settings()['deposit_min_luacoins'] ?? 100);
+
+        if ($luacoins < $minimumDeposit || ! $this->findUserById($userId)) {
             return null;
         }
 
@@ -4154,6 +4156,7 @@ final class PlatformRepository
         $settings = $this->settings();
         $settings['platform_fee_percent'] = max(0, min(95, (int) ($data['platform_fee_percent'] ?? $settings['platform_fee_percent'])));
         $settings['luacoin_price_brl'] = max(0.01, (float) ($data['luacoin_price_brl'] ?? $data['token_price_brl'] ?? $settings['luacoin_price_brl']));
+        $settings['deposit_min_luacoins'] = max(1, (int) ($data['deposit_min_luacoins'] ?? $data['deposit_min_tokens'] ?? $settings['deposit_min_luacoins']));
         $settings['withdraw_min_luacoins'] = max(1, (int) ($data['withdraw_min_luacoins'] ?? $data['withdraw_min_tokens'] ?? $settings['withdraw_min_luacoins']));
         $settings['withdraw_max_luacoins'] = max($settings['withdraw_min_luacoins'], (int) ($data['withdraw_max_luacoins'] ?? $data['withdraw_max_tokens'] ?? $settings['withdraw_max_luacoins']));
         $settings['live_replay_expiration_days'] = max(1, (int) ($data['live_replay_expiration_days'] ?? $settings['live_replay_expiration_days'] ?? 7));
@@ -4173,6 +4176,7 @@ final class PlatformRepository
         $settings['syncpay_pix_expires_in_days'] = max(1, (int) ($data['syncpay_pix_expires_in_days'] ?? $settings['syncpay_pix_expires_in_days'] ?? 2));
         $settings['syncpay_webhook_url'] = webhook_url($this->config, $settings, '/webhook/syncpay');
         $settings['token_price_brl'] = $settings['luacoin_price_brl'];
+        $settings['deposit_min_tokens'] = $settings['deposit_min_luacoins'];
         $settings['withdraw_min_tokens'] = $settings['withdraw_min_luacoins'];
         $settings['withdraw_max_tokens'] = $settings['withdraw_max_luacoins'];
 
@@ -5160,7 +5164,12 @@ final class PlatformRepository
             $normalized['withdraw_max_luacoins'] = (int) $settings['withdraw_max_tokens'];
         }
 
+        if (array_key_exists('deposit_min_tokens', $settings) && ! array_key_exists('deposit_min_luacoins', $settings)) {
+            $normalized['deposit_min_luacoins'] = (int) $settings['deposit_min_tokens'];
+        }
+
         $normalized['luacoin_price_brl'] = max(0.01, (float) ($normalized['luacoin_price_brl'] ?? 0.07));
+        $normalized['deposit_min_luacoins'] = max(1, (int) ($normalized['deposit_min_luacoins'] ?? 100));
         $normalized['withdraw_min_luacoins'] = max(1, (int) ($normalized['withdraw_min_luacoins'] ?? 50));
         $normalized['withdraw_max_luacoins'] = max($normalized['withdraw_min_luacoins'], (int) ($normalized['withdraw_max_luacoins'] ?? 25000));
         $normalized['live_replay_expiration_days'] = max(1, (int) ($normalized['live_replay_expiration_days'] ?? 7));
@@ -5174,6 +5183,7 @@ final class PlatformRepository
         $normalized['syncpay_pix_expires_in_days'] = max(1, (int) ($normalized['syncpay_pix_expires_in_days'] ?? 2));
         $normalized['syncpay_webhook_url'] = webhook_url($this->config, $normalized, '/webhook/syncpay');
         $normalized['token_price_brl'] = $normalized['luacoin_price_brl'];
+        $normalized['deposit_min_tokens'] = $normalized['deposit_min_luacoins'];
         $normalized['withdraw_min_tokens'] = $normalized['withdraw_min_luacoins'];
         $normalized['withdraw_max_tokens'] = $normalized['withdraw_max_luacoins'];
 
@@ -5185,6 +5195,7 @@ final class PlatformRepository
         return [
             'platform_fee_percent' => 20,
             'luacoin_price_brl' => 0.07,
+            'deposit_min_luacoins' => 100,
             'withdraw_min_luacoins' => 50,
             'withdraw_max_luacoins' => 25000,
             'live_replay_expiration_days' => 7,

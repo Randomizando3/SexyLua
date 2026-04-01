@@ -12,6 +12,7 @@ $filters = $data['filters'] ?? [];
 $selectedTopUp = is_array($data['selected_topup'] ?? null) ? $data['selected_topup'] : null;
 $platformSettings = $app->repository->settings();
 $luacoinPrice = (float) ($platformSettings['luacoin_price_brl'] ?? 0.07);
+$minimumDeposit = max(1, (int) ($platformSettings['deposit_min_luacoins'] ?? 100));
 $syncPayEnabled = (bool) ($data['syncpay_enabled'] ?? false);
 $siteBaseUrl = (string) ($platformSettings['site_base_url'] ?? app_base_url($app->config, $platformSettings));
 $paymentStatus = (string) ($_GET['payment_status'] ?? '');
@@ -184,9 +185,9 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                 <h3 class="text-2xl font-extrabold">Recarregar LuaCoins</h3>
                 <form action="/subscriber/wallet/add-funds" class="mt-6 space-y-4" method="post">
                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                    <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="luacoins" placeholder="Quantidade em LuaCoins" required type="number" value="100">
+                    <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="<?= e((string) $minimumDeposit) ?>" name="luacoins" placeholder="Quantidade em LuaCoins" required type="number" value="<?= e((string) $minimumDeposit) ?>">
                     <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" maxlength="18" name="cpf" placeholder="CPF ou CNPJ do pagador" required type="text" value="">
-                    <p class="text-sm text-on-surface-variant">Valor estimado: <?= e(brl_amount(100 * $luacoinPrice)) ?>. A recarga gera um PIX copia e cola pela SyncPay.</p>
+                    <p class="text-sm text-on-surface-variant">Minimo atual: <?= luacoin_amount_html($minimumDeposit, 'inline-flex items-center gap-1.5 whitespace-nowrap font-bold text-primary', '', 'h-4 w-4 shrink-0') ?>. Valor estimado: <?= e(brl_amount($minimumDeposit * $luacoinPrice)) ?> para a menor recarga permitida.</p>
                     <?php if (! $syncPayEnabled): ?>
                         <p class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">Configure a SyncPay no admin para liberar a geracao de PIX nesta carteira.</p>
                     <?php elseif ($siteBaseUrl === ''): ?>

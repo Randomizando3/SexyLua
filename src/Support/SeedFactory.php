@@ -101,6 +101,7 @@ final class SeedFactory
         return [
             'platform_fee_percent' => 20,
             'luacoin_price_brl' => 0.07,
+            'deposit_min_luacoins' => 100,
             'withdraw_min_luacoins' => 50,
             'withdraw_max_luacoins' => 25000,
             'maintenance_mode' => false,

@@ -187,7 +187,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                 <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                     <div class="mb-6">
                         <h3 class="text-2xl font-extrabold">Financeiro base</h3>
-                        <p class="mt-2 text-sm text-on-surface-variant">Controle o fee da plataforma, o valor unitario da LuaCoin e os limites de retirada.</p>
+                        <p class="mt-2 text-sm text-on-surface-variant">Controle o fee da plataforma, o valor unitario da LuaCoin e os limites de recarga e retirada.</p>
                     </div>
                     <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
                         <label class="block space-y-2">
@@ -197,6 +197,10 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                         <label class="block space-y-2">
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Valor da LuaCoin (BRL)</span>
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="0.01" name="luacoin_price_brl" step="0.01" type="number" value="<?= e(number_format((float) ($settings['luacoin_price_brl'] ?? 0.07), 2, '.', '')) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Deposito minimo (LuaCoins)</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="deposit_min_luacoins" step="1" type="number" value="<?= e((string) ($settings['deposit_min_luacoins'] ?? 100)) ?>">
                         </label>
                         <label class="block space-y-2">
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Saque minimo (LuaCoins)</span>
