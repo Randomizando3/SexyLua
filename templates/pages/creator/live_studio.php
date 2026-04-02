@@ -37,7 +37,8 @@ $editLiveUrl = $selectedLiveId > 0
 $canBroadcast = $selected !== null && ! in_array($selectedStatus, ['ended', 'expired'], true);
 $ingestUrl = (string) ($selected['ingest_url'] ?? '');
 $hlsUrl = (string) ($selected['hls_url'] ?? '');
-$streamKey = (string) ($selected['stream_path'] ?? '');
+$ingestServer = $ingestUrl !== '' ? preg_replace('~/[^/]+$~', '', $ingestUrl) : '';
+$streamKey = $ingestUrl !== '' ? basename(parse_url($ingestUrl, PHP_URL_PATH) ?: '') : (string) ($selected['stream_key'] ?? '');
 $audioSampleRate = (int) ($selected['audio_sample_rate'] ?? 48000);
 ?>
 <!DOCTYPE html>
@@ -315,7 +316,7 @@ include base_path('templates/partials/creator_topbar.php');
                     <div class="mt-6 space-y-4">
                         <div class="rounded-2xl bg-[#f5f3f5] p-4">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Servidor</p>
-                            <p class="mt-2 break-all text-sm font-bold text-slate-700"><?= e($ingestUrl !== '' ? dirname($ingestUrl) : '') ?></p>
+                            <p class="mt-2 break-all text-sm font-bold text-slate-700"><?= e($ingestServer) ?></p>
                         </div>
                         <div class="rounded-2xl bg-[#f5f3f5] p-4">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Chave de stream</p>
