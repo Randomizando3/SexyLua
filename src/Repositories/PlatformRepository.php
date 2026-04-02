@@ -5269,7 +5269,7 @@ final class PlatformRepository
     {
         $conversation = $this->findConversationById($conversationId);
         $messages = array_values(array_filter($this->messages(), static fn (array $message): bool => (int) ($message['conversation_id'] ?? 0) === $conversationId));
-        $messages = $this->sortByDate($messages, 'created_at');
+        usort($messages, static fn (array $left, array $right): int => strcmp((string) ($left['created_at'] ?? ''), (string) ($right['created_at'] ?? '')));
 
         return array_map(function (array $message) use ($viewerId, $conversation): array {
             $message['sender'] = $this->findUserById((int) ($message['sender_id'] ?? 0));

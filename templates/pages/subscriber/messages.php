@@ -65,10 +65,10 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
     <section class="mb-8">
         <p class="text-xs font-bold uppercase tracking-[0.3em] text-primary">Chat com criadores</p>
         <h2 class="mt-2 text-5xl font-extrabold tracking-tight">Mensagens <span class="italic text-primary">Privadas</span></h2>
-        <p class="mt-4 max-w-2xl text-on-surface-variant">Continue conversas, combine experiencias e acompanhe respostas dos criadores em um lugar so.</p>
+        <p class="mt-4 max-w-2xl text-on-surface-variant">Continue conversas com os criadores, envie anexos e acompanhe respostas no ritmo de um chat mais fluido.</p>
     </section>
 
-    <div class="grid grid-cols-1 gap-8 xl:grid-cols-[0.9fr_1.1fr]">
+    <div class="grid grid-cols-1 gap-8 xl:grid-cols-[0.92fr_1.08fr]">
         <section class="space-y-6">
             <form action="/subscriber/messages" class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm" method="get">
                 <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="q" placeholder="Buscar conversa..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
@@ -130,81 +130,112 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                     </div>
                 </div>
             <?php elseif ($selectedConversation): ?>
-                <div class="flex items-center gap-4 border-b border-slate-200 pb-6">
-                    <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($selectedConversation['creator']['name'] ?? 'Criador'))) ?></div>
-                    <div>
-                        <h3 class="text-2xl font-extrabold"><?= e((string) ($selectedConversation['creator']['name'] ?? 'Criador')) ?></h3>
-                        <p class="text-sm text-on-surface-variant"><?= e((string) ($selectedConversation['creator']['headline'] ?? 'Chat ativo')) ?></p>
+                <div class="flex min-h-[72vh] flex-col">
+                    <div class="flex items-center gap-4 border-b border-slate-200 pb-5">
+                        <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($selectedConversation['creator']['name'] ?? 'Criador'))) ?></div>
+                        <div class="min-w-0 flex-1">
+                            <h3 class="truncate text-2xl font-extrabold"><?= e((string) ($selectedConversation['creator']['name'] ?? 'Criador')) ?></h3>
+                            <p class="truncate text-sm text-on-surface-variant"><?= e((string) ($selectedConversation['creator']['headline'] ?? 'Chat ativo')) ?></p>
+                        </div>
                     </div>
-                </div>
-                <div class="mt-6 max-h-[420px] space-y-4 overflow-y-auto pr-2">
-                    <?php foreach ($messages as $message): ?>
-                        <?php $isMine = (int) ($message['sender_id'] ?? 0) === (int) ($subscriber['id'] ?? 0); ?>
-                        <div class="flex <?= $isMine ? 'justify-end' : 'justify-start' ?>">
-                            <div class="max-w-[78%] rounded-3xl px-5 py-4 <?= $isMine ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface' ?>">
-                                <?php if (trim((string) ($message['body'] ?? '')) !== ''): ?>
-                                    <p class="text-sm leading-relaxed"><?= nl2br(e((string) ($message['body'] ?? ''))) ?></p>
-                                <?php endif; ?>
-                                <?php $attachment = is_array($message['attachment'] ?? null) ? $message['attachment'] : null; ?>
-                                <?php if ($attachment): ?>
-                                    <div class="mt-4">
-                                        <?php if ((bool) ($message['can_access_attachment'] ?? false)): ?>
-                                            <?php if ((string) ($attachment['kind'] ?? 'document') === 'image'): ?>
-                                                <a class="block overflow-hidden rounded-2xl border border-white/10" href="<?= e((string) ($attachment['href'] ?? '#')) ?>" target="_blank">
-                                                    <img alt="<?= e((string) ($attachment['original_name'] ?? 'Imagem')) ?>" class="max-h-72 w-full object-cover" src="<?= e((string) ($attachment['href'] ?? '')) ?>">
-                                                </a>
-                                            <?php else: ?>
-                                                <a class="flex items-center gap-3 rounded-2xl bg-white/90 px-4 py-3 text-sm font-bold text-slate-800" href="<?= e((string) ($attachment['href'] ?? '#')) ?>" target="_blank">
-                                                    <span class="material-symbols-outlined"><?= e((string) (($attachment['kind'] ?? 'document') === 'video' ? 'play_circle' : 'description')) ?></span>
-                                                    <?= e((string) ($attachment['original_name'] ?? 'Abrir anexo')) ?>
-                                                </a>
+
+                    <div class="mt-5 flex-1 overflow-hidden rounded-3xl bg-surface-container-low p-4">
+                        <div class="h-[min(62vh,620px)] overflow-y-auto pr-2" data-chat-thread>
+                            <div class="flex min-h-full flex-col justify-end gap-3">
+                                <?php foreach ($messages as $message): ?>
+                                    <?php $isMine = (int) ($message['sender_id'] ?? 0) === (int) ($subscriber['id'] ?? 0); ?>
+                                    <article class="flex <?= $isMine ? 'justify-end' : 'justify-start' ?>">
+                                        <div class="max-w-[86%] rounded-[28px] px-4 py-3 shadow-sm <?= $isMine ? 'bg-primary text-white' : 'bg-white text-on-surface' ?>">
+                                            <?php if (trim((string) ($message['body'] ?? '')) !== ''): ?>
+                                                <p class="text-sm leading-6"><?= nl2br(e((string) ($message['body'] ?? ''))) ?></p>
                                             <?php endif; ?>
-                                        <?php else: ?>
-                                            <div class="rounded-2xl border border-dashed border-slate-300 bg-white/80 p-4 text-slate-700">
-                                                <div class="flex items-start gap-3">
-                                                    <span class="material-symbols-outlined text-primary">lock</span>
-                                                    <div class="min-w-0 flex-1">
-                                                        <p class="font-bold"><?= e(((int) ($message['unlock_price'] ?? 0)) > 0 ? 'Conteudo instantaneo' : 'Conteudo privado') ?></p>
-                                                        <p class="mt-1 text-sm text-slate-500"><?= e((string) ($message['lock_reason'] ?? 'Conteudo bloqueado')) ?></p>
-                                                        <?php if ((int) ($message['unlock_price'] ?? 0) > 0): ?>
-                                                            <form action="/messages/unlock" class="mt-3 flex flex-wrap items-center gap-3" method="post">
-                                                                <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                                                                <input name="message_id" type="hidden" value="<?= e((string) ($message['id'] ?? 0)) ?>">
-                                                                <input name="redirect" type="hidden" value="<?= e('/subscriber/messages?conversation=' . (int) ($selectedConversation['id'] ?? 0)) ?>">
-                                                                <span class="rounded-full bg-primary/10 px-3 py-2 text-xs font-bold text-primary"><?= luacoin_amount_html((int) ($message['unlock_price'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-3.5 w-3.5 shrink-0') ?></span>
-                                                                <button class="rounded-full bg-primary px-4 py-2 text-xs font-bold text-white" type="submit">Desbloquear</button>
-                                                            </form>
-                                                        <?php elseif ((string) ($message['required_plan_name'] ?? '') !== ''): ?>
-                                                            <span class="mt-3 inline-flex rounded-full bg-primary/10 px-3 py-2 text-xs font-bold text-primary"><?= e((string) ($message['required_plan_name'] ?? 'Plano')) ?></span>
+                                            <?php $attachment = is_array($message['attachment'] ?? null) ? $message['attachment'] : null; ?>
+                                            <?php if ($attachment): ?>
+                                                <div class="mt-3">
+                                                    <?php if ((bool) ($message['can_access_attachment'] ?? false)): ?>
+                                                        <?php if ((string) ($attachment['kind'] ?? 'document') === 'image'): ?>
+                                                            <a class="block overflow-hidden rounded-2xl border border-white/10" href="<?= e((string) ($attachment['href'] ?? '#')) ?>" target="_blank">
+                                                                <img alt="<?= e((string) ($attachment['original_name'] ?? 'Imagem')) ?>" class="max-h-72 w-full object-cover" src="<?= e((string) ($attachment['href'] ?? '')) ?>">
+                                                            </a>
+                                                        <?php else: ?>
+                                                            <a class="flex items-center gap-3 rounded-2xl bg-white/90 px-4 py-3 text-sm font-bold text-slate-800" href="<?= e((string) ($attachment['href'] ?? '#')) ?>" target="_blank">
+                                                                <span class="material-symbols-outlined"><?= e((string) (($attachment['kind'] ?? 'document') === 'video' ? 'play_circle' : 'description')) ?></span>
+                                                                <span class="truncate"><?= e((string) ($attachment['original_name'] ?? 'Abrir anexo')) ?></span>
+                                                            </a>
                                                         <?php endif; ?>
-                                                    </div>
+                                                    <?php else: ?>
+                                                        <div class="rounded-2xl border border-dashed border-slate-300 bg-white/80 p-4 text-slate-700">
+                                                            <div class="flex items-start gap-3">
+                                                                <span class="material-symbols-outlined text-primary">lock</span>
+                                                                <div class="min-w-0 flex-1">
+                                                                    <p class="font-bold"><?= e(((int) ($message['unlock_price'] ?? 0)) > 0 ? 'Conteudo instantaneo' : 'Conteudo privado') ?></p>
+                                                                    <p class="mt-1 text-sm text-slate-500"><?= e((string) ($message['lock_reason'] ?? 'Conteudo bloqueado')) ?></p>
+                                                                    <?php if ((int) ($message['unlock_price'] ?? 0) > 0): ?>
+                                                                        <form action="/messages/unlock" class="mt-3 flex flex-wrap items-center gap-3" method="post">
+                                                                            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                                                            <input name="message_id" type="hidden" value="<?= e((string) ($message['id'] ?? 0)) ?>">
+                                                                            <input name="redirect" type="hidden" value="<?= e('/subscriber/messages?conversation=' . (int) ($selectedConversation['id'] ?? 0)) ?>">
+                                                                            <span class="rounded-full bg-primary/10 px-3 py-2 text-xs font-bold text-primary"><?= luacoin_amount_html((int) ($message['unlock_price'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-3.5 w-3.5 shrink-0') ?></span>
+                                                                            <button class="rounded-full bg-primary px-4 py-2 text-xs font-bold text-white" type="submit">Desbloquear</button>
+                                                                        </form>
+                                                                    <?php elseif ((string) ($message['required_plan_name'] ?? '') !== ''): ?>
+                                                                        <span class="mt-3 inline-flex rounded-full bg-primary/10 px-3 py-2 text-xs font-bold text-primary"><?= e((string) ($message['required_plan_name'] ?? 'Plano')) ?></span>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    <?php endif; ?>
                                                 </div>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endif; ?>
-                                <p class="mt-2 text-[10px] font-bold uppercase tracking-[0.25em] <?= $isMine ? 'text-white/70' : 'text-slate-400' ?>"><?= e(format_datetime((string) ($message['created_at'] ?? ''), 'd/m H:i')) ?></p>
+                                            <?php endif; ?>
+                                            <p class="mt-2 text-[10px] font-bold uppercase tracking-[0.22em] <?= $isMine ? 'text-white/70' : 'text-slate-400' ?>"><?= e(format_datetime((string) ($message['created_at'] ?? ''), 'd/m H:i')) ?></p>
+                                        </div>
+                                    </article>
+                                <?php endforeach; ?>
+                                <?php if ($messages === []): ?><p class="rounded-3xl bg-white p-5 text-sm text-on-surface-variant">Nenhuma mensagem nesta conversa ainda.</p><?php endif; ?>
                             </div>
                         </div>
-                    <?php endforeach; ?>
-                </div>
-                <form action="/subscriber/messages/send" class="mt-6 space-y-4" enctype="multipart/form-data" method="post">
-                    <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                    <input name="conversation_id" type="hidden" value="<?= e((string) ($selectedConversation['id'] ?? 0)) ?>">
-                    <textarea class="min-h-[140px] w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="body" placeholder="Escreva sua mensagem ou envie um anexo..."></textarea>
-                    <div class="rounded-3xl bg-surface-container-low p-4">
-                        <label class="block space-y-2">
-                            <span class="text-sm font-semibold text-on-surface-variant">Anexo opcional</span>
-                            <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm,.pdf,.doc,.docx,.txt,.zip,.rar,.7z" class="w-full rounded-2xl border-none bg-white px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="attachment_file" type="file">
-                        </label>
                     </div>
-                    <button class="w-full rounded-full bg-primary px-5 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Enviar mensagem</button>
-                </form>
+
+                    <form action="/subscriber/messages/send" class="mt-4 shrink-0 rounded-3xl bg-surface-container-low p-4 shadow-sm" enctype="multipart/form-data" method="post">
+                        <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                        <input name="conversation_id" type="hidden" value="<?= e((string) ($selectedConversation['id'] ?? 0)) ?>">
+                        <div class="flex items-end gap-3">
+                            <textarea class="h-16 flex-1 resize-none rounded-2xl border-none bg-white px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="body" placeholder="Responder ao criador..."></textarea>
+                            <button class="rounded-full bg-primary px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Enviar</button>
+                        </div>
+                        <div class="mt-3">
+                            <label class="block">
+                                <span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">Arquivo</span>
+                                <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm,.pdf,.doc,.docx,.txt,.zip,.rar,.7z" class="w-full rounded-2xl border-none bg-white px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" data-file-label-target="subscriber-chat-file-name" name="attachment_file" type="file">
+                                <span class="mt-2 block text-xs text-on-surface-variant" data-file-label="subscriber-chat-file-name">Imagem, video, documento ou pacote privado.</span>
+                            </label>
+                        </div>
+                    </form>
+                </div>
             <?php else: ?>
                 <div class="flex min-h-[420px] items-center justify-center rounded-3xl bg-surface-container-low p-8 text-center text-on-surface-variant">Selecione uma conversa para visualizar o historico e responder.</div>
             <?php endif; ?>
         </section>
     </div>
 </main>
+<script>
+    document.querySelectorAll('[data-chat-thread]').forEach((element) => {
+        element.scrollTop = element.scrollHeight;
+    });
+
+    document.querySelectorAll('input[type="file"][data-file-label-target]').forEach((input) => {
+        input.addEventListener('change', () => {
+            const key = input.getAttribute('data-file-label-target');
+            const label = document.querySelector(`[data-file-label="${key}"]`);
+            if (!label) {
+                return;
+            }
+
+            label.textContent = input.files && input.files.length > 0
+                ? input.files[0].name
+                : 'Imagem, video, documento ou pacote privado.';
+        });
+    });
+</script>
 </body>
 </html>
