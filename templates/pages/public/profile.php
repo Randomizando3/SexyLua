@@ -183,7 +183,7 @@ if ($requestedContentId > 0) {
                                 <span class="material-symbols-outlined text-[#ab1155]">event_upcoming</span>
                                 <h2 class="headline text-2xl font-extrabold">Agenda de Lives</h2>
                             </div>
-                            <p class="mt-2 text-sm text-slate-500">Próximas lives agendadas deste criador para os assinantes se prepararem.</p>
+                            <p class="mt-2 text-sm text-slate-500">Acompanhe as próximas lives deste perfil e se programe para entrar na sala na hora certa.</p>
                         </div>
                         <a class="text-sm font-bold text-[#ab1155] underline" href="/explore">Ver mais lives</a>
                     </div>
@@ -198,14 +198,14 @@ if ($requestedContentId > 0) {
                                 <a class="min-w-[260px] max-w-[260px] snap-start overflow-hidden rounded-3xl bg-[#fbf9fb] ring-1 ring-[#f0e8ee] transition-transform hover:-translate-y-1" href="<?= e($liveUrl) ?>">
                                     <div class="relative aspect-[4/3] bg-slate-900">
                                         <?php if ($liveCover !== ''): ?>
-                                            <img alt="<?= e((string) ($live['title'] ?? 'Live agendada')) ?>" class="h-full w-full scale-105 object-cover <?= $guestPreviewLocked ? 'blur-[10px]' : '' ?>" src="<?= e($liveCover) ?>">
+                                            <img alt="<?= e((string) ($live['title'] ?? 'Live agendada')) ?>" class="h-full w-full scale-105 object-cover <?= $guestPreviewLocked ? 'scale-110 blur-[22px] brightness-75' : '' ?>" src="<?= e($liveCover) ?>">
                                         <?php else: ?>
                                             <div class="signature-glow flex h-full w-full items-center justify-center text-white">
                                                 <span class="headline px-6 text-center text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
                                             </div>
                                         <?php endif; ?>
                                         <?php if ($guestPreviewLocked): ?>
-                                            <div class="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"></div>
+                                            <div class="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]"></div>
                                             <div class="absolute inset-x-4 top-4 rounded-full bg-white/90 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]">
                                                 Entre para liberar
                                             </div>
@@ -235,7 +235,7 @@ if ($requestedContentId > 0) {
                     <div class="mb-8 flex items-end justify-between gap-6">
                         <div>
                             <h2 class="headline text-2xl font-extrabold">Conteudos publicados</h2>
-                            <p class="mt-2 text-sm text-slate-500">Tudo aqui ja vem do catalogo real do criador.</p>
+                            <p class="mt-2 text-sm text-slate-500">Escolha entre os conteúdos publicados neste perfil e abra o que mais combinar com você.</p>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -287,7 +287,7 @@ if ($requestedContentId > 0) {
                                     <?php if ($itemAccessible && !empty($thumbnail ?? '')): ?>
                                         <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover" src="<?= e($thumbnail) ?>">
                                     <?php elseif (!empty($thumbnail ?? '')): ?>
-                                        <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover blur-[10px]" src="<?= e($thumbnail) ?>">
+                                        <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover scale-105 blur-[16px] brightness-90" src="<?= e($thumbnail) ?>">
                                     <?php else: ?>
                                         <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
                                             <div class="<?= $itemAccessible ? '' : 'blur-md' ?>">
@@ -534,9 +534,9 @@ if ($requestedContentId > 0) {
         <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/terms">Termos</a>
         <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/privacy">Privacidade</a>
         <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/help">Ajuda</a>
-        <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="#">Carreiras</a>
+        <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/terms">Termos</a>
     </div>
-    <p class="text-[10px] uppercase tracking-[0.2em] text-white/80">&copy; 2026 SexyLua. Perfil publico conectado aos dados reais.</p>
+    <p class="text-[10px] uppercase tracking-[0.2em] text-white/80">&copy; 2026 SexyLua. Perfis, conteúdos e experiências exclusivas em um só lugar.</p>
 </footer>
 
 <?php if ($selectedContentPayload !== null): ?>

@@ -34,9 +34,9 @@ $guestPreviewLocked = ! is_array($currentUser) || $currentUser === [];
 <main class="mx-auto max-w-7xl px-6 pb-20 pt-28 md:px-8">
     <section class="mb-10 rounded-[2rem] bg-[linear-gradient(135deg,#fff5f8_0%,#fbf9fb_100%)] p-8 shadow-sm">
         <div class="max-w-3xl">
-            <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Exploração real</p>
-            <h1 class="headline mt-3 text-4xl font-extrabold">Descubra criadores, conteúdos e lives reais.</h1>
-            <p class="mt-4 text-slate-600">Nada aqui vem de mock ou demo: esta vitrine já responde ao que foi cadastrado de verdade na plataforma.</p>
+            <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Explorar</p>
+            <h1 class="headline mt-3 text-4xl font-extrabold">Descubra criadores, conteúdos e lives para acompanhar agora.</h1>
+            <p class="mt-4 text-slate-600">Navegue por perfis, encontre novas experiências e entre nas salas que combinam com o seu momento.</p>
         </div>
         <form action="/explore" class="mt-8 grid grid-cols-1 gap-4 rounded-3xl bg-white p-5 shadow-sm md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_220px_auto_auto]" method="get">
             <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="q" placeholder="Buscar por criador, live ou conteúdo..." type="search" value="<?= e($query) ?>">
@@ -72,14 +72,14 @@ $guestPreviewLocked = ! is_array($currentUser) || $currentUser === [];
                 <a class="group overflow-hidden rounded-3xl bg-white shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
                     <div class="relative aspect-[3/4] bg-slate-900">
                         <?php if ($cover !== ''): ?>
-                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'blur-[10px]' : '' ?>" src="<?= e($cover) ?>">
+                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[22px] brightness-75' : '' ?>" src="<?= e($cover) ?>">
                         <?php else: ?>
                             <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
                                 <span class="headline text-2xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
                             </div>
                         <?php endif; ?>
                         <?php if ($guestPreviewLocked): ?>
-                            <div class="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"></div>
+                            <div class="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]"></div>
                         <?php endif; ?>
                         <div class="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-white"><?= e((string) (($live['status'] ?? '') === 'live' ? 'Ao vivo' : 'Agendada')) ?></div>
                         <?php if ($guestPreviewLocked): ?>
@@ -107,7 +107,7 @@ $guestPreviewLocked = ! is_array($currentUser) || $currentUser === [];
         <div class="mb-6 flex items-end justify-between gap-6">
             <div>
                 <h2 class="headline text-3xl font-extrabold">Criadores</h2>
-                <p class="mt-2 text-sm text-slate-500">Perfis públicos conectados ao banco atual.</p>
+                <p class="mt-2 text-sm text-slate-500">Perfis em destaque para você conhecer melhor e acompanhar.</p>
             </div>
         </div>
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
@@ -136,7 +136,7 @@ $guestPreviewLocked = ! is_array($currentUser) || $currentUser === [];
         <div class="mb-6 flex items-end justify-between gap-6">
             <div>
                 <h2 class="headline text-3xl font-extrabold">Conteúdos publicados</h2>
-                <p class="mt-2 text-sm text-slate-500">Itens aprovados e disponíveis no estado atual da plataforma.</p>
+                <p class="mt-2 text-sm text-slate-500">Fotos, vídeos e publicações para você explorar em um só lugar.</p>
             </div>
         </div>
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -145,14 +145,14 @@ $guestPreviewLocked = ! is_array($currentUser) || $currentUser === [];
                 <a class="overflow-hidden rounded-3xl bg-white shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0)])) ?>">
                     <div class="relative aspect-[4/3] bg-slate-900">
                         <?php if ($thumbnail !== ''): ?>
-                            <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover <?= $guestPreviewLocked ? 'blur-[10px]' : '' ?>" src="<?= e($thumbnail) ?>">
+                            <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover <?= $guestPreviewLocked ? 'scale-105 blur-[16px] brightness-90' : '' ?>" src="<?= e($thumbnail) ?>">
                         <?php else: ?>
                             <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
                                 <span class="headline text-2xl font-extrabold"><?= e((string) strtoupper((string) ($item['kind'] ?? 'conteúdo'))) ?></span>
                             </div>
                         <?php endif; ?>
                         <?php if ($guestPreviewLocked): ?>
-                            <div class="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"></div>
+                            <div class="absolute inset-0 bg-slate-950/28 backdrop-blur-[2px]"></div>
                             <div class="absolute inset-x-4 bottom-4 rounded-full bg-white/90 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]">
                                 Entre para desbloquear
                             </div>
@@ -186,7 +186,7 @@ $guestPreviewLocked = ! is_array($currentUser) || $currentUser === [];
         <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/help">Ajuda</a>
         <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/terms">Termos</a>
     </div>
-    <p class="text-[10px] uppercase tracking-[0.2em] text-white/80">© 2026 SexyLua. Busca pública conectada aos dados reais.</p>
+    <p class="text-[10px] uppercase tracking-[0.2em] text-white/80">© 2026 SexyLua. Encontre criadores, conteúdos e lives em destaque.</p>
 </footer>
 </body>
 </html>

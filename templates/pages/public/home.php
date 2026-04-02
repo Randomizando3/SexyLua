@@ -38,11 +38,11 @@ $liveSectionDescription = $liveNow !== [] ? 'Quem já está no ar neste momento.
             <div>
                 <div class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60] shadow-sm">
                     <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1;">nightlight</span>
-                    Plataforma ativa
+                    Bem-vindo a SexyLua
                 </div>
-                <h1 class="headline mt-6 max-w-3xl text-4xl font-extrabold leading-tight text-slate-950 md:text-6xl">Experiências reais, criadores reais e tudo conectado ao backend.</h1>
+                <h1 class="headline mt-6 max-w-3xl text-4xl font-extrabold leading-tight text-slate-950 md:text-6xl">Descubra criadores, lives e conteúdos pensados para o seu momento.</h1>
                 <p class="mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
-                    A SexyLua agora mostra só o que existe de verdade na plataforma: criadores cadastrados, conteúdos publicados, assinantes ativos e lives que já estão acontecendo ou foram agendadas.
+                    Explore perfis, acompanhe as próximas transmissões, encontre novos destaques e viva uma experiência mais próxima, privada e envolvente dentro da plataforma.
                 </p>
                 <div class="mt-8 flex flex-wrap gap-4">
                     <a class="signature-glow rounded-full px-8 py-4 text-sm font-bold uppercase tracking-widest text-white shadow-lg shadow-[#ab1155]/20" href="/explore">Explorar agora</a>
@@ -87,14 +87,14 @@ $liveSectionDescription = $liveNow !== [] ? 'Quem já está no ar neste momento.
                 <a class="group overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)] transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
                     <div class="relative aspect-[3/4] bg-slate-900">
                         <?php if ($cover !== ''): ?>
-                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'blur-[10px]' : '' ?>" src="<?= e($cover) ?>">
+                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[22px] brightness-75' : '' ?>" src="<?= e($cover) ?>">
                         <?php else: ?>
                             <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
                                 <span class="headline text-2xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
                             </div>
                         <?php endif; ?>
                         <?php if ($guestPreviewLocked): ?>
-                            <div class="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"></div>
+                            <div class="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]"></div>
                         <?php endif; ?>
                         <div class="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-white">
                             <?= e((string) (($live['status'] ?? '') === 'live' ? 'Ao vivo' : 'Agendada')) ?>
@@ -127,7 +127,7 @@ $liveSectionDescription = $liveNow !== [] ? 'Quem já está no ar neste momento.
             <div class="mb-8 flex items-end justify-between gap-6">
                 <div>
                     <h2 class="headline text-3xl font-extrabold">Criadores em destaque</h2>
-                    <p class="mt-2 text-sm text-slate-500">Perfis reais com conteúdo e presença ativa na plataforma.</p>
+                    <p class="mt-2 text-sm text-slate-500">Perfis em destaque para você descobrir, acompanhar e assinar.</p>
                 </div>
                 <a class="text-sm font-bold text-[#ab1155] underline" href="/explore">Explorar criadores</a>
             </div>
@@ -160,7 +160,7 @@ $liveSectionDescription = $liveNow !== [] ? 'Quem já está no ar neste momento.
         <div class="mb-8 flex items-end justify-between gap-6">
             <div>
                 <h2 class="headline text-3xl font-extrabold">Conteúdos publicados</h2>
-                <p class="mt-2 text-sm text-slate-500">Amostra do que já foi publicado e aprovado de verdade.</p>
+                    <p class="mt-2 text-sm text-slate-500">Uma seleção de fotos, vídeos e publicações para você explorar.</p>
             </div>
             <a class="text-sm font-bold text-[#ab1155] underline" href="/explore">Ver catálogo</a>
         </div>
@@ -173,14 +173,14 @@ $liveSectionDescription = $liveNow !== [] ? 'Quem já está no ar neste momento.
                 <a class="overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)] transition-transform hover:-translate-y-1" href="<?= e($creatorUrl) ?>">
                     <div class="relative aspect-[4/3] bg-slate-900">
                         <?php if ($thumbnail !== ''): ?>
-                            <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover <?= $guestPreviewLocked ? 'blur-[10px]' : '' ?>" src="<?= e($thumbnail) ?>">
+                            <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover <?= $guestPreviewLocked ? 'scale-105 blur-[16px] brightness-90' : '' ?>" src="<?= e($thumbnail) ?>">
                         <?php else: ?>
                             <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#cc326e] via-[#ab1155] to-[#5a0d31] p-6 text-center text-white">
                                 <span class="headline text-2xl font-extrabold"><?= e((string) strtoupper((string) ($item['kind'] ?? 'conteúdo'))) ?></span>
                             </div>
                         <?php endif; ?>
                         <?php if ($guestPreviewLocked): ?>
-                            <div class="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"></div>
+                            <div class="absolute inset-0 bg-slate-950/28 backdrop-blur-[2px]"></div>
                             <div class="absolute inset-x-4 bottom-4 rounded-full bg-white/90 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]">
                                 Entre para desbloquear
                             </div>
@@ -216,7 +216,7 @@ $liveSectionDescription = $liveNow !== [] ? 'Quem já está no ar neste momento.
         <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/help">Ajuda</a>
         <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/terms">Termos</a>
     </div>
-    <p class="text-[10px] uppercase tracking-[0.2em] text-white/80">© 2026 SexyLua. Plataforma conectada aos dados reais.</p>
+    <p class="text-[10px] uppercase tracking-[0.2em] text-white/80">© 2026 SexyLua. Conteúdos, assinaturas e lives em um só lugar.</p>
 </footer>
 </body>
 </html>
