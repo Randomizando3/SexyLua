@@ -57,6 +57,7 @@
         peerId: '',
         joined: false,
         joining: null,
+        rejoinTimer: null,
         pollTimer: null,
         heartbeatTimer: null,
         pollIntervalMs: 1500,
@@ -106,6 +107,21 @@
         }
         el.error.classList.remove('hidden')
         el.error.textContent = String(message)
+    }
+
+    const payloadNeedsRejoin = (payload) => {
+        const message = String(payload?.message || '')
+        return payload?.ok === false && /sess[aã]o da live expirada|entre novamente/i.test(message)
+    }
+
+    const scheduleRejoin = () => {
+        if (state.rejoinTimer) return
+        state.joined = false
+        state.peerId = ''
+        state.rejoinTimer = window.setTimeout(() => {
+            state.rejoinTimer = null
+            ensureJoined().catch(() => {})
+        }, 250)
     }
 
     const setWaiting = (message = '') => {
@@ -462,6 +478,7 @@
     const applyPayload = (payload) => {
         if (!payload || payload.ok === false) {
             if (payload && payload.message) showError(payload.message)
+            if (payloadNeedsRejoin(payload)) scheduleRejoin()
             return
         }
         showError('')
@@ -480,7 +497,11 @@
     const heartbeat = async () => {
         if (!state.joined || !state.peerId || liveId <= 0) return
         const payload = await postForm(heartbeatUrl, { _token: csrf, live_id: liveId, peer_id: state.peerId })
-        if (payload && payload.ok) applyStatus(payload.stream || {}, {})
+        if (payload && payload.ok) {
+            applyStatus(payload.stream || {}, {})
+            return
+        }
+        if (payloadNeedsRejoin(payload)) scheduleRejoin()
     }
 
     const startLoops = () => {
