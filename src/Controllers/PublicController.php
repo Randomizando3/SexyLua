@@ -216,6 +216,10 @@ final class PublicController extends Controller
         $this->validateCsrf($request, $redirect);
         $result = $this->app->repository->unlockConversationMessage((int) $request->input('message_id', 0), (int) ($this->user()['id'] ?? 0));
 
+        if (! (bool) ($result['ok'] ?? false) && str_contains(mb_strtolower((string) ($result['message'] ?? '')), 'saldo insuficiente')) {
+            $this->redirect('/subscriber/wallet', 'Voce nao tem LuaCoins suficientes para desbloquear este conteudo. Recarregue sua carteira para continuar.', 'error');
+        }
+
         $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel desbloquear este conteudo.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
     }
 
