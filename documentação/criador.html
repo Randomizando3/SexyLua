@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual do Criador - SexyLua</title>
+    <link rel="icon" href="../public/assets/img/luacoin.png">
+    <link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+    <div class="page-shell">
+        <section class="hero">
+            <div class="hero-top">
+                <div class="brand">
+                    <img src="../public/assets/img/luacoin.png" alt="LuaCoin">
+                    <span>Manual do Criador</span>
+                </div>
+                <span class="kicker">Perfil de uso</span>
+            </div>
+            <h1>Como acessar e operar o painel do criador</h1>
+            <p>Este guia explica toda a rotina do criador: painel, conteudos, mensagens, assinaturas, microconteudos, lives com OBS, carteira, saques, configuracoes e pagina publica.</p>
+            <a class="back-link" href="index.html">Voltar para o indice</a>
+        </section>
+
+        <div class="layout">
+            <aside class="sidebar">
+                <h2>Navegacao</h2>
+                <nav>
+                    <a class="is-active" href="#visao-geral">Visao geral</a>
+                    <a href="#dashboard">Metricas</a>
+                    <a href="#conteudos">Conteudos</a>
+                    <a href="#mensagens">Mensagens e microconteudos</a>
+                    <a href="#assinaturas">Assinaturas e membros</a>
+                    <a href="#lives">Lives e estudio</a>
+                    <a href="#wallet">Carteira e saques</a>
+                    <a href="#configuracoes">Configuracoes</a>
+                    <a href="#pagina-publica">Minha pagina</a>
+                </nav>
+            </aside>
+
+            <div class="content">
+                <section class="section" id="visao-geral">
+                    <h2>Visao geral do papel</h2>
+                    <p>O criador e o perfil responsavel por publicar conteudos, vender microconteudos, abrir lives, gerenciar membros e acompanhar ganhos. Todas as areas principais ficam abaixo do prefixo <span class="path">/creator</span>.</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Area</th>
+                                    <th>Objetivo</th>
+                                    <th>Rota principal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Metricas</td><td>Resumo geral de desempenho e operacao</td><td><span class="path">/creator</span></td></tr>
+                                <tr><td>Conteudos</td><td>Publicar e gerenciar fotos, videos e artigos</td><td><span class="path">/creator/content</span></td></tr>
+                                <tr><td>Mensagens</td><td>Conversar com assinantes e vender microconteudos</td><td><span class="path">/creator/messages</span></td></tr>
+                                <tr><td>Lives</td><td>Criar agenda, iniciar estudio e transmitir</td><td><span class="path">/creator/live</span></td></tr>
+                                <tr><td>Carteira</td><td>Acompanhar saldo e solicitar saque</td><td><span class="path">/creator/wallet</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="section" id="dashboard">
+                    <h2>Metricas</h2>
+                    <p>O dashboard do criador mostra visao geral de performance, saldos, assinantes ativos e atalhos da operacao. Quando nao ha dados reais, a tela exibe estados vazios sem metricas ficticias.</p>
+                </section>
+
+                <section class="section" id="conteudos">
+                    <h2>Conteudos</h2>
+                    <p>Na rota <span class="path">/creator/content</span> o criador cadastra fotos, videos e artigos. O fluxo principal de novo item e feito por modal.</p>
+                    <ul>
+                        <li>titulo e descricao</li>
+                        <li>arquivo principal</li>
+                        <li>capa ou thumbnail</li>
+                        <li>visibilidade publica ou para assinantes</li>
+                        <li>vinculo com plano real do painel</li>
+                    </ul>
+                    <p>O limite de armazenamento do criador usa o valor configurado pelo admin e nao inclui replay automatico de live, porque esse recurso foi desabilitado para economizar espaco.</p>
+                </section>
+
+                <section class="section" id="mensagens">
+                    <h2>Mensagens e microconteudos</h2>
+                    <p>O chat do criador permite enviar texto, anexo, bloqueio por plano minimo e microconteudo com valor em LuaCoins diretamente na conversa.</p>
+                    <ul>
+                        <li>texto livre</li>
+                        <li>imagem, video, documento ou pacote privado</li>
+                        <li>plano minimo opcional</li>
+                        <li>valor para desbloqueio</li>
+                    </ul>
+                    <p>O criador tambem ve se o assinante desbloqueou ou nao o item enviado, com status de aguardando ou desbloqueado.</p>
+                </section>
+
+                <section class="section" id="assinaturas">
+                    <h2>Assinaturas e membros</h2>
+                    <p>Em <span class="path">/creator/memberships</span> o criador monta planos e acompanha a base de membros.</p>
+                    <ul>
+                        <li>criar plano com nome, preco, descricao e beneficios</li>
+                        <li>listar assinantes</li>
+                        <li>filtrar membros</li>
+                        <li>enviar mensagem direta</li>
+                    </ul>
+                </section>
+
+                <section class="section" id="lives">
+                    <h2>Lives e estudio</h2>
+                    <p>As lives sao criadas em <span class="path">/creator/live</span> e o estudio abre em <span class="path">/creator/live/studio?live=ID</span>.</p>
+                    <ol>
+                        <li>criar live agendada ou instantanea</li>
+                        <li>copiar endpoint RTMP e chave</li>
+                        <li>configurar OBS</li>
+                        <li>esperar o preview confirmar sinal</li>
+                        <li>clicar em comecar live</li>
+                    </ol>
+                    <h3>Padrao recomendado de ingest</h3>
+                    <ul>
+                        <li>854x480</li>
+                        <li>800 kbps de video</li>
+                        <li>30 fps</li>
+                        <li>GOP de 2 segundos</li>
+                        <li>AAC 96 kbps</li>
+                    </ul>
+                    <div class="callout">
+                        <strong>Observacao:</strong> replay de live esta desabilitado por padrao para reduzir impacto de espaco e processamento na VPS.
+                    </div>
+                </section>
+
+                <section class="section" id="wallet">
+                    <h2>Carteira e saques</h2>
+                    <p>Em <span class="path">/creator/wallet</span> o criador acompanha saldo liquido, historico financeiro e pedidos de saque.</p>
+                    <ul>
+                        <li>saque por chave PIX</li>
+                        <li>status do pedido visivel para acompanhamento</li>
+                        <li>historico em tabela</li>
+                        <li>bloqueio de saque enquanto a verificacao estiver pendente ou reprovada</li>
+                    </ul>
+                </section>
+
+                <section class="section" id="configuracoes">
+                    <h2>Configuracoes</h2>
+                    <p>Em <span class="path">/creator/settings</span> o criador altera avatar, capa, bio, chave PIX e documento. O preview de avatar e capa atualiza logo apos selecionar o arquivo.</p>
+                </section>
+
+                <section class="section" id="pagina-publica">
+                    <h2>Minha pagina</h2>
+                    <p>O atalho "Minha pagina" leva ao perfil publico do criador. Nele ficam a bio, agenda de lives, planos, catalogo e itens visiveis para publico ou assinantes autenticados.</p>
+                    <div class="callout success">
+                        <strong>Resumo final:</strong> o criador usa o SexyLua para vender conteudos, receber assinantes, conversar por chat privado, abrir lives e acompanhar sua operacao financeira em um unico painel.
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <p class="doc-footer">SexyLua - manual funcional do criador</p>
+    </div>
+</body>
+</html>

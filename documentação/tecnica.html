@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentacao Tecnica - SexyLua</title>
+    <link rel="icon" href="../public/assets/img/luacoin.png">
+    <link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+    <div class="page-shell">
+        <section class="hero">
+            <div class="hero-top">
+                <div class="brand">
+                    <img src="../public/assets/img/luacoin.png" alt="LuaCoin">
+                    <span>Documentacao Tecnica</span>
+                </div>
+                <span class="kicker">Arquitetura e deploy</span>
+            </div>
+            <h1>Guia tecnico completo do codigo e da infraestrutura</h1>
+            <p>Este documento detalha a estrutura do projeto, bootstrap, rotas, persistencia, uploads, SyncPay, MediaMTX, VPS com Hestia, deploy e manutencao.</p>
+            <a class="back-link" href="index.html">Voltar para o indice</a>
+        </section>
+
+        <div class="layout">
+            <aside class="sidebar">
+                <h2>Navegacao</h2>
+                <nav>
+                    <a class="is-active" href="#visao-geral">Visao geral</a>
+                    <a href="#estrutura">Estrutura de pastas</a>
+                    <a href="#bootstrap">Bootstrap e configuracao</a>
+                    <a href="#rotas">Rotas e controladores</a>
+                    <a href="#repositorio">Repositorio e persistencia</a>
+                    <a href="#uploads">Uploads e protecao</a>
+                    <a href="#syncpay">SyncPay</a>
+                    <a href="#lives">Lives com MediaMTX</a>
+                    <a href="#vps">VPS e Hestia</a>
+                    <a href="#deploy">Deploy e manutencao</a>
+                </nav>
+            </aside>
+
+            <div class="content">
+                <section class="section" id="visao-geral">
+                    <h2>Visao geral</h2>
+                    <p>SexyLua e uma aplicacao PHP server-side com templates HTML, JavaScript pontual, regra de negocio centralizada em repositorio e integracoes especificas para pagamento e live. O sistema pode usar armazenamento JSON ou PostgreSQL.</p>
+                </section>
+
+                <section class="section" id="estrutura">
+                    <h2>Estrutura de pastas</h2>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr><th>Pasta ou arquivo</th><th>Funcao</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><span class="path">public/</span></td><td>Entrada web, assets, uploads publicos e index.php</td></tr>
+                                <tr><td><span class="path">src/</span></td><td>Controladores, servicos, repositorios e suporte</td></tr>
+                                <tr><td><span class="path">templates/</span></td><td>Views e partials HTML</td></tr>
+                                <tr><td><span class="path">routes/web.php</span></td><td>Mapa completo de rotas</td></tr>
+                                <tr><td><span class="path">storage/</span></td><td>Dados locais, ferramentas e arquivos auxiliares</td></tr>
+                                <tr><td><span class="path">scripts/</span></td><td>Scripts de startup, reset e migracao</td></tr>
+                                <tr><td><span class="path">bootstrap.php</span></td><td>Inicializacao principal do app</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="section" id="bootstrap">
+                    <h2>Bootstrap e configuracao</h2>
+                    <p>O arquivo <span class="path">bootstrap.php</span> define <span class="path">BASE_PATH</span>, registra o autoload de classes em <span class="path">src/</span>, carrega variaveis de ambiente, inicia sessao, aplica UTF-8 e monta o container basico de configuracao e store.</p>
+                    <p>O ambiente e lido de <span class="path">.env</span> e <span class="path">.env.local</span>, com modelo em <span class="path">.env.example</span>.</p>
+                </section>
+
+                <section class="section" id="rotas">
+                    <h2>Rotas e controladores</h2>
+                    <p>As rotas ficam em <span class="path">routes/web.php</span> e foram organizadas por dominio funcional:</p>
+                    <ul>
+                        <li>publicas: home, explore, profile, live, help, terms, privacy</li>
+                        <li>autenticacao: login, register, logout</li>
+                        <li>subscriber: dashboard, subscriptions, favorites, messages, wallet, settings</li>
+                        <li>creator: dashboard, content, messages, memberships, live, wallet, settings</li>
+                        <li>admin: dashboard, users, moderation, messages, finance, operations, settings</li>
+                        <li>webhook e live: SyncPay e rotas de live/rtc</li>
+                    </ul>
+                </section>
+
+                <section class="section" id="repositorio">
+                    <h2>Repositorio e persistencia</h2>
+                    <p><span class="path">src/Repositories/PlatformRepository.php</span> centraliza a regra de negocio. Ele cuida de usuarios, perfil do criador, conteudos, planos, assinaturas, mensagens, microconteudos, wallet, lives e configuracoes.</p>
+                    <p>O store pode trabalhar com JSON ou PostgreSQL. O repositorio abstrai essa camada e mantem a logica principal em um unico ponto.</p>
+                </section>
+
+                <section class="section" id="uploads">
+                    <h2>Uploads e protecao</h2>
+                    <p>Assets publicos ficam em <span class="path">public/assets</span>. Uploads sensiveis, anexos privados e documentos passam por rotas protegidas e nao devem ser expostos diretamente por URL publica solta.</p>
+                    <p>Mensagens privadas usam rota controlada para leitura segura de anexos, respeitando autenticacao e permissao.</p>
+                </section>
+
+                <section class="section" id="syncpay">
+                    <h2>SyncPay</h2>
+                    <p>A recarga de LuaCoins usa a integracao em <span class="path">src/Services/SyncPayGateway.php</span>. O fluxo principal:</p>
+                    <ol>
+                        <li>autenticar com client_id e client_secret</li>
+                        <li>criar o PIX cash-in</li>
+                        <li>registrar a recarga como pendente</li>
+                        <li>confirmar por webhook ou consulta de status</li>
+                        <li>creditar saldo somente quando aprovado</li>
+                    </ol>
+                    <p>Webhook padrao de producao: <span class="path">https://sexylua.izzihub.com.br/webhook/syncpay</span></p>
+                </section>
+
+                <section class="section" id="lives">
+                    <h2>Lives com MediaMTX</h2>
+                    <p>As lives usam MediaMTX como engine de ingest RTMP e entrega HLS. O padrao atual e:</p>
+                    <ul>
+                        <li>RTMP em 1935</li>
+                        <li>API local do MediaMTX em 127.0.0.1:9997</li>
+                        <li>HLS servido pelo MediaMTX</li>
+                        <li>preset recomendado: 854x480, 800 kbps, 30 fps, GOP 2s e AAC 96 kbps</li>
+                    </ul>
+                    <p>O replay automatico foi desabilitado no app para reduzir custo de disco e processamento.</p>
+                </section>
+
+                <section class="section" id="vps">
+                    <h2>VPS e Hestia</h2>
+                    <p>A producao roda com HestiaCP, Nginx proxy, Apache e PHP 8.3.</p>
+                    <ul>
+                        <li>web root publico: <span class="path">/home/admin/web/sexylua.izzihub.com.br/public_html</span></li>
+                        <li>aplicacao: <span class="path">/home/admin/web/sexylua.izzihub.com.br/private/app</span></li>
+                    </ul>
+                    <p>O <span class="path">public/index.php</span> ajusta o base path automaticamente quando detecta a estrutura com <span class="path">private/app</span>.</p>
+                </section>
+
+                <section class="section" id="deploy">
+                    <h2>Deploy e manutencao</h2>
+                    <h3>Scripts uteis</h3>
+                    <ul>
+                        <li><span class="path">scripts/start-local-server.ps1</span></li>
+                        <li><span class="path">scripts/start-mediamtx.ps1</span></li>
+                        <li><span class="path">scripts/reset_data.php</span></li>
+                        <li><span class="path">scripts/migrate_json_to_postgres.php</span></li>
+                    </ul>
+                    <h3>Cuidados recorrentes</h3>
+                    <ul>
+                        <li>nao versionar credenciais e arquivos .env reais</li>
+                        <li>nao expor uploads privados por URL direta</li>
+                        <li>validar SyncPay apos trocar credenciais ou ambiente</li>
+                        <li>confirmar porta 1935 aberta para ingest RTMP</li>
+                    </ul>
+                    <div class="callout success">
+                        <strong>Resumo final:</strong> a base esta organizada para continuidade tecnica, com regra de negocio centralizada, pagamento separado, live apoiada em MediaMTX e deploy compativel com Hestia.
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <p class="doc-footer">SexyLua - documentacao tecnica do projeto</p>
+    </div>
+</body>
+</html>

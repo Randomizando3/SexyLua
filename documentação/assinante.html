@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual do Assinante - SexyLua</title>
+    <link rel="icon" href="../public/assets/img/luacoin.png">
+    <link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+    <div class="page-shell">
+        <section class="hero">
+            <div class="hero-top">
+                <div class="brand">
+                    <img src="../public/assets/img/luacoin.png" alt="LuaCoin">
+                    <span>Manual do Assinante</span>
+                </div>
+                <span class="kicker">Perfil de uso</span>
+            </div>
+            <h1>Como acessar e usar cada item do assinante</h1>
+            <p>Este guia cobre toda a jornada do assinante, desde o cadastro e navegacao publica ate carteira, chat privado, lives, gorjetas, microconteudos, favoritos, assinaturas, configuracoes e notificacoes.</p>
+            <a class="back-link" href="index.html">Voltar para o indice</a>
+        </section>
+
+        <div class="layout">
+            <aside class="sidebar">
+                <h2>Navegacao</h2>
+                <nav>
+                    <a class="is-active" href="#visao-geral">Visao geral</a>
+                    <a href="#publico">Home, explorar e perfil publico</a>
+                    <a href="#cadastro">Cadastro e login</a>
+                    <a href="#painel">Painel do assinante</a>
+                    <a href="#mensagens">Mensagens, anexos e desbloqueios</a>
+                    <a href="#wallet">Carteira e LuaCoins</a>
+                    <a href="#lives">Lives e gorjetas</a>
+                    <a href="#configuracoes">Configuracoes</a>
+                    <a href="#notificacoes">Notificacoes</a>
+                </nav>
+            </aside>
+
+            <div class="content">
+                <section class="section" id="visao-geral">
+                    <h2>Visao geral do papel</h2>
+                    <p>O assinante e o perfil de consumo e relacionamento da plataforma. Ele navega pelas areas publicas, assina planos, acompanha criadores, conversa por mensagens privadas, assiste lives, envia gorjetas, desbloqueia microconteudos e controla o proprio saldo em LuaCoins.</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Area</th>
+                                    <th>Objetivo</th>
+                                    <th>Rota principal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Home</td>
+                                    <td>Entrada publica com destaques da plataforma</td>
+                                    <td><span class="path">/</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Explorar</td>
+                                    <td>Buscar criadores, conteudos e lives</td>
+                                    <td><span class="path">/explore</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Painel do assinante</td>
+                                    <td>Resumo pessoal, atalhos e acompanhamento de uso</td>
+                                    <td><span class="path">/subscriber</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Carteira</td>
+                                    <td>Recarga via PIX, historico e saldo</td>
+                                    <td><span class="path">/subscriber/wallet</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Mensagens</td>
+                                    <td>Conversa privada com criadores</td>
+                                    <td><span class="path">/subscriber/messages</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="section" id="publico">
+                    <h2>Home, explorar e perfil publico</h2>
+                    <h3>Home publica</h3>
+                    <p>A home mostra criadores, lives em destaque, conteudos e atalhos da plataforma. Se o visitante nao estiver logado, previews sensiveis aparecem com blur para evitar exposicao direta.</p>
+                    <h3>Pagina explorar</h3>
+                    <p>A rota <span class="path">/explore</span> organiza os destaques por catalogo. O assinante usa essa tela para descobrir novos perfis e entrar em lives ou paginas publicas.</p>
+                    <h3>Perfil publico do criador</h3>
+                    <p>No perfil publico o assinante encontra capa, avatar, bio, agenda de lives, planos disponiveis e catalogo de conteudos. Ao clicar em um card bloqueado sem permissao, o sistema orienta a assinar um plano ou entrar na conta.</p>
+                    <div class="callout">
+                        <strong>Protecao de midia:</strong> itens protegidos por assinatura nao expoem a midia real para visitantes sem acesso. O HTML mostra apenas o estado bloqueado e o CTA apropriado.
+                    </div>
+                </section>
+
+                <section class="section" id="cadastro">
+                    <h2>Cadastro e login</h2>
+                    <p>O cadastro pede nome, email, cidade, idade, tipo de conta, senha, documento de identidade e aceite dos termos.</p>
+                    <ul>
+                        <li>idade menor que 18 anos bloqueia o registro</li>
+                        <li>o documento fica com verificacao inicial pendente</li>
+                        <li>apos o login, o sistema redireciona para o painel do assinante</li>
+                    </ul>
+                </section>
+
+                <section class="section" id="painel">
+                    <h2>Painel do assinante</h2>
+                    <h3>Dashboard</h3>
+                    <p>Em <span class="path">/subscriber</span> ficam o resumo de uso, atalhos e acompanhamento rapido.</p>
+                    <h3>Assinaturas</h3>
+                    <p>Em <span class="path">/subscriber/subscriptions</span> o usuario visualiza planos ativos, historico e a relacao atual com os criadores.</p>
+                    <h3>Favoritos</h3>
+                    <p>Em <span class="path">/subscriber/favorites</span> o assinante salva criadores. O clique no card leva ao perfil publico, e o botao em icone adiciona ou remove o favorito.</p>
+                </section>
+
+                <section class="section" id="mensagens">
+                    <h2>Mensagens, anexos e desbloqueios</h2>
+                    <p>O assinante conversa com criadores pela rota <span class="path">/subscriber/messages</span>. O chat suporta texto, anexo de imagem, video, documento, pacote privado e microconteudo pago em LuaCoins.</p>
+                    <p>Quando um microconteudo estiver bloqueado, o assinante ve o estado travado com botao de desbloquear. Se houver saldo suficiente, o valor e descontado e o anexo fica liberado. Se nao houver saldo, o sistema redireciona para a carteira.</p>
+                    <p>No celular, a lista de conversas e a sala de chat ficam separadas para ocupar a tela inteira de forma mais proxima de aplicativos de mensagem.</p>
+                </section>
+
+                <section class="section" id="wallet">
+                    <h2>Carteira e LuaCoins</h2>
+                    <p>A rota <span class="path">/subscriber/wallet</span> concentra saldo, recarga, historico financeiro e resumo de uso.</p>
+                    <ul>
+                        <li>recarga via PIX com SyncPay</li>
+                        <li>QR Code e copia e cola</li>
+                        <li>saldo liberado apenas quando o PIX e aprovado</li>
+                        <li>resumo separado por assinaturas, gorjetas e microconteudos</li>
+                    </ul>
+                </section>
+
+                <section class="section" id="lives">
+                    <h2>Lives e gorjetas</h2>
+                    <p>As lives usam streaming com MediaMTX e player HLS na sala publica. O assinante pode entrar na live, participar do chat quando liberado e enviar gorjetas em LuaCoins com mensagem personalizada.</p>
+                </section>
+
+                <section class="section" id="configuracoes">
+                    <h2>Configuracoes</h2>
+                    <p>Em <span class="path">/subscriber/settings</span> o assinante edita avatar, dados pessoais e documento. Se a documentacao for reprovada, o sistema orienta a reenviar um novo arquivo.</p>
+                </section>
+
+                <section class="section" id="notificacoes">
+                    <h2>Notificacoes</h2>
+                    <p>A area logada mostra badges de notificacoes e mensagens no topo. O assinante pode receber avisos de aprovacao de documentacao, recarga aprovada, mensagens privadas e outras atualizacoes relevantes.</p>
+                    <div class="callout success">
+                        <strong>Resumo final:</strong> o assinante cobre toda a jornada de consumo, carteira, interacao privada e participacao em live dentro do SexyLua.
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <p class="doc-footer">SexyLua - manual funcional do assinante</p>
+    </div>
+</body>
+</html>

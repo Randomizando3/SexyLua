@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual do Admin - SexyLua</title>
+    <link rel="icon" href="../public/assets/img/luacoin.png">
+    <link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+    <div class="page-shell">
+        <section class="hero">
+            <div class="hero-top">
+                <div class="brand">
+                    <img src="../public/assets/img/luacoin.png" alt="LuaCoin">
+                    <span>Manual do Admin</span>
+                </div>
+                <span class="kicker">Perfil de operacao</span>
+            </div>
+            <h1>Como administrar a plataforma SexyLua</h1>
+            <p>Este guia cobre o uso do painel administrativo: dashboard, usuarios, moderacao, mensagens, financeiro, operacoes, configuracoes, verificacoes e SEO.</p>
+            <a class="back-link" href="index.html">Voltar para o indice</a>
+        </section>
+
+        <div class="layout">
+            <aside class="sidebar">
+                <h2>Navegacao</h2>
+                <nav>
+                    <a class="is-active" href="#visao-geral">Visao geral</a>
+                    <a href="#dashboard">Dashboard</a>
+                    <a href="#usuarios">Usuarios</a>
+                    <a href="#moderacao">Moderacao</a>
+                    <a href="#mensagens">Mensagens</a>
+                    <a href="#financeiro">Financeiro</a>
+                    <a href="#operacoes">Operacoes</a>
+                    <a href="#configuracoes">Configuracoes</a>
+                    <a href="#seo">SEO</a>
+                </nav>
+            </aside>
+
+            <div class="content">
+                <section class="section" id="visao-geral">
+                    <h2>Visao geral</h2>
+                    <p>O admin controla todo o sistema a partir das rotas com prefixo <span class="path">/admin</span>. Ele opera configuracao global, moderacao, verificacao documental, financeiro e dados do sistema.</p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Area</th>
+                                    <th>Objetivo</th>
+                                    <th>Rota principal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Dashboard</td><td>Resumo geral da plataforma</td><td><span class="path">/admin</span></td></tr>
+                                <tr><td>Usuarios</td><td>Contas, papeis e verificacao</td><td><span class="path">/admin/users</span></td></tr>
+                                <tr><td>Moderacao</td><td>Revisao de itens e feedback</td><td><span class="path">/admin/moderation</span></td></tr>
+                                <tr><td>Financeiro</td><td>Recargas, saques e resultado</td><td><span class="path">/admin/finance</span></td></tr>
+                                <tr><td>Operacoes</td><td>Conteudos, planos, lives e microconteudos</td><td><span class="path">/admin/operations</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="section" id="dashboard">
+                    <h2>Dashboard</h2>
+                    <p>O dashboard exibe indicadores gerais de usuarios, volume, operacao, conteudos e outras metricas centrais da plataforma.</p>
+                </section>
+
+                <section class="section" id="usuarios">
+                    <h2>Usuarios</h2>
+                    <p>Em <span class="path">/admin/users</span> o admin usa a tabela de usuarios com filtros e modal de edicao.</p>
+                    <ul>
+                        <li>papel do usuario</li>
+                        <li>status da conta</li>
+                        <li>saldo</li>
+                        <li>cidade</li>
+                        <li>status de verificacao documental</li>
+                    </ul>
+                    <p>O status documental inicia como pendente. Se reprovado, o usuario recebe notificacao para reenviar o documento. Se aprovado, o aviso de nao verificado some e o saque e liberado.</p>
+                </section>
+
+                <section class="section" id="moderacao">
+                    <h2>Moderacao</h2>
+                    <p>Em <span class="path">/admin/moderation</span> ficam itens que exigem revisao administrativa, com possibilidade de aprovar, reprovar e registrar feedback.</p>
+                </section>
+
+                <section class="section" id="mensagens">
+                    <h2>Mensagens</h2>
+                    <p>O admin pode disparar comunicados gerais e acompanhar mensagens relevantes da plataforma. O topo mostra badge de novas mensagens e notificacoes administrativas.</p>
+                </section>
+
+                <section class="section" id="financeiro">
+                    <h2>Financeiro</h2>
+                    <p>Em <span class="path">/admin/finance</span> o admin acompanha recargas, saques, carteira manual e resultado da plataforma.</p>
+                    <ul>
+                        <li>resultado inclui assinaturas, gorjetas e microconteudos</li>
+                        <li>valores em LuaCoin aparecem acompanhados do equivalente em reais</li>
+                        <li>saques pendentes e concluidos entram na gestao</li>
+                        <li>o status do saque pode ser atualizado manualmente</li>
+                    </ul>
+                </section>
+
+                <section class="section" id="operacoes">
+                    <h2>Operacoes</h2>
+                    <p>A pagina <span class="path">/admin/operations</span> separa tabelas para conteudos, planos, lives e microconteudos. Cada tabela possui filtro proprio, paginacao de ate 10 itens e edicao em modal.</p>
+                </section>
+
+                <section class="section" id="configuracoes">
+                    <h2>Configuracoes</h2>
+                    <p>Em <span class="path">/admin/settings</span> o admin controla as regras globais da plataforma.</p>
+                    <ul>
+                        <li>minimo de deposito em LuaCoins</li>
+                        <li>minimo e maximo de saque</li>
+                        <li>limite padrao de armazenamento do criador</li>
+                        <li>chaves e webhook da SyncPay</li>
+                        <li>logos e dados basicos do sistema</li>
+                    </ul>
+                </section>
+
+                <section class="section" id="seo">
+                    <h2>SEO</h2>
+                    <p>A aba SEO permite editar o titulo geral do site, meta title, descricao, logo branco e logo colorido usados no sistema.</p>
+                    <div class="callout success">
+                        <strong>Resumo final:</strong> o admin centraliza verificacao, configuracao, moderacao e controle financeiro do SexyLua.
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <p class="doc-footer">SexyLua - manual funcional do admin</p>
+    </div>
+</body>
+</html>
