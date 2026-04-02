@@ -5343,6 +5343,11 @@ final class PlatformRepository
         $unlockPrice = max(0, (int) ($message['unlock_price'] ?? 0));
         $isUnlocked = $viewerId > 0 && $this->hasConversationMessageUnlock((int) ($message['id'] ?? 0), $viewerId);
         $hasAccess = $this->viewerCanAccessConversationMessage($message, $conversation, $viewerId, $viewerRole);
+        $creatorId = (int) ($conversation['creator_id'] ?? 0);
+        $creatorUnlock = $unlockPrice > 0 && $viewerId === $creatorId
+            ? $this->latestConversationMessageUnlock((int) ($message['id'] ?? 0))
+            : null;
+        $creatorUnlockUser = is_array($creatorUnlock) ? $this->findUserById((int) ($creatorUnlock['user_id'] ?? 0)) : null;
 
         return array_merge($message, [
             'attachment' => $attachment !== null ? array_merge($attachment, [
@@ -5354,6 +5359,14 @@ final class PlatformRepository
             'is_unlocked' => $isUnlocked,
             'can_access_attachment' => $hasAccess,
             'is_locked_attachment' => $attachment !== null && ! $hasAccess,
+            'creator_unlock_status' => $unlockPrice > 0 && $viewerId === $creatorId
+                ? ($creatorUnlock !== null ? 'unlocked' : 'pending')
+                : null,
+            'creator_unlock_label' => $unlockPrice > 0 && $viewerId === $creatorId
+                ? ($creatorUnlock !== null ? 'Desbloqueado' : 'Aguardando desbloqueio')
+                : '',
+            'creator_unlock_at' => is_array($creatorUnlock) ? (string) ($creatorUnlock['created_at'] ?? '') : '',
+            'creator_unlock_user_name' => (string) ($creatorUnlockUser['name'] ?? ''),
             'lock_reason' => $unlockPrice > 0
                 ? 'Desbloqueie este conteudo com LuaCoins para visualizar.'
                 : ($requiredPlan !== null ? 'Conteudo liberado apenas para o plano ' . (string) ($requiredPlan['name'] ?? 'selecionado') . '.' : 'Conteudo exclusivo.'),
@@ -5410,6 +5423,23 @@ final class PlatformRepository
         }
 
         return false;
+    }
+
+    private function latestConversationMessageUnlock(int $messageId): ?array
+    {
+        $latest = null;
+
+        foreach ($this->messageUnlocks() as $unlock) {
+            if ((int) ($unlock['message_id'] ?? 0) !== $messageId) {
+                continue;
+            }
+
+            if ($latest === null || strcmp((string) ($unlock['created_at'] ?? ''), (string) ($latest['created_at'] ?? '')) > 0) {
+                $latest = $unlock;
+            }
+        }
+
+        return $latest;
     }
 
     private function announcementMatchesUser(array $announcement, array $user): bool

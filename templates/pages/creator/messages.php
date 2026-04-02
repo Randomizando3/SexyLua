@@ -170,6 +170,20 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
                                                                 <span class="truncate"><?= e((string) ($attachment['original_name'] ?? 'Abrir anexo')) ?></span>
                                                             </a>
                                                         <?php endif; ?>
+                                                        <?php if ((int) ($message['unlock_price'] ?? 0) > 0): ?>
+                                                            <?php $unlockStatus = (string) ($message['creator_unlock_status'] ?? 'pending'); ?>
+                                                            <div class="mt-3 flex flex-wrap items-center gap-2">
+                                                                <span class="inline-flex rounded-full px-3 py-2 text-xs font-bold <?= $unlockStatus === 'unlocked' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' ?>">
+                                                                    <?= e((string) ($message['creator_unlock_label'] ?? 'Aguardando desbloqueio')) ?>
+                                                                </span>
+                                                                <span class="inline-flex rounded-full bg-primary/10 px-3 py-2 text-xs font-bold text-primary"><?= luacoin_amount_html((int) ($message['unlock_price'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-3.5 w-3.5 shrink-0') ?></span>
+                                                                <?php if ($unlockStatus === 'unlocked' && (string) ($message['creator_unlock_user_name'] ?? '') !== ''): ?>
+                                                                    <span class="text-xs font-semibold <?= $isMine ? 'text-white/80' : 'text-slate-500' ?>">
+                                                                        <?= e((string) ($message['creator_unlock_user_name'] ?? '')) ?> • <?= e(format_datetime((string) ($message['creator_unlock_at'] ?? ''), 'd/m H:i')) ?>
+                                                                    </span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        <?php endif; ?>
                                                     <?php else: ?>
                                                         <div class="rounded-2xl border border-dashed border-slate-300 bg-white/80 p-4 text-slate-700">
                                                             <div class="flex items-start gap-3">
