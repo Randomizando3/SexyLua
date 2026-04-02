@@ -573,10 +573,20 @@ label {
 
 .flash-success {
     border-color: rgba(31, 140, 77, 0.2);
+    background: rgba(31, 140, 77, 0.12);
+    color: var(--success);
 }
 
 .flash-error {
     border-color: rgba(180, 35, 24, 0.2);
+    background: rgba(180, 35, 24, 0.08);
+    color: var(--danger);
+}
+
+.flash-warning {
+    border-color: rgba(183, 121, 31, 0.2);
+    background: rgba(183, 121, 31, 0.1);
+    color: var(--warning);
 }
 
 .flash-close {
@@ -584,6 +594,18 @@ label {
     background: transparent;
     color: var(--text-soft);
     cursor: pointer;
+}
+
+.flash-success .flash-close {
+    color: var(--success);
+}
+
+.flash-error .flash-close {
+    color: var(--danger);
+}
+
+.flash-warning .flash-close {
+    color: var(--warning);
 }
 
 .table-card {

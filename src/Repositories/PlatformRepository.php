@@ -724,6 +724,11 @@ final class PlatformRepository
             static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0),
             0
         );
+        $instantContentSpend = array_reduce(
+            array_filter($transactions, static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'instant_content'),
+            static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0),
+            0
+        );
 
         return [
             'balance' => $this->walletBalance($userId),
@@ -739,6 +744,7 @@ final class PlatformRepository
                 'top_up_total' => $topUpTotal,
                 'subscription_spend' => $subscriptionSpend,
                 'tip_spend' => $tipSpend,
+                'instant_content_spend' => $instantContentSpend,
             ],
         ];
     }

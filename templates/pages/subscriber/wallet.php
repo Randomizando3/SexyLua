@@ -201,6 +201,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                 <div class="mt-5 space-y-4 text-sm">
                     <div class="rounded-3xl bg-surface-container-low p-5"><p class="text-on-surface-variant">Gasto com assinaturas</p><div class="mt-2 text-xl font-bold"><?= luacoin_amount_html((int) ($summary['subscription_spend'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.95em] w-[0.95em] shrink-0') ?></div></div>
                     <div class="rounded-3xl bg-surface-container-low p-5"><p class="text-on-surface-variant">Gasto com gorjetas</p><div class="mt-2 text-xl font-bold"><?= luacoin_amount_html((int) ($summary['tip_spend'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.95em] w-[0.95em] shrink-0') ?></div></div>
+                    <div class="rounded-3xl bg-surface-container-low p-5"><p class="text-on-surface-variant">Gasto com microconteudos</p><div class="mt-2 text-xl font-bold"><?= luacoin_amount_html((int) ($summary['instant_content_spend'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.95em] w-[0.95em] shrink-0') ?></div></div>
                 </div>
             </div>
         </section>
