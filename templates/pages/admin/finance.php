@@ -99,6 +99,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
             <option value="top_up_pending" <?= (string) ($filters['type'] ?? '') === 'top_up_pending' ? 'selected' : '' ?>>Recarga pendente</option>
             <option value="subscription" <?= (string) ($filters['type'] ?? '') === 'subscription' ? 'selected' : '' ?>>Assinatura</option>
             <option value="tip" <?= (string) ($filters['type'] ?? '') === 'tip' ? 'selected' : '' ?>>Gorjeta</option>
+            <option value="instant_content" <?= (string) ($filters['type'] ?? '') === 'instant_content' ? 'selected' : '' ?>>Microconteudo</option>
             <option value="payout" <?= (string) ($filters['type'] ?? '') === 'payout' ? 'selected' : '' ?>>Saque</option>
             <option value="admin_" <?= (string) ($filters['type'] ?? '') === 'admin_' ? 'selected' : '' ?>>Ajuste manual</option>
         </select>

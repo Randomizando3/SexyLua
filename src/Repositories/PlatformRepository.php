@@ -3672,11 +3672,11 @@ final class PlatformRepository
         $creatorIncome = 0;
 
         foreach ($transactions as $transaction) {
-            if (in_array($transaction['type'], ['subscription', 'tip'], true) && $transaction['direction'] === 'out') {
+            if (in_array($transaction['type'], ['subscription', 'tip', 'instant_content'], true) && $transaction['direction'] === 'out') {
                 $subscriberSpend += (int) $transaction['amount'];
             }
 
-            if (in_array($transaction['type'], ['subscription_income', 'tip_income'], true) && $transaction['direction'] === 'in') {
+            if (in_array($transaction['type'], ['subscription_income', 'tip_income', 'instant_content_income'], true) && $transaction['direction'] === 'in') {
                 $creatorIncome += (int) $transaction['amount'];
             }
         }
@@ -3883,6 +3883,7 @@ final class PlatformRepository
 
             return str_contains($haystack, $query);
         }));
+        $microcontents = $this->adminMicrocontentItems($query, $creatorId);
 
         $users = array_filter($this->users(), static fn (array $user): bool => (string) ($user['role'] ?? '') === 'creator');
         $users = array_map(fn (array $user): array => $this->sanitizeUser($user), $users);
@@ -3892,6 +3893,7 @@ final class PlatformRepository
             'contents' => $this->sortByDate($contents, 'created_at'),
             'plans' => $plans,
             'lives' => $this->sortByDate($lives, 'scheduled_for'),
+            'microcontents' => $microcontents,
             'creators' => $users,
             'filters' => [
                 'q' => $query,
@@ -3903,9 +3905,76 @@ final class PlatformRepository
                 'content_count' => count($contents),
                 'plan_count' => count($plans),
                 'live_count' => count($lives),
+                'microcontent_count' => count($microcontents),
                 'live_now' => count(array_filter($lives, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'live')),
             ],
         ];
+    }
+
+    private function adminMicrocontentItems(string $query, int $creatorId): array
+    {
+        $items = [];
+
+        foreach ($this->messages() as $message) {
+            $attachment = $this->normalizeConversationAttachment(is_array($message['attachment'] ?? null) ? $message['attachment'] : null);
+            $unlockPrice = max(0, (int) ($message['unlock_price'] ?? 0));
+
+            if ($attachment === null || $unlockPrice <= 0) {
+                continue;
+            }
+
+            $conversation = $this->findConversationById((int) ($message['conversation_id'] ?? 0));
+            if (! is_array($conversation)) {
+                continue;
+            }
+
+            $creator = $this->findCreatorBySlugOrId(null, (int) ($conversation['creator_id'] ?? 0));
+            $subscriber = $this->findUserById((int) ($conversation['subscriber_id'] ?? 0));
+            if (! is_array($creator) || ! is_array($subscriber)) {
+                continue;
+            }
+
+            if ($creatorId > 0 && (int) ($creator['id'] ?? 0) !== $creatorId) {
+                continue;
+            }
+
+            $unlock = $this->latestConversationMessageUnlock((int) ($message['id'] ?? 0));
+            $unlockUser = is_array($unlock) ? $this->findUserById((int) ($unlock['user_id'] ?? 0)) : null;
+            $body = trim((string) ($message['body'] ?? ''));
+            $filename = trim((string) ($attachment['original_name'] ?? ''));
+
+            if ($query !== '') {
+                $haystack = mb_strtolower((string) (
+                    $body . ' ' .
+                    $filename . ' ' .
+                    ($creator['name'] ?? '') . ' ' .
+                    ($subscriber['name'] ?? '')
+                ));
+
+                if (! str_contains($haystack, $query)) {
+                    continue;
+                }
+            }
+
+            $items[] = [
+                'id' => (int) ($message['id'] ?? 0),
+                'conversation_id' => (int) ($conversation['id'] ?? 0),
+                'body' => $body,
+                'filename' => $filename,
+                'attachment' => $attachment,
+                'unlock_price' => $unlockPrice,
+                'created_at' => (string) ($message['created_at'] ?? ''),
+                'creator' => $creator,
+                'subscriber' => $subscriber,
+                'asset_href' => path_with_query('/messages/asset', ['scope' => 'message', 'id' => (int) ($message['id'] ?? 0)]),
+                'unlock_status' => $unlock !== null ? 'unlocked' : 'pending',
+                'unlock_label' => $unlock !== null ? 'Desbloqueado' : 'Aguardando desbloqueio',
+                'unlock_at' => is_array($unlock) ? (string) ($unlock['created_at'] ?? '') : '',
+                'unlock_user_name' => (string) ($unlockUser['name'] ?? ''),
+            ];
+        }
+
+        return $this->sortByDate($items, 'created_at');
     }
 
     public function adminSaveContent(int $contentId, array $data): bool

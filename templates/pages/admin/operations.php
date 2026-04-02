@@ -7,6 +7,7 @@ $filters = $data['filters'] ?? [];
 $contents = $data['contents'] ?? [];
 $plans = $data['plans'] ?? [];
 $lives = $data['lives'] ?? [];
+$microcontents = $data['microcontents'] ?? [];
 $creators = $data['creators'] ?? [];
 $admin = $app->auth->user() ?? [];
 ?>
@@ -70,7 +71,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
     </nav>
     <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
         <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Escopo ativo</p>
-        <h3 class="mt-3 text-3xl font-extrabold"><?= e((string) (($summary['content_count'] ?? 0) + ($summary['plan_count'] ?? 0) + ($summary['live_count'] ?? 0))) ?></h3>
+        <h3 class="mt-3 text-3xl font-extrabold"><?= e((string) (($summary['content_count'] ?? 0) + ($summary['plan_count'] ?? 0) + ($summary['live_count'] ?? 0) + ($summary['microcontent_count'] ?? 0))) ?></h3>
         <p class="mt-2 text-sm text-on-surface-variant">Itens operacionais prontos para edicao manual pelo admin.</p>
     </div>
 </aside>
@@ -79,13 +80,14 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
     <section class="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div>
             <p class="text-xs font-bold uppercase tracking-[0.3em] text-primary">Operacao central</p>
-            <h2 class="mt-2 text-5xl font-extrabold tracking-tight">Conteudo, planos e <span class="italic text-primary">lives</span></h2>
+            <h2 class="mt-2 text-5xl font-extrabold tracking-tight">Conteudo, planos, lives e <span class="italic text-primary">microconteudos</span></h2>
             <p class="mt-4 max-w-2xl text-on-surface-variant">Edite diretamente os ativos dos criadores sem sair do painel administrativo.</p>
         </div>
-        <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div class="grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-5">
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Conteudos</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['content_count'] ?? 0)) ?></p></article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Planos</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['plan_count'] ?? 0)) ?></p></article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Lives</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['live_count'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Microconteudos</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['microcontent_count'] ?? 0)) ?></p></article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Ao vivo</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-emerald-600 md:text-3xl"><?= e((string) ($summary['live_now'] ?? 0)) ?></p></article>
         </div>
     </section>
@@ -295,6 +297,73 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                 </table>
             </div>
             <?php if ($plans === []): ?><p class="p-8 text-sm text-on-surface-variant">Nenhum plano encontrado com esse filtro.</p><?php endif; ?>
+        </div>
+        <div class="overflow-hidden rounded-3xl bg-surface-container-lowest shadow-sm">
+            <div class="flex flex-col gap-3 border-b border-slate-100 px-6 py-6 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h3 class="text-2xl font-extrabold">Microconteudos</h3>
+                    <p class="mt-1 text-sm text-on-surface-variant">Vendas internas disparadas no chat entre criadores e assinantes.</p>
+                </div>
+                <span class="text-sm font-bold text-primary"><?= count($microcontents) ?> microconteudos</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full border-collapse">
+                    <thead class="bg-surface-container-low">
+                    <tr class="text-left">
+                        <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Microconteudo</th>
+                        <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Criador</th>
+                        <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Assinante</th>
+                        <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Valor</th>
+                        <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Status</th>
+                        <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Enviado em</th>
+                        <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Acoes</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($microcontents as $microcontent): ?>
+                        <?php
+                        $creator = $microcontent['creator'] ?? [];
+                        $subscriber = $microcontent['subscriber'] ?? [];
+                        $statusClass = (string) ($microcontent['unlock_status'] ?? 'pending') === 'unlocked'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-amber-100 text-amber-700';
+                        $attachment = $microcontent['attachment'] ?? [];
+                        ?>
+                        <tr class="border-t border-slate-100 first:border-t-0">
+                            <td class="px-6 py-5">
+                                <div class="min-w-[18rem]">
+                                    <p class="text-base font-extrabold"><?= e((string) ($microcontent['body'] ?: 'Microconteudo sem descricao')) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($attachment['original_name'] ?? $microcontent['filename'] ?? 'Arquivo privado')) ?> â€¢ <?= e((string) ($attachment['kind'] ?? 'documento')) ?></p>
+                                </div>
+                            </td>
+                            <td class="px-6 py-5 text-sm font-semibold text-on-surface">
+                                <p><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
+                                <p class="mt-1 text-xs text-slate-400">@<?= e((string) ($creator['slug'] ?? 'studio')) ?></p>
+                            </td>
+                            <td class="px-6 py-5 text-sm font-semibold text-on-surface">
+                                <p><?= e((string) ($subscriber['name'] ?? 'Assinante')) ?></p>
+                                <p class="mt-1 text-xs text-slate-400"><?= e((string) ($subscriber['email'] ?? '')) ?></p>
+                            </td>
+                            <td class="px-6 py-5 text-sm font-extrabold text-primary"><?= luacoin_amount_html((int) ($microcontent['unlock_price'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></td>
+                            <td class="px-6 py-5">
+                                <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] <?= e($statusClass) ?>"><?= e((string) ($microcontent['unlock_label'] ?? 'Aguardando desbloqueio')) ?></span>
+                                <?php if ((string) ($microcontent['unlock_at'] ?? '') !== ''): ?>
+                                    <p class="mt-2 text-xs text-slate-400"><?= e((string) ($microcontent['unlock_user_name'] ?? 'Assinante')) ?> â€¢ <?= e(format_datetime((string) ($microcontent['unlock_at'] ?? ''), 'd/m/Y H:i')) ?></p>
+                                <?php endif; ?>
+                            </td>
+                            <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e(format_datetime((string) ($microcontent['created_at'] ?? ''), 'd/m/Y H:i')) ?></td>
+                            <td class="px-6 py-5">
+                                <a class="inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-primary/10 hover:text-primary" href="<?= e((string) ($microcontent['asset_href'] ?? '#')) ?>" target="_blank">
+                                    <span class="material-symbols-outlined text-base">visibility</span>
+                                    <span>Abrir anexo</span>
+                                </a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php if ($microcontents === []): ?><p class="p-8 text-sm text-on-surface-variant">Nenhum microconteudo encontrado com esse filtro.</p><?php endif; ?>
         </div>
         <div class="overflow-hidden rounded-3xl bg-surface-container-lowest shadow-sm">
             <div class="flex flex-col gap-3 border-b border-slate-100 px-6 py-6 md:flex-row md:items-center md:justify-between">
