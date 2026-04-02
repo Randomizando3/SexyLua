@@ -75,7 +75,12 @@
     const esc = (v) => String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;')
     const setText = (node, value) => { if (node) node.textContent = String(value ?? '') }
     const setCount = (value) => el.viewerCounts.forEach((node) => { node.textContent = String(Math.max(0, Number(value || 0))) })
-    const statusLabel = (status) => status === 'live' ? 'Ao vivo' : (status === 'ended' ? 'Encerrada' : 'Aguardando')
+    const statusLabel = (status) => {
+        if (status === 'live') return 'Ao vivo'
+        if (status === 'ended') return 'Encerrada'
+        if (status === 'scheduled') return 'Agendada'
+        return 'Aguardando'
+    }
     const formDate = (value) => {
         if (!value) return ''
         const d = new Date(String(value).replace(' ', 'T'))
@@ -371,9 +376,12 @@
         const streamReady = Boolean(stream.ready)
 
         if (mode === 'creator') {
-            if (status === 'live' && streamReady && nextHlsUrl) {
+            if (streamReady && nextHlsUrl) {
                 hideWaiting()
                 attachMedia(nextHlsUrl, 'hls', true).catch(() => showError('Nao foi possivel abrir o preview do MediaMTX.'))
+                if (status !== 'live') {
+                    setText(el.streamState, 'Sinal detectado')
+                }
             } else if (status === 'ended') {
                 destroyPlayer()
                 setWaiting('Live encerrada. O replay automatico sera anexado aos seus conteudos.')

@@ -6025,10 +6025,12 @@ final class PlatformRepository
         $status = (string) ($stream['status'] ?? ((string) ($live['status'] ?? '') === 'ended' ? 'ended' : 'idle'));
 
         if ($driver === 'mediamtx') {
-            if ((bool) ($mediamtxState['ready'] ?? false)) {
-                $status = 'live';
-            } elseif ((string) ($live['status'] ?? '') === 'ended' || (string) ($stream['status'] ?? '') === 'ended') {
+            if ((string) ($live['status'] ?? '') === 'ended' || (string) ($stream['status'] ?? '') === 'ended') {
                 $status = 'ended';
+            } elseif ((string) ($live['status'] ?? '') === 'live' || (string) ($stream['status'] ?? '') === 'live') {
+                $status = 'live';
+            } elseif ((string) ($live['status'] ?? '') === 'scheduled' || (string) ($stream['status'] ?? '') === 'scheduled') {
+                $status = 'scheduled';
             } else {
                 $status = 'idle';
             }
