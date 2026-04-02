@@ -77,7 +77,7 @@ $publicTopbarMenuLinks = [
             <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-white/20 bg-white/10 text-white marker:content-none">
                 <span class="material-symbols-outlined text-[22px]">menu</span>
             </summary>
-            <div class="absolute right-0 top-[calc(100%+0.75rem)] z-[90] max-h-[calc(100vh-6rem)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-3xl bg-white p-4 text-slate-700 shadow-[0px_24px_48px_rgba(27,28,29,0.18)]">
+            <div class="absolute right-0 top-[calc(100%+0.75rem)] z-[90] max-h-[calc(100vh-6rem)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-3xl bg-white p-4 text-slate-700 shadow-[0px_24px_48px_rgba(27,28,29,0.18)]">
                 <div class="space-y-2">
                     <?php foreach ($publicTopbarMenuLinks as $item): ?>
                         <a class="block rounded-2xl px-4 py-3 text-sm font-bold <?= current_path() === (string) ($item['href'] ?? '/') ? 'bg-[#f7f4f7] text-[#D81B60]' : 'text-slate-700 hover:bg-[#f7f4f7]' ?>" href="<?= e((string) ($item['href'] ?? '/')) ?>">

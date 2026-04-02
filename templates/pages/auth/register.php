@@ -67,24 +67,11 @@
     </style>
 </head>
 <body class="font-body text-on-surface antialiased">
-    <nav class="fixed top-0 z-50 flex h-20 w-full items-center justify-between bg-[#D81B60] px-8 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-        <div class="flex items-center gap-12">
-            <a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
-            <div class="hidden items-center gap-8 md:flex">
-                <a class="font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/">Live Cam</a>
-                <a class="font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/explore">Explorar</a>
-                <a class="font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/login">Login</a>
-            </div>
-        </div>
-        <div class="flex items-center gap-4">
-            <a class="font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-white transition-transform duration-200 hover:scale-105" href="/login">Login</a>
-            <span class="rounded-full border-b-2 border-white pb-1 font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-white">Registro</span>
-        </div>
-    </nav>
+    <?php require BASE_PATH . '/templates/partials/public_topbar.php'; ?>
 
-    <main class="mx-auto flex min-h-screen max-w-7xl items-center px-4 pb-16 pt-32 md:px-8">
-        <div class="grid w-full gap-8 lg:grid-cols-[1fr_1fr]">
-            <section class="relative overflow-hidden rounded-[2rem] bg-white/50 p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:p-10">
+    <main class="mx-auto flex min-h-screen max-w-7xl items-start px-4 pb-16 pt-28 md:px-8">
+        <div class="grid w-full gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+            <section class="order-2 relative overflow-hidden rounded-[2rem] bg-white/50 p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:order-2 lg:p-10">
                 <div class="absolute -left-16 top-10 h-48 w-48 rounded-full bg-secondary-container/20 blur-3xl"></div>
                 <div class="absolute bottom-0 right-0 h-44 w-44 rounded-full bg-primary/10 blur-3xl"></div>
                 <div class="relative space-y-8">
@@ -113,14 +100,14 @@
                 </div>
             </section>
 
-            <section class="lunar-glass rounded-[2rem] border border-white/70 p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.08)] lg:p-10">
+            <section class="order-1 lunar-glass rounded-[2rem] border border-white/70 p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.08)] lg:order-1 lg:p-10">
                 <div class="mb-8 space-y-3">
                     <p class="font-label text-xs font-bold uppercase tracking-[0.2em] text-primary">Registro</p>
                     <h2 class="font-headline text-3xl font-extrabold tracking-tight text-on-surface">Criar conta</h2>
                     <p class="text-on-surface-variant">Preencha os dados abaixo para entrar no sistema ja com o seu perfil configurado.</p>
                 </div>
 
-                <form action="/register" class="space-y-5" method="post">
+                <form action="/register" class="space-y-5" enctype="multipart/form-data" method="post">
                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
 
                     <label class="block space-y-2">
@@ -153,6 +140,17 @@
                         <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" name="password" placeholder="Minimo de 6 caracteres" required type="password">
                     </label>
 
+                    <label class="block space-y-2">
+                        <span class="px-1 text-sm font-semibold text-on-surface-variant">Documento de identidade</span>
+                        <input accept=".jpg,.jpeg,.png,.webp,.pdf" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" name="identity_document_file" required type="file">
+                        <span class="block px-1 text-xs text-on-surface-variant">Envie frente, verso ou PDF do documento para validação administrativa.</span>
+                    </label>
+
+                    <label class="flex items-start gap-3 rounded-2xl bg-surface-container-low px-5 py-4 text-sm text-on-surface-variant">
+                        <input class="mt-1 rounded border-none text-primary focus:ring-primary/20" name="terms_accepted" required type="checkbox" value="1">
+                        <span>Li e aceito os <a class="font-bold text-primary underline" href="/terms" target="_blank">termos de uso</a> e a <a class="font-bold text-primary underline" href="/privacy" target="_blank">política de privacidade</a>.</span>
+                    </label>
+
                     <button class="signature-glow flex w-full items-center justify-center gap-2 rounded-full px-8 py-4 font-headline text-lg font-bold text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)] transition-transform duration-200 hover:scale-[1.02]" type="submit">
                         <span class="material-symbols-outlined">person_add</span>
                         Criar Conta
@@ -167,7 +165,7 @@
         </div>
     </main>
 
-    <footer class="flex w-full flex-col items-center gap-6 bg-[#D81B60] px-10 py-12">
+    <footer class="mt-8 flex w-full flex-col items-center gap-6 bg-[#D81B60] px-10 py-12">
         <div class="flex flex-col items-center gap-4">
             <?= brand_logo_white('h-8 w-auto') ?>
             <div class="flex gap-8">

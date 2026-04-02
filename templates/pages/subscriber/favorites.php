@@ -78,19 +78,25 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
         <div class="mb-5 flex items-center justify-between"><h3 class="text-2xl font-extrabold">Criadores favoritos</h3><a class="text-sm font-bold text-primary hover:underline" href="/explore">Explorar mais</a></div>
         <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
             <?php foreach ($favoriteCreators as $creator): ?>
-                <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm">
+                <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm transition-transform hover:-translate-y-1" data-card-href="<?= e('/profile?id=' . (int) ($creator['id'] ?? 0)) ?>">
                     <div class="flex items-center gap-4">
-                        <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
+                        <?php $creatorAvatar = media_url((string) ($creator['avatar_url'] ?? '')); ?>
+                        <?php if ($creatorAvatar !== ''): ?>
+                            <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-14 w-14 rounded-full object-cover" src="<?= e($creatorAvatar) ?>">
+                        <?php else: ?>
+                            <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
+                        <?php endif; ?>
                         <div class="min-w-0"><p class="truncate text-xl font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p><p class="truncate text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p></div>
                     </div>
                     <p class="mt-4 text-sm text-on-surface-variant"><?= e(excerpt((string) ($creator['headline'] ?? ''), 95)) ?></p>
-                    <div class="mt-5 flex gap-3">
-                        <a class="flex-1 rounded-full bg-surface-container-low px-4 py-3 text-center text-sm font-bold text-on-surface" href="<?= e('/profile?id=' . (int) ($creator['id'] ?? 0)) ?>">Perfil</a>
-                        <form action="/subscriber/favorites/toggle" class="flex-1" method="post">
+                    <div class="mt-5 flex justify-end gap-3">
+                        <form action="/subscriber/favorites/toggle" class="shrink-0" method="post">
                             <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                             <input name="creator_id" type="hidden" value="<?= e((string) ($creator['id'] ?? 0)) ?>">
                             <input name="redirect" type="hidden" value="/subscriber/favorites">
-                            <button class="w-full rounded-full bg-primary px-4 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Remover</button>
+                                <button class="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-white" data-prototype-skip="1" title="Remover favorito" type="submit">
+                                    <span class="material-symbols-outlined text-[20px]">favorite</span>
+                                </button>
                         </form>
                     </div>
                 </article>
@@ -112,11 +118,13 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></p>
                                     <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 100)) ?></p>
                                 </div>
-                                <form action="/subscriber/saved/toggle" class="w-full max-w-[120px]" method="post">
+                                <form action="/subscriber/saved/toggle" class="shrink-0" method="post">
                                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                     <input name="content_id" type="hidden" value="<?= e((string) ($item['id'] ?? 0)) ?>">
                                     <input name="redirect" type="hidden" value="/subscriber/favorites">
-                                    <button class="w-full rounded-full bg-white px-4 py-3 text-sm font-bold text-primary" data-prototype-skip="1" type="submit">Remover</button>
+                                    <button class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-primary" data-prototype-skip="1" title="Remover salvo" type="submit">
+                                        <span class="material-symbols-outlined text-[20px]">bookmark</span>
+                                    </button>
                                 </form>
                             </div>
                         </div>
@@ -136,11 +144,13 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></p>
                                     <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 100)) ?></p>
                                 </div>
-                                <form action="/subscriber/saved/toggle" class="w-full max-w-[120px]" method="post">
+                                <form action="/subscriber/saved/toggle" class="shrink-0" method="post">
                                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                     <input name="content_id" type="hidden" value="<?= e((string) ($item['id'] ?? 0)) ?>">
                                     <input name="redirect" type="hidden" value="/subscriber/favorites">
-                                    <button class="w-full rounded-full bg-primary px-4 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Salvar</button>
+                                    <button class="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-white" data-prototype-skip="1" title="Salvar conteudo" type="submit">
+                                        <span class="material-symbols-outlined text-[20px]">bookmark</span>
+                                    </button>
                                 </form>
                             </div>
                         </div>
@@ -176,15 +186,27 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                 <div class="mb-6 flex items-center justify-between"><h3 class="text-2xl font-extrabold">Criadores sugeridos</h3><span class="text-sm font-bold text-primary"><?= count($suggestedCreators) ?> perfis</span></div>
                 <div class="space-y-4">
                     <?php foreach ($suggestedCreators as $creator): ?>
-                        <div class="rounded-3xl bg-surface-container-low p-5">
-                            <p class="text-lg font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
-                            <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
+                        <div class="rounded-3xl bg-surface-container-low p-5 transition-transform hover:-translate-y-1" data-card-href="<?= e('/profile?id=' . (int) ($creator['id'] ?? 0)) ?>">
+                            <div class="flex items-center gap-4">
+                                <?php $creatorAvatar = media_url((string) ($creator['avatar_url'] ?? '')); ?>
+                                <?php if ($creatorAvatar !== ''): ?>
+                                    <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-12 w-12 rounded-full object-cover" src="<?= e($creatorAvatar) ?>">
+                                <?php else: ?>
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
+                                <?php endif; ?>
+                                <div class="min-w-0">
+                                    <p class="truncate text-lg font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
+                                </div>
+                            </div>
                             <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($creator['headline'] ?? ''), 90)) ?></p>
-                            <form action="/subscriber/favorites/toggle" class="mt-4" method="post">
+                            <form action="/subscriber/favorites/toggle" class="mt-4 flex justify-end" method="post">
                                 <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                 <input name="creator_id" type="hidden" value="<?= e((string) ($creator['id'] ?? 0)) ?>">
                                 <input name="redirect" type="hidden" value="/subscriber/favorites">
-                                <button class="w-full rounded-full bg-primary px-4 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Adicionar</button>
+                                <button class="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-white" data-prototype-skip="1" title="Adicionar favorito" type="submit">
+                                    <span class="material-symbols-outlined text-[20px]">person_add</span>
+                                </button>
                             </form>
                         </div>
                     <?php endforeach; ?>
@@ -193,5 +215,20 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
         </section>
     </div>
 </main>
+<script>
+    document.querySelectorAll('[data-card-href]').forEach((card) => {
+        card.addEventListener('click', (event) => {
+            const target = event.target;
+            if (target instanceof HTMLElement && target.closest('a, button, form, input, textarea, select, label')) {
+                return;
+            }
+
+            const href = card.getAttribute('data-card-href');
+            if (href) {
+                window.location.href = href;
+            }
+        });
+    });
+</script>
 </body>
 </html>

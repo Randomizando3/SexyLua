@@ -100,6 +100,8 @@ final class PlatformRepository
         $users = $this->users();
         $userId = $this->store->nextId($users);
         $role = in_array(($data['role'] ?? 'subscriber'), ['subscriber', 'creator'], true) ? $data['role'] : 'subscriber';
+        $termsAcceptedAt = trim((string) ($data['terms_accepted_at'] ?? ''));
+        $identityDocument = is_array($data['identity_document'] ?? null) ? $data['identity_document'] : null;
 
         $user = [
             'id' => $userId,
@@ -112,6 +114,9 @@ final class PlatformRepository
             'bio' => $role === 'creator' ? 'Perfil criado para publicar conteudo, planos e lives.' : 'Perfil criado para acompanhar criadores, salvar colecoes e conversar.',
             'city' => trim((string) ($data['city'] ?? 'Brasil')),
             'created_at' => date('Y-m-d H:i:s'),
+            'terms_accepted_at' => $termsAcceptedAt !== '' ? $termsAcceptedAt : date('Y-m-d H:i:s'),
+            'terms_version' => trim((string) ($data['terms_version'] ?? '2026-04')),
+            'identity_document' => $identityDocument,
         ];
 
         $users[] = $user;
@@ -274,11 +279,18 @@ final class PlatformRepository
         $plans = array_values(array_filter($this->plansWithCreators(), static fn (array $plan): bool => (int) $plan['creator_id'] === $creatorId && (bool) $plan['active']));
         $content = array_values(array_filter($this->contentsWithCreators(), fn (array $item): bool => (int) $item['creator_id'] === $creatorId && $item['status'] === 'approved' && ! $this->contentIsExpired($item)));
         $relatedCreators = array_values(array_filter($this->creators(), static fn (array $item): bool => (int) $item['id'] !== $creatorId));
+        $upcomingLives = array_values(array_filter(
+            $this->livesWithCreators(),
+            static fn (array $live): bool => (int) ($live['creator_id'] ?? 0) === $creatorId && (string) ($live['status'] ?? '') === 'scheduled'
+        ));
+        $upcomingLives = $this->sortByDate($upcomingLives, 'scheduled_for');
+        $upcomingLives = array_reverse($upcomingLives);
 
         return [
             'creator' => $creator,
             'plans' => $plans,
             'content' => $content,
+            'upcoming_lives' => array_slice($upcomingLives, 0, 8),
             'is_favorite' => $viewerId ? $this->isFavoriteCreator($viewerId, $creatorId) : false,
             'is_subscribed' => $viewerId ? $this->activeSubscriptionFor($viewerId, $creatorId) !== null : false,
             'related_creators' => array_slice($relatedCreators, 0, 5),
@@ -535,7 +547,7 @@ final class PlatformRepository
             }
         }
 
-        if ($selected === null) {
+        if ($selected === null && $conversationId !== null) {
             $selected = $filteredConversations[0] ?? null;
         }
 
@@ -595,7 +607,7 @@ final class PlatformRepository
             }
         }
 
-        if ($selected === null) {
+        if ($selected === null && $conversationId !== null) {
             $selected = $filteredConversations[0] ?? null;
         }
 
@@ -1544,6 +1556,29 @@ final class PlatformRepository
 
         return $attachment + [
             'display_name' => (string) ($attachment['original_name'] ?? 'anexo'),
+        ];
+    }
+
+    public function findSecureIdentityAttachment(int $userId, int $viewerId): ?array
+    {
+        $viewer = $this->findUserById($viewerId);
+        $user = $this->findUserById($userId);
+
+        if ($viewer === null || $user === null) {
+            return null;
+        }
+
+        if ((string) ($viewer['role'] ?? '') !== 'admin' && (int) ($viewer['id'] ?? 0) !== $userId) {
+            return null;
+        }
+
+        $attachment = $this->normalizeConversationAttachment(is_array($user['identity_document'] ?? null) ? $user['identity_document'] : null);
+        if ($attachment === null) {
+            return null;
+        }
+
+        return $attachment + [
+            'display_name' => (string) ($attachment['original_name'] ?? 'documento-identidade'),
         ];
     }
 
@@ -3697,6 +3732,8 @@ final class PlatformRepository
 
     public function financeData(array $filters = []): array
     {
+        $settings = $this->settings();
+        $luacoinPriceBrl = (float) ($settings['luacoin_price_brl'] ?? 0.07);
         $transactions = $this->sortByDate($this->walletTransactions(), 'created_at');
         $decorated = array_map(function (array $transaction): array {
             $transaction['user'] = $this->findUserById((int) $transaction['user_id']);
@@ -3746,6 +3783,10 @@ final class PlatformRepository
             $decorated,
             static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'top_up_pending' && (string) ($transaction['status'] ?? 'pending') === 'pending'
         ));
+        $payoutTransactions = array_values(array_filter(
+            $decorated,
+            static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'payout_request'
+        ));
         $users = array_map(function (array $user): array {
             return $this->sanitizeUser($user) + [
                 'wallet_balance' => $this->walletBalance((int) ($user['id'] ?? 0)),
@@ -3766,8 +3807,10 @@ final class PlatformRepository
             'transactions' => $decorated,
             'filtered_transactions' => $filteredTransactions,
             'pending_payouts' => $pendingPayouts,
+            'payout_transactions' => $payoutTransactions,
             'pending_topups' => $pendingTopUps,
             'users' => $users,
+            'luacoin_price_brl' => $luacoinPriceBrl,
             'filters' => [
                 'q' => $query,
                 'type' => $type,
@@ -3871,12 +3914,21 @@ final class PlatformRepository
 
     public function adminOperationsData(array $filters = []): array
     {
-        $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
         $creatorId = (int) ($filters['creator_id'] ?? 0);
+        $contentQuery = mb_strtolower(trim((string) ($filters['content_q'] ?? $filters['q'] ?? '')));
         $contentStatus = trim((string) ($filters['content_status'] ?? ''));
+        $contentPage = max(1, (int) ($filters['content_page'] ?? 1));
+        $planQuery = mb_strtolower(trim((string) ($filters['plan_q'] ?? $filters['q'] ?? '')));
+        $planStatus = trim((string) ($filters['plan_status'] ?? ''));
+        $planPage = max(1, (int) ($filters['plan_page'] ?? 1));
+        $liveQuery = mb_strtolower(trim((string) ($filters['live_q'] ?? $filters['q'] ?? '')));
         $liveStatus = trim((string) ($filters['live_status'] ?? ''));
+        $livePage = max(1, (int) ($filters['live_page'] ?? 1));
+        $microQuery = mb_strtolower(trim((string) ($filters['micro_q'] ?? $filters['q'] ?? '')));
+        $microStatus = trim((string) ($filters['micro_status'] ?? ''));
+        $microPage = max(1, (int) ($filters['micro_page'] ?? 1));
 
-        $contents = array_values(array_filter($this->contentsWithCreators(), static function (array $item) use ($query, $creatorId, $contentStatus): bool {
+        $contents = array_values(array_filter($this->contentsWithCreators(), static function (array $item) use ($creatorId, $contentQuery, $contentStatus): bool {
             if ($creatorId > 0 && (int) ($item['creator_id'] ?? 0) !== $creatorId) {
                 return false;
             }
@@ -3885,28 +3937,42 @@ final class PlatformRepository
                 return false;
             }
 
-            if ($query === '') {
+            if ($contentQuery === '') {
                 return true;
             }
 
             $haystack = mb_strtolower((string) (($item['title'] ?? '') . ' ' . ($item['excerpt'] ?? '') . ' ' . ($item['creator']['name'] ?? '')));
 
-            return str_contains($haystack, $query);
+            return str_contains($haystack, $contentQuery);
         }));
-        $plans = array_values(array_filter($this->plansWithCreators(), static function (array $plan) use ($query, $creatorId): bool {
+        $contents = $this->sortByDate($contents, 'created_at');
+        $contentPagination = $this->paginateItems($contents, $contentPage, 10);
+
+        $plans = array_values(array_filter($this->plansWithCreators(), static function (array $plan) use ($creatorId, $planQuery, $planStatus): bool {
             if ($creatorId > 0 && (int) ($plan['creator_id'] ?? 0) !== $creatorId) {
                 return false;
             }
 
-            if ($query === '') {
+            if ($planStatus === 'active' && ! (bool) ($plan['active'] ?? false)) {
+                return false;
+            }
+
+            if ($planStatus === 'inactive' && (bool) ($plan['active'] ?? false)) {
+                return false;
+            }
+
+            if ($planQuery === '') {
                 return true;
             }
 
             $haystack = mb_strtolower((string) (($plan['name'] ?? '') . ' ' . ($plan['description'] ?? '') . ' ' . ($plan['creator']['name'] ?? '')));
 
-            return str_contains($haystack, $query);
+            return str_contains($haystack, $planQuery);
         }));
-        $lives = array_values(array_filter($this->livesWithCreators(), static function (array $live) use ($query, $creatorId, $liveStatus): bool {
+        usort($plans, static fn (array $left, array $right): int => ((int) ($right['id'] ?? 0)) <=> ((int) ($left['id'] ?? 0)));
+        $planPagination = $this->paginateItems($plans, $planPage, 10);
+
+        $lives = array_values(array_filter($this->livesWithCreators(), static function (array $live) use ($creatorId, $liveQuery, $liveStatus): bool {
             if ($creatorId > 0 && (int) ($live['creator_id'] ?? 0) !== $creatorId) {
                 return false;
             }
@@ -3915,31 +3981,58 @@ final class PlatformRepository
                 return false;
             }
 
-            if ($query === '') {
+            if ($liveQuery === '') {
                 return true;
             }
 
             $haystack = mb_strtolower((string) (($live['title'] ?? '') . ' ' . ($live['description'] ?? '') . ' ' . ($live['creator']['name'] ?? '')));
 
-            return str_contains($haystack, $query);
+            return str_contains($haystack, $liveQuery);
         }));
-        $microcontents = $this->adminMicrocontentItems($query, $creatorId);
+        $lives = $this->sortByDate($lives, 'scheduled_for');
+        $livePagination = $this->paginateItems($lives, $livePage, 10);
+
+        $microcontents = $this->adminMicrocontentItems($microQuery, $creatorId);
+        if ($microStatus !== '') {
+            $microcontents = array_values(array_filter(
+                $microcontents,
+                static fn (array $item): bool => (string) ($item['unlock_status'] ?? '') === $microStatus
+            ));
+        }
+        $microPagination = $this->paginateItems($microcontents, $microPage, 10);
 
         $users = array_filter($this->users(), static fn (array $user): bool => (string) ($user['role'] ?? '') === 'creator');
         $users = array_map(fn (array $user): array => $this->sanitizeUser($user), $users);
         usort($users, static fn (array $left, array $right): int => strnatcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? '')));
 
         return [
-            'contents' => $this->sortByDate($contents, 'created_at'),
-            'plans' => $plans,
-            'lives' => $this->sortByDate($lives, 'scheduled_for'),
-            'microcontents' => $microcontents,
+            'contents' => $contentPagination['items'],
+            'content_pagination' => $contentPagination,
+            'content_filters' => [
+                'q' => $contentQuery,
+                'status' => $contentStatus,
+            ],
+            'plans' => $planPagination['items'],
+            'plan_pagination' => $planPagination,
+            'plan_filters' => [
+                'q' => $planQuery,
+                'status' => $planStatus,
+            ],
+            'lives' => $livePagination['items'],
+            'live_pagination' => $livePagination,
+            'live_filters' => [
+                'q' => $liveQuery,
+                'status' => $liveStatus,
+            ],
+            'microcontents' => $microPagination['items'],
+            'micro_pagination' => $microPagination,
+            'micro_filters' => [
+                'q' => $microQuery,
+                'status' => $microStatus,
+            ],
             'creators' => $users,
             'filters' => [
-                'q' => $query,
                 'creator_id' => $creatorId,
-                'content_status' => $contentStatus,
-                'live_status' => $liveStatus,
             ],
             'summary' => [
                 'content_count' => count($contents),
@@ -6568,5 +6661,25 @@ final class PlatformRepository
         usort($rows, static fn (array $left, array $right): int => strcmp((string) ($right[$field] ?? ''), (string) ($left[$field] ?? '')));
 
         return $rows;
+    }
+
+    private function paginateItems(array $items, int $page = 1, int $perPage = 10): array
+    {
+        $total = count($items);
+        $perPage = max(1, $perPage);
+        $pages = max(1, (int) ceil($total / $perPage));
+        $page = min(max(1, $page), $pages);
+
+        return [
+            'items' => array_slice($items, ($page - 1) * $perPage, $perPage),
+            'page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'pages' => $pages,
+            'has_prev' => $page > 1,
+            'has_next' => $page < $pages,
+            'prev_page' => max(1, $page - 1),
+            'next_page' => min($pages, $page + 1),
+        ];
     }
 }

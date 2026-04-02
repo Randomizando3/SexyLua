@@ -6,6 +6,7 @@ $currentUser = $app->auth->user();
 $creator = $data['creator'] ?? [];
 $plans = $data['plans'] ?? [];
 $content = $data['content'] ?? [];
+$upcomingLives = $data['upcoming_lives'] ?? [];
 $relatedCreators = $data['related_creators'] ?? [];
 $isFavorite = (bool) ($data['is_favorite'] ?? false);
 $isSubscribed = (bool) ($data['is_subscribed'] ?? false);
@@ -168,6 +169,55 @@ if ($requestedContentId > 0) {
                         <span class="rounded-full bg-[#f5f3f5] px-4 py-2 text-sm font-semibold text-slate-600"><?= e(number_format((int) ($creator['content_count'] ?? 0), 0, ',', '.')) ?> conteudos</span>
                         <span class="rounded-full bg-[#f5f3f5] px-4 py-2 text-sm font-semibold text-slate-600"><?= e(number_format((int) ($creator['subscriber_count'] ?? 0), 0, ',', '.')) ?> assinantes</span>
                     </div>
+                </div>
+
+                <div class="rounded-[2rem] bg-white p-8 shadow-sm">
+                    <div class="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                        <div>
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-[#ab1155]">event_upcoming</span>
+                                <h2 class="headline text-2xl font-extrabold">Agenda de Lives</h2>
+                            </div>
+                            <p class="mt-2 text-sm text-slate-500">Próximas lives agendadas deste criador para os assinantes se prepararem.</p>
+                        </div>
+                        <a class="text-sm font-bold text-[#ab1155] underline" href="/explore">Ver mais lives</a>
+                    </div>
+
+                    <?php if ($upcomingLives !== []): ?>
+                        <div class="-mx-2 flex snap-x gap-4 overflow-x-auto px-2 pb-2">
+                            <?php foreach ($upcomingLives as $live): ?>
+                                <?php
+                                $liveCover = media_url((string) ($live['cover_url'] ?? ''));
+                                $liveUrl = path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)]);
+                                ?>
+                                <a class="min-w-[260px] max-w-[260px] snap-start overflow-hidden rounded-3xl bg-[#fbf9fb] ring-1 ring-[#f0e8ee] transition-transform hover:-translate-y-1" href="<?= e($liveUrl) ?>">
+                                    <div class="relative aspect-[4/3] bg-slate-900">
+                                        <?php if ($liveCover !== ''): ?>
+                                            <img alt="<?= e((string) ($live['title'] ?? 'Live agendada')) ?>" class="h-full w-full object-cover" src="<?= e($liveCover) ?>">
+                                        <?php else: ?>
+                                            <div class="signature-glow flex h-full w-full items-center justify-center text-white">
+                                                <span class="headline px-6 text-center text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 text-white">
+                                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-white/75">Próxima live</p>
+                                            <p class="mt-2 text-sm font-bold"><?= e(format_datetime((string) ($live['scheduled_for'] ?? ''), 'd/m H:i')) ?></p>
+                                        </div>
+                                    </div>
+                                    <div class="space-y-2 p-4">
+                                        <p class="headline text-lg font-extrabold"><?= e((string) ($live['title'] ?? 'Live agendada')) ?></p>
+                                        <p class="text-sm text-slate-500"><?= e(excerpt((string) ($live['description'] ?? ''), 90)) ?></p>
+                                        <div class="flex items-center justify-between gap-3 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                                            <span><?= e((string) ($live['category'] ?? 'Live')) ?></span>
+                                            <span><?= e((string) (($live['access_mode'] ?? 'public') === 'subscriber' ? 'Assinantes' : 'Público')) ?></span>
+                                        </div>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="rounded-3xl bg-[#fbf9fb] p-6 text-sm text-slate-500 ring-1 ring-[#f0e8ee]">Nenhuma live agendada no momento.</div>
+                    <?php endif; ?>
                 </div>
 
                 <div class="rounded-[2rem] bg-white p-8 shadow-sm">

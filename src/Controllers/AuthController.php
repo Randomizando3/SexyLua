@@ -73,6 +73,25 @@ final class AuthController extends Controller
             $this->redirect('/register', 'A senha precisa ter pelo menos 6 caracteres.', 'error');
         }
 
+        if ((string) $request->input('terms_accepted', '0') !== '1') {
+            $this->redirect('/register', 'Voce precisa aceitar os termos para criar a conta.', 'error');
+        }
+
+        if (! $request->hasFile('identity_document_file')) {
+            $this->redirect('/register', 'Envie um documento de identidade para concluir o cadastro.', 'error');
+        }
+
+        $identityDocument = \store_private_uploaded_file(
+            $request->file('identity_document_file'),
+            'users/identity',
+            ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+            10485760
+        );
+
+        if ($identityDocument === null) {
+            $this->redirect('/register', 'Nao foi possivel processar o documento enviado.', 'error');
+        }
+
         if ($this->app->repository->findUserByEmail($email)) {
             $this->redirect('/register', 'Ja existe uma conta com este e-mail.', 'error');
         }
@@ -83,6 +102,9 @@ final class AuthController extends Controller
             'password' => $password,
             'role' => $role,
             'city' => (string) $request->input('city', 'Brasil'),
+            'terms_accepted_at' => date('Y-m-d H:i:s'),
+            'terms_version' => '2026-04',
+            'identity_document' => $identityDocument,
         ]);
 
         $this->app->auth->login((int) $user['id']);

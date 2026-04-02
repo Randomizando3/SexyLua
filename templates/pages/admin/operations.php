@@ -4,12 +4,23 @@ declare(strict_types=1);
 
 $summary = $data['summary'] ?? [];
 $filters = $data['filters'] ?? [];
-$contents = $data['contents'] ?? [];
-$plans = $data['plans'] ?? [];
-$lives = $data['lives'] ?? [];
-$microcontents = $data['microcontents'] ?? [];
+$contentPagination = $data['content_pagination'] ?? ['items' => [], 'page' => 1, 'pages' => 1, 'total' => 0];
+$planPagination = $data['plan_pagination'] ?? ['items' => [], 'page' => 1, 'pages' => 1, 'total' => 0];
+$microPagination = $data['micro_pagination'] ?? ['items' => [], 'page' => 1, 'pages' => 1, 'total' => 0];
+$livePagination = $data['live_pagination'] ?? ['items' => [], 'page' => 1, 'pages' => 1, 'total' => 0];
+$contentFilters = $data['content_filters'] ?? [];
+$planFilters = $data['plan_filters'] ?? [];
+$microFilters = $data['micro_filters'] ?? [];
+$liveFilters = $data['live_filters'] ?? [];
+$contents = $contentPagination['items'] ?? [];
+$plans = $planPagination['items'] ?? [];
+$lives = $livePagination['items'] ?? [];
+$microcontents = $microPagination['items'] ?? [];
 $creators = $data['creators'] ?? [];
 $admin = $app->auth->user() ?? [];
+$paginationUrl = static function (array $params): string {
+    return path_with_query('/admin/operations', $params);
+};
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -92,29 +103,14 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
         </div>
     </section>
 
-    <form action="/admin/operations" class="mb-8 grid grid-cols-1 gap-4 rounded-3xl bg-surface-container-lowest p-6 shadow-sm md:grid-cols-2 2xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.7fr)_minmax(0,0.55fr)_minmax(0,0.55fr)_auto]" method="get">
-        <input class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="q" placeholder="Buscar titulo, descricao ou criador..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
+    <form action="/admin/operations" class="mb-8 grid grid-cols-1 gap-4 rounded-3xl bg-surface-container-lowest p-6 shadow-sm md:grid-cols-[minmax(0,1fr)_auto_auto]" method="get">
         <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="creator_id">
             <option value="0">Todos os criadores</option>
             <?php foreach ($creators as $creator): ?>
                 <option value="<?= e((string) ($creator['id'] ?? 0)) ?>" <?= (int) ($filters['creator_id'] ?? 0) === (int) ($creator['id'] ?? 0) ? 'selected' : '' ?>><?= e((string) ($creator['name'] ?? 'Criador')) ?></option>
             <?php endforeach; ?>
         </select>
-        <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="content_status">
-            <option value="">Status de conteudo</option>
-            <option value="draft" <?= (string) ($filters['content_status'] ?? '') === 'draft' ? 'selected' : '' ?>>Draft</option>
-            <option value="pending" <?= (string) ($filters['content_status'] ?? '') === 'pending' ? 'selected' : '' ?>>Pendente</option>
-            <option value="approved" <?= (string) ($filters['content_status'] ?? '') === 'approved' ? 'selected' : '' ?>>Aprovado</option>
-            <option value="rejected" <?= (string) ($filters['content_status'] ?? '') === 'rejected' ? 'selected' : '' ?>>Rejeitado</option>
-            <option value="archived" <?= (string) ($filters['content_status'] ?? '') === 'archived' ? 'selected' : '' ?>>Arquivado</option>
-        </select>
-        <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="live_status">
-            <option value="">Status de live</option>
-            <option value="scheduled" <?= (string) ($filters['live_status'] ?? '') === 'scheduled' ? 'selected' : '' ?>>Agendada</option>
-            <option value="live" <?= (string) ($filters['live_status'] ?? '') === 'live' ? 'selected' : '' ?>>Ao vivo</option>
-            <option value="ended" <?= (string) ($filters['live_status'] ?? '') === 'ended' ? 'selected' : '' ?>>Encerrada</option>
-        </select>
-        <div class="flex flex-wrap items-center gap-3 md:col-span-2 2xl:col-span-1 2xl:justify-end">
+        <div class="flex flex-wrap items-center gap-3">
             <button class="min-w-[120px] rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
             <a class="min-w-[110px] rounded-full bg-surface-container-low px-6 py-4 text-center text-sm font-bold text-on-surface-variant" href="/admin/operations">Reset</a>
         </div>
@@ -127,8 +123,24 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <h3 class="text-2xl font-extrabold">Conteudos</h3>
                     <p class="mt-1 text-sm text-on-surface-variant">Resumo operacional dos itens publicados pelos criadores.</p>
                 </div>
-                <span class="text-sm font-bold text-primary"><?= count($contents) ?> itens</span>
+                <span class="text-sm font-bold text-primary"><?= e((string) ($contentPagination['total'] ?? count($contents))) ?> itens</span>
             </div>
+            <form action="/admin/operations" class="grid grid-cols-1 gap-3 border-b border-slate-100 px-6 py-5 md:grid-cols-[minmax(0,1fr)_minmax(0,0.55fr)_auto]" method="get">
+                <input name="creator_id" type="hidden" value="<?= e((string) ($filters['creator_id'] ?? 0)) ?>">
+                <input class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="content_q" placeholder="Buscar conteudo..." type="search" value="<?= e((string) ($contentFilters['q'] ?? '')) ?>">
+                <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="content_status">
+                    <option value="">Todos os status</option>
+                    <option value="draft" <?= (string) ($contentFilters['status'] ?? '') === 'draft' ? 'selected' : '' ?>>Draft</option>
+                    <option value="pending" <?= (string) ($contentFilters['status'] ?? '') === 'pending' ? 'selected' : '' ?>>Pendente</option>
+                    <option value="approved" <?= (string) ($contentFilters['status'] ?? '') === 'approved' ? 'selected' : '' ?>>Aprovado</option>
+                    <option value="rejected" <?= (string) ($contentFilters['status'] ?? '') === 'rejected' ? 'selected' : '' ?>>Rejeitado</option>
+                    <option value="archived" <?= (string) ($contentFilters['status'] ?? '') === 'archived' ? 'selected' : '' ?>>Arquivado</option>
+                </select>
+                <div class="flex items-center gap-3">
+                    <button class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
+                    <a class="rounded-full bg-surface-container-low px-5 py-3 text-sm font-bold text-on-surface-variant" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0)])) ?>">Reset</a>
+                </div>
+            </form>
             <div class="overflow-x-auto">
                 <table class="min-w-full border-collapse">
                     <thead class="bg-surface-container-low">
@@ -216,6 +228,19 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <?php endforeach; ?>
                 </table>
             </div>
+            <?php if (($contentPagination['pages'] ?? 1) > 1): ?>
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-5 text-sm font-bold">
+                    <span class="text-slate-500">Página <?= e((string) ($contentPagination['page'] ?? 1)) ?> de <?= e((string) ($contentPagination['pages'] ?? 1)) ?></span>
+                    <div class="flex gap-3">
+                        <?php if (($contentPagination['page'] ?? 1) > 1): ?>
+                            <a class="rounded-full bg-surface-container-low px-4 py-2 text-on-surface-variant" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0), 'content_q' => $contentFilters['q'] ?? '', 'content_status' => $contentFilters['status'] ?? '', 'content_page' => ((int) ($contentPagination['page'] ?? 1) - 1)])) ?>">Anterior</a>
+                        <?php endif; ?>
+                        <?php if (($contentPagination['page'] ?? 1) < ($contentPagination['pages'] ?? 1)): ?>
+                            <a class="rounded-full bg-slate-900 px-4 py-2 text-white" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0), 'content_q' => $contentFilters['q'] ?? '', 'content_status' => $contentFilters['status'] ?? '', 'content_page' => ((int) ($contentPagination['page'] ?? 1) + 1)])) ?>">Próxima</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
             <?php if ($contents === []): ?><p class="p-8 text-sm text-on-surface-variant">Nenhum conteudo encontrado com esse filtro.</p><?php endif; ?>
         </div>
         <div class="overflow-hidden rounded-3xl bg-surface-container-lowest shadow-sm">
@@ -224,8 +249,21 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <h3 class="text-2xl font-extrabold">Planos</h3>
                     <p class="mt-1 text-sm text-on-surface-variant">Assinaturas e ofertas prontas para ajuste manual.</p>
                 </div>
-                <span class="text-sm font-bold text-primary"><?= count($plans) ?> planos</span>
+                <span class="text-sm font-bold text-primary"><?= e((string) ($planPagination['total'] ?? count($plans))) ?> planos</span>
             </div>
+            <form action="/admin/operations" class="grid grid-cols-1 gap-3 border-b border-slate-100 px-6 py-5 md:grid-cols-[minmax(0,1fr)_minmax(0,0.45fr)_auto]" method="get">
+                <input name="creator_id" type="hidden" value="<?= e((string) ($filters['creator_id'] ?? 0)) ?>">
+                <input class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="plan_q" placeholder="Buscar plano..." type="search" value="<?= e((string) ($planFilters['q'] ?? '')) ?>">
+                <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="plan_status">
+                    <option value="">Todos os status</option>
+                    <option value="active" <?= (string) ($planFilters['status'] ?? '') === 'active' ? 'selected' : '' ?>>Ativos</option>
+                    <option value="inactive" <?= (string) ($planFilters['status'] ?? '') === 'inactive' ? 'selected' : '' ?>>Inativos</option>
+                </select>
+                <div class="flex items-center gap-3">
+                    <button class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
+                    <a class="rounded-full bg-surface-container-low px-5 py-3 text-sm font-bold text-on-surface-variant" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0)])) ?>">Reset</a>
+                </div>
+            </form>
             <div class="overflow-x-auto">
                 <table class="min-w-full border-collapse">
                     <thead class="bg-surface-container-low">
@@ -296,6 +334,19 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <?php endforeach; ?>
                 </table>
             </div>
+            <?php if (($planPagination['pages'] ?? 1) > 1): ?>
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-5 text-sm font-bold">
+                    <span class="text-slate-500">Página <?= e((string) ($planPagination['page'] ?? 1)) ?> de <?= e((string) ($planPagination['pages'] ?? 1)) ?></span>
+                    <div class="flex gap-3">
+                        <?php if (($planPagination['page'] ?? 1) > 1): ?>
+                            <a class="rounded-full bg-surface-container-low px-4 py-2 text-on-surface-variant" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0), 'plan_q' => $planFilters['q'] ?? '', 'plan_status' => $planFilters['status'] ?? '', 'plan_page' => ((int) ($planPagination['page'] ?? 1) - 1)])) ?>">Anterior</a>
+                        <?php endif; ?>
+                        <?php if (($planPagination['page'] ?? 1) < ($planPagination['pages'] ?? 1)): ?>
+                            <a class="rounded-full bg-slate-900 px-4 py-2 text-white" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0), 'plan_q' => $planFilters['q'] ?? '', 'plan_status' => $planFilters['status'] ?? '', 'plan_page' => ((int) ($planPagination['page'] ?? 1) + 1)])) ?>">Próxima</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
             <?php if ($plans === []): ?><p class="p-8 text-sm text-on-surface-variant">Nenhum plano encontrado com esse filtro.</p><?php endif; ?>
         </div>
         <div class="overflow-hidden rounded-3xl bg-surface-container-lowest shadow-sm">
@@ -304,8 +355,21 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <h3 class="text-2xl font-extrabold">Microconteudos</h3>
                     <p class="mt-1 text-sm text-on-surface-variant">Vendas internas disparadas no chat entre criadores e assinantes.</p>
                 </div>
-                <span class="text-sm font-bold text-primary"><?= count($microcontents) ?> microconteudos</span>
+                <span class="text-sm font-bold text-primary"><?= e((string) ($microPagination['total'] ?? count($microcontents))) ?> microconteudos</span>
             </div>
+            <form action="/admin/operations" class="grid grid-cols-1 gap-3 border-b border-slate-100 px-6 py-5 md:grid-cols-[minmax(0,1fr)_minmax(0,0.5fr)_auto]" method="get">
+                <input name="creator_id" type="hidden" value="<?= e((string) ($filters['creator_id'] ?? 0)) ?>">
+                <input class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="micro_q" placeholder="Buscar microconteudo..." type="search" value="<?= e((string) ($microFilters['q'] ?? '')) ?>">
+                <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="micro_status">
+                    <option value="">Todos os status</option>
+                    <option value="pending" <?= (string) ($microFilters['status'] ?? '') === 'pending' ? 'selected' : '' ?>>Aguardando</option>
+                    <option value="unlocked" <?= (string) ($microFilters['status'] ?? '') === 'unlocked' ? 'selected' : '' ?>>Desbloqueado</option>
+                </select>
+                <div class="flex items-center gap-3">
+                    <button class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
+                    <a class="rounded-full bg-surface-container-low px-5 py-3 text-sm font-bold text-on-surface-variant" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0)])) ?>">Reset</a>
+                </div>
+            </form>
             <div class="overflow-x-auto">
                 <table class="min-w-full border-collapse">
                     <thead class="bg-surface-container-low">
@@ -363,6 +427,19 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     </tbody>
                 </table>
             </div>
+            <?php if (($microPagination['pages'] ?? 1) > 1): ?>
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-5 text-sm font-bold">
+                    <span class="text-slate-500">Página <?= e((string) ($microPagination['page'] ?? 1)) ?> de <?= e((string) ($microPagination['pages'] ?? 1)) ?></span>
+                    <div class="flex gap-3">
+                        <?php if (($microPagination['page'] ?? 1) > 1): ?>
+                            <a class="rounded-full bg-surface-container-low px-4 py-2 text-on-surface-variant" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0), 'micro_q' => $microFilters['q'] ?? '', 'micro_status' => $microFilters['status'] ?? '', 'micro_page' => ((int) ($microPagination['page'] ?? 1) - 1)])) ?>">Anterior</a>
+                        <?php endif; ?>
+                        <?php if (($microPagination['page'] ?? 1) < ($microPagination['pages'] ?? 1)): ?>
+                            <a class="rounded-full bg-slate-900 px-4 py-2 text-white" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0), 'micro_q' => $microFilters['q'] ?? '', 'micro_status' => $microFilters['status'] ?? '', 'micro_page' => ((int) ($microPagination['page'] ?? 1) + 1)])) ?>">Próxima</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
             <?php if ($microcontents === []): ?><p class="p-8 text-sm text-on-surface-variant">Nenhum microconteudo encontrado com esse filtro.</p><?php endif; ?>
         </div>
         <div class="overflow-hidden rounded-3xl bg-surface-container-lowest shadow-sm">
@@ -371,8 +448,23 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <h3 class="text-2xl font-extrabold">Lives</h3>
                     <p class="mt-1 text-sm text-on-surface-variant">Controle central das salas, metas e configuracoes ao vivo.</p>
                 </div>
-                <span class="text-sm font-bold text-primary"><?= count($lives) ?> lives</span>
+                <span class="text-sm font-bold text-primary"><?= e((string) ($livePagination['total'] ?? count($lives))) ?> lives</span>
             </div>
+            <form action="/admin/operations" class="grid grid-cols-1 gap-3 border-b border-slate-100 px-6 py-5 md:grid-cols-[minmax(0,1fr)_minmax(0,0.45fr)_auto]" method="get">
+                <input name="creator_id" type="hidden" value="<?= e((string) ($filters['creator_id'] ?? 0)) ?>">
+                <input class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="live_q" placeholder="Buscar live..." type="search" value="<?= e((string) ($liveFilters['q'] ?? '')) ?>">
+                <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="live_status">
+                    <option value="">Todos os status</option>
+                    <option value="scheduled" <?= (string) ($liveFilters['status'] ?? '') === 'scheduled' ? 'selected' : '' ?>>Agendadas</option>
+                    <option value="live" <?= (string) ($liveFilters['status'] ?? '') === 'live' ? 'selected' : '' ?>>Ao vivo</option>
+                    <option value="ended" <?= (string) ($liveFilters['status'] ?? '') === 'ended' ? 'selected' : '' ?>>Concluidas</option>
+                    <option value="expired" <?= (string) ($liveFilters['status'] ?? '') === 'expired' ? 'selected' : '' ?>>Expiradas</option>
+                </select>
+                <div class="flex items-center gap-3">
+                    <button class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
+                    <a class="rounded-full bg-surface-container-low px-5 py-3 text-sm font-bold text-on-surface-variant" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0)])) ?>">Reset</a>
+                </div>
+            </form>
             <div class="overflow-x-auto">
                 <table class="min-w-full border-collapse">
                     <thead class="bg-surface-container-low">
@@ -430,7 +522,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                     <div class="space-y-4">
                                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             <select class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="status">
-                                                <?php foreach (['scheduled' => 'Agendada', 'live' => 'Ao vivo', 'ended' => 'Encerrada'] as $value => $label): ?>
+                                                <?php foreach (['scheduled' => 'Agendada', 'live' => 'Ao vivo', 'ended' => 'Encerrada', 'expired' => 'Expirada'] as $value => $label): ?>
                                                     <option value="<?= e($value) ?>" <?= (string) ($live['status'] ?? '') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
                                                 <?php endforeach; ?>
                                             </select>
@@ -444,13 +536,9 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                             <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="goal_luacoins" step="1" type="number" value="<?= e((string) ($live['goal_tokens'] ?? 0)) ?>">
                                         </div>
                                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                            <label class="hidden flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm font-bold text-on-surface">
+                                            <label class="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm font-bold text-on-surface">
                                                 <input class="rounded border-slate-300 text-primary focus:ring-primary/20" name="chat_enabled" type="checkbox" value="1" <?= (bool) ($live['chat_enabled'] ?? false) ? 'checked' : '' ?>>
                                                 <span>Chat habilitado</span>
-                                            </label>
-                                            <label class="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm font-bold text-on-surface">
-                                                <input class="rounded border-slate-300 text-primary focus:ring-primary/20" name="recording_enabled" type="checkbox" value="1" <?= (bool) ($live['recording_enabled'] ?? false) ? 'checked' : '' ?>>
-                                                <span>Replay habilitado</span>
                                             </label>
                                         </div>
                                         <div class="flex flex-wrap gap-3">
@@ -465,6 +553,19 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <?php endforeach; ?>
                 </table>
             </div>
+            <?php if (($livePagination['pages'] ?? 1) > 1): ?>
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-5 text-sm font-bold">
+                    <span class="text-slate-500">Pagina <?= e((string) ($livePagination['page'] ?? 1)) ?> de <?= e((string) ($livePagination['pages'] ?? 1)) ?></span>
+                    <div class="flex gap-3">
+                        <?php if (($livePagination['page'] ?? 1) > 1): ?>
+                            <a class="rounded-full bg-surface-container-low px-4 py-2 text-on-surface-variant" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0), 'live_q' => $liveFilters['q'] ?? '', 'live_status' => $liveFilters['status'] ?? '', 'live_page' => ((int) ($livePagination['page'] ?? 1) - 1)])) ?>">Anterior</a>
+                        <?php endif; ?>
+                        <?php if (($livePagination['page'] ?? 1) < ($livePagination['pages'] ?? 1)): ?>
+                            <a class="rounded-full bg-slate-900 px-4 py-2 text-white" href="<?= e($paginationUrl(['creator_id' => (int) ($filters['creator_id'] ?? 0), 'live_q' => $liveFilters['q'] ?? '', 'live_status' => $liveFilters['status'] ?? '', 'live_page' => ((int) ($livePagination['page'] ?? 1) + 1)])) ?>">Proxima</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
             <?php if ($lives === []): ?><p class="p-8 text-sm text-on-surface-variant">Nenhuma live encontrada com esse filtro.</p><?php endif; ?>
         </div>
     </section>
@@ -487,11 +588,6 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
         const expanded = toggle.getAttribute('aria-expanded') === 'true';
         toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
         panel.classList.toggle('hidden', expanded);
-    });
-
-    document.querySelectorAll('[name="recording_enabled"]').forEach((input) => {
-        const wrap = input.closest('label');
-        if (wrap) wrap.remove();
     });
 </script>
 </body>

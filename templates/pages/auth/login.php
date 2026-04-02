@@ -67,24 +67,11 @@
     </style>
 </head>
 <body class="font-body text-on-surface antialiased">
-    <nav class="fixed top-0 z-50 flex h-20 w-full items-center justify-between bg-[#D81B60] px-8 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-        <div class="flex items-center gap-12">
-            <a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
-            <div class="hidden items-center gap-8 md:flex">
-                <a class="font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/">Live Cam</a>
-                <a class="font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/explore">Explorar</a>
-                <a class="font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/register">Criar Conta</a>
-            </div>
-        </div>
-        <div class="flex items-center gap-4">
-            <span class="rounded-full border-b-2 border-white pb-1 font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-white">Login</span>
-            <a class="rounded-full bg-white px-6 py-2 font-['Plus_Jakarta_Sans'] text-sm font-bold uppercase tracking-wide text-primary transition-transform duration-200 hover:scale-105" href="/register">Registro</a>
-        </div>
-    </nav>
+    <?php require BASE_PATH . '/templates/partials/public_topbar.php'; ?>
 
-    <main class="mx-auto flex min-h-screen max-w-7xl items-center px-4 pb-16 pt-32 md:px-8">
-        <div class="grid w-full gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-            <section class="relative overflow-hidden rounded-[2rem] bg-white/50 p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:p-10">
+    <main class="mx-auto flex min-h-screen max-w-7xl items-start px-4 pb-16 pt-28 md:px-8">
+        <div class="grid w-full gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+            <section class="order-2 relative overflow-hidden rounded-[2rem] bg-white/50 p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:order-2 lg:p-10">
                 <div class="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl"></div>
                 <div class="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-secondary-container/20 blur-3xl"></div>
                 <div class="relative space-y-8">
@@ -127,7 +114,7 @@
                 </div>
             </section>
 
-            <section class="lunar-glass rounded-[2rem] border border-white/70 p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.08)] lg:p-10">
+            <section class="order-1 lunar-glass rounded-[2rem] border border-white/70 p-8 shadow-[0px_20px_40px_rgba(27,28,29,0.08)] lg:order-1 lg:p-10">
                 <div class="mb-8 space-y-3">
                     <p class="font-label text-xs font-bold uppercase tracking-[0.2em] text-primary">Login</p>
                     <h2 class="font-headline text-3xl font-extrabold tracking-tight text-on-surface">Entrar</h2>
@@ -161,7 +148,7 @@
         </div>
     </main>
 
-    <footer class="flex w-full flex-col items-center gap-6 bg-[#D81B60] px-10 py-12">
+    <footer class="mt-8 flex w-full flex-col items-center gap-6 bg-[#D81B60] px-10 py-12">
         <div class="flex flex-col items-center gap-4">
             <?= brand_logo_white('h-8 w-auto') ?>
             <div class="flex gap-8">

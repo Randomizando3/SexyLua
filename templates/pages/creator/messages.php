@@ -139,10 +139,10 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
                     </div>
                 </div>
             <?php elseif ($selectedConversation): ?>
-                <div class="flex min-h-[72vh] flex-col">
+                <div class="flex min-h-[72vh] flex-col lg:h-[78vh]">
                     <a class="mb-4 inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-3 text-sm font-bold text-primary lg:hidden" href="<?= e($mobileConversationListUrl) ?>">
                         <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                        Voltar
+                        Voltar para conversas
                     </a>
                     <div class="flex items-center gap-4 border-b border-slate-200 pb-5">
                         <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($selectedConversation['subscriber']['name'] ?? 'Assinante'))) ?></div>
@@ -155,8 +155,8 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
                         <?php endif; ?>
                     </div>
 
-                    <div class="mt-5 flex-1">
-                        <div class="h-[min(68vh,700px)] overflow-y-auto pr-2" data-chat-thread>
+                    <div class="mt-5 flex-1 overflow-hidden">
+                        <div class="h-full overflow-y-auto pr-2" data-chat-thread>
                             <div class="flex min-h-full flex-col justify-end gap-3">
                                 <?php foreach ($messages as $message): ?>
                                     <?php $isMine = (int) ($message['sender_id'] ?? 0) === (int) ($creator['id'] ?? 0); ?>
@@ -226,34 +226,41 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
                     <form action="/creator/messages/send" class="mt-4 shrink-0 border-t border-slate-200 pt-4" enctype="multipart/form-data" method="post">
                         <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                         <input name="conversation_id" type="hidden" value="<?= e((string) ($selectedConversation['id'] ?? 0)) ?>">
-                        <div class="flex items-end gap-3">
+                        <details class="group relative">
+                            <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full bg-surface-container-low text-slate-700 marker:content-none">
+                                <span class="material-symbols-outlined text-[20px]">add_circle</span>
+                            </summary>
+                            <div class="absolute bottom-[calc(100%+0.75rem)] left-0 right-0 z-10 hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0px_24px_48px_rgba(27,28,29,0.12)] group-open:block">
+                                <div class="grid gap-3 lg:grid-cols-[1.25fr_1fr_0.85fr]">
+                                    <label class="block">
+                                        <span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">Arquivo</span>
+                                        <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm,.pdf,.doc,.docx,.txt,.zip,.rar,.7z" class="w-full rounded-2xl border-none bg-surface-container-low px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" data-file-label-target="creator-chat-file-name" name="attachment_file" type="file">
+                                        <span class="mt-2 block text-xs text-on-surface-variant" data-file-label="creator-chat-file-name">Imagem, video, documento ou pacote privado.</span>
+                                    </label>
+                                    <label class="block">
+                                        <span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">Plano min.</span>
+                                        <select class="w-full rounded-2xl border-none bg-surface-container-low px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="required_plan_id">
+                                            <option value="0">Sem bloqueio por plano</option>
+                                            <?php foreach ($availablePlans as $plan): ?>
+                                                <option value="<?= e((string) ($plan['id'] ?? 0)) ?>"><?= e((string) ($plan['name'] ?? 'Plano')) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </label>
+                                    <label class="block">
+                                        <span class="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                                            <span>Valor em</span>
+                                            <img alt="LuaCoin" class="h-4 w-4 shrink-0" decoding="async" loading="lazy" src="/assets/img/luacoin.png">
+                                        </span>
+                                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="unlock_price" placeholder="0" type="number" value="">
+                                    </label>
+                                </div>
+                            </div>
+                        </details>
+                        <div class="mt-3 flex items-end gap-3">
                             <textarea class="h-12 flex-1 resize-none rounded-2xl border-none bg-surface-container-low px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="body" placeholder="Mensagem, descricao do anexo ou descricao do microconteudo..."></textarea>
                             <button class="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/20" type="submit">
                                 <span class="material-symbols-outlined text-[20px]">send</span>
                             </button>
-                        </div>
-                        <div class="mt-3 grid gap-3 lg:grid-cols-[1.25fr_1fr_0.85fr]">
-                            <label class="block">
-                                <span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">Arquivo</span>
-                                <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm,.pdf,.doc,.docx,.txt,.zip,.rar,.7z" class="w-full rounded-2xl border-none bg-white px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" data-file-label-target="creator-chat-file-name" name="attachment_file" type="file">
-                                <span class="mt-2 block text-xs text-on-surface-variant" data-file-label="creator-chat-file-name">Imagem, video, documento ou pacote privado.</span>
-                            </label>
-                            <label class="block">
-                                <span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">Plano min.</span>
-                                <select class="w-full rounded-2xl border-none bg-white px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="required_plan_id">
-                                    <option value="0">Sem bloqueio por plano</option>
-                                    <?php foreach ($availablePlans as $plan): ?>
-                                        <option value="<?= e((string) ($plan['id'] ?? 0)) ?>"><?= e((string) ($plan['name'] ?? 'Plano')) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </label>
-                            <label class="block">
-                                <span class="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-                                    <span>Valor em</span>
-                                    <img alt="LuaCoin" class="h-4 w-4 shrink-0" decoding="async" loading="lazy" src="/assets/img/luacoin.png">
-                                </span>
-                                <input class="w-full rounded-2xl border-none bg-white px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="unlock_price" placeholder="0" type="number" value="">
-                            </label>
                         </div>
                     </form>
                 </div>
@@ -281,7 +288,7 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
             return;
         }
 
-        panel.classList.add('fixed', 'inset-0', 'z-[90]', 'm-0', 'min-h-screen', 'overflow-y-auto', 'rounded-none', 'bg-[#fbf9fb]', 'px-4', 'pb-6', 'pt-24');
+        panel.classList.add('fixed', 'inset-0', 'z-[90]', 'm-0', 'h-[calc(100vh-5rem)]', 'overflow-hidden', 'rounded-none', 'bg-[#fbf9fb]', 'px-4', 'pb-6', 'pt-24');
         document.body.classList.add('overflow-hidden');
         window.addEventListener('beforeunload', () => {
             document.body.classList.remove('overflow-hidden');

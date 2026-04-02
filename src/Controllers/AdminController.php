@@ -107,10 +107,19 @@ final class AdminController extends Controller
     {
         $this->app->auth->requireRole('admin');
         $filters = [
-            'q' => (string) $request->query('q', ''),
             'creator_id' => (int) $request->query('creator_id', 0),
+            'content_q' => (string) $request->query('content_q', ''),
             'content_status' => (string) $request->query('content_status', ''),
+            'content_page' => (int) $request->query('content_page', 1),
+            'plan_q' => (string) $request->query('plan_q', ''),
+            'plan_status' => (string) $request->query('plan_status', ''),
+            'plan_page' => (int) $request->query('plan_page', 1),
+            'micro_q' => (string) $request->query('micro_q', ''),
+            'micro_status' => (string) $request->query('micro_status', ''),
+            'micro_page' => (int) $request->query('micro_page', 1),
+            'live_q' => (string) $request->query('live_q', ''),
             'live_status' => (string) $request->query('live_status', ''),
+            'live_page' => (int) $request->query('live_page', 1),
         ];
 
         $this->render('pages/admin/operations', [

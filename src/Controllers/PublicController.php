@@ -102,9 +102,11 @@ final class PublicController extends Controller
         }
 
         $scope = (string) $request->query('scope', 'message');
-        $asset = $scope === 'announcement'
-            ? $this->app->repository->findSecureAnnouncementAttachment((int) $request->query('id', 0), (int) ($this->user()['id'] ?? 0))
-            : $this->app->repository->findSecureConversationMessageAttachment((int) $request->query('id', 0), (int) ($this->user()['id'] ?? 0));
+        $asset = match ($scope) {
+            'announcement' => $this->app->repository->findSecureAnnouncementAttachment((int) $request->query('id', 0), (int) ($this->user()['id'] ?? 0)),
+            'identity' => $this->app->repository->findSecureIdentityAttachment((int) $request->query('id', 0), (int) ($this->user()['id'] ?? 0)),
+            default => $this->app->repository->findSecureConversationMessageAttachment((int) $request->query('id', 0), (int) ($this->user()['id'] ?? 0)),
+        };
 
         $path = private_media_local_path((string) ($asset['path'] ?? ''));
         if ($asset === null || $path === null || ! is_file($path)) {

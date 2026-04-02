@@ -134,6 +134,24 @@ function brl_amount(int|float $amount): string
     return 'R$ ' . number_format((float) $amount, 2, ',', '.');
 }
 
+function luacoin_to_brl(int|float $amount, int|float $unitPriceBrl = 0.07): float
+{
+    return round(((float) $amount) * ((float) $unitPriceBrl), 2);
+}
+
+function luacoin_brl_pair_html(
+    int|float $amount,
+    int|float $unitPriceBrl = 0.07,
+    string $wrapperClasses = 'space-y-1',
+    string $coinClasses = 'inline-flex items-center gap-1.5 whitespace-nowrap',
+    string $brlClasses = 'text-xs font-semibold text-slate-500'
+): string {
+    return '<span class="' . e($wrapperClasses) . '">'
+        . '<span class="' . e($coinClasses) . '">' . luacoin_amount_html($amount, 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.95em] w-[0.95em] shrink-0') . '</span>'
+        . '<span class="' . e($brlClasses) . '">' . e(brl_amount(luacoin_to_brl($amount, $unitPriceBrl))) . '</span>'
+        . '</span>';
+}
+
 function avatar_initials(string $name): string
 {
     $parts = preg_split('/\s+/', trim($name)) ?: [];

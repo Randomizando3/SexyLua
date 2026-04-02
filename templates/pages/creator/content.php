@@ -222,7 +222,7 @@ include base_path('templates/partials/creator_topbar.php');
                             <span class="rounded-full bg-black/45 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white"><?= e($visibilityLabels[$visibility] ?? 'P&uacute;blico') ?></span>
                         </div>
                         <?php if ($kind === 'video' || $kind === 'live_teaser'): ?>
-                            <div class="absolute inset-0 flex items-center justify-center">
+                            <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
                                 <span class="flex h-14 w-14 items-center justify-center rounded-full bg-black/55 text-white shadow-lg">
                                     <span class="material-symbols-outlined text-3xl">play_arrow</span>
                                 </span>

@@ -6,8 +6,10 @@ $summary = $data['summary'] ?? [];
 $filters = $data['filters'] ?? [];
 $transactions = $data['filtered_transactions'] ?? [];
 $pendingPayouts = $data['pending_payouts'] ?? [];
+$payoutTransactions = $data['payout_transactions'] ?? [];
 $pendingTopUps = $data['pending_topups'] ?? [];
 $users = $data['users'] ?? [];
+$luacoinPriceBrl = (float) ($data['luacoin_price_brl'] ?? 0.07);
 $admin = $app->auth->user() ?? [];
 ?>
 <!DOCTYPE html>
@@ -70,7 +72,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
     </nav>
     <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
         <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Resultado da plataforma</p>
-        <h3 class="mt-3 text-3xl font-extrabold"><?= luacoin_amount_html((int) ($summary['platform_result'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-8 w-8 shrink-0') ?></h3>
+        <div class="mt-3 text-3xl font-extrabold"><?= luacoin_brl_pair_html((int) ($summary['platform_result'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center gap-2 whitespace-nowrap text-primary', 'text-sm font-bold text-slate-500') ?></div>
         <p class="mt-2 text-sm text-on-surface-variant">Margem liquida aproximada entre consumo dos assinantes e repasse aos criadores.</p>
     </div>
 </aside>
@@ -83,9 +85,9 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
             <p class="mt-4 max-w-2xl text-on-surface-variant">Acompanhe volume bruto, repasses, recargas, ajuste carteiras manualmente e opere o funil financeiro completo com mais seguranca.</p>
         </div>
         <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Volume</p><div class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= luacoin_amount_html((int) ($summary['gross_volume'] ?? 0), 'inline-flex items-center justify-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Repasse</p><div class="mt-2 text-[2rem] font-extrabold leading-tight text-emerald-600 md:text-3xl"><?= luacoin_amount_html((int) ($summary['creator_income'] ?? 0), 'inline-flex items-center justify-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Resultado</p><div class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= luacoin_amount_html((int) ($summary['platform_result'] ?? 0), 'inline-flex items-center justify-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></div></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Volume</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['gross_volume'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-primary', 'text-xs font-bold text-slate-500') ?></div></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Repasse</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['creator_income'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-emerald-600', 'text-xs font-bold text-slate-500') ?></div></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Resultado</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['platform_result'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-primary', 'text-xs font-bold text-slate-500') ?></div></article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Recargas</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['top_ups'] ?? 0)) ?></p></article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Saques pendentes</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-amber-600 md:text-3xl"><?= e((string) ($summary['pending_payout_count'] ?? 0)) ?></p></article>
         </div>
@@ -169,7 +171,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($transaction['user']['email'] ?? '')) ?></p>
                                     <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['provider'] ?? 'checkout')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
                                 </div>
-                                <strong class="text-2xl font-extrabold text-primary"><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></strong>
+                                <div class="text-right"><?= luacoin_brl_pair_html((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center gap-2 whitespace-nowrap text-2xl font-extrabold text-primary', 'text-xs font-bold text-slate-500') ?></div>
                             </div>
                             <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[0.45fr_1fr]">
                                 <label class="block space-y-2">
@@ -194,7 +196,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
             <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                 <div class="mb-6 flex items-center justify-between">
                     <h3 class="text-2xl font-extrabold">Saques aguardando revisao</h3>
-                    <span class="text-sm font-bold text-primary"><?= luacoin_amount_html((int) ($summary['pending_payout_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></span>
+                    <span class="text-sm font-bold text-primary"><?= luacoin_brl_pair_html((int) ($summary['pending_payout_tokens'] ?? 0), $luacoinPriceBrl, 'space-y-0.5', 'inline-flex items-center gap-1.5 whitespace-nowrap text-primary', 'text-[11px] font-bold text-slate-500') ?></span>
                 </div>
                 <div class="space-y-4">
                     <?php foreach ($pendingPayouts as $transaction): ?>
@@ -207,7 +209,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($transaction['user']['email'] ?? '')) ?></p>
                                     <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['payout_method'] ?? 'pix')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
                                 </div>
-                                <strong class="text-2xl font-extrabold text-primary"><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-[0.9em] w-[0.9em] shrink-0') ?></strong>
+                                <div class="text-right"><?= luacoin_brl_pair_html((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center gap-2 whitespace-nowrap text-2xl font-extrabold text-primary', 'text-xs font-bold text-slate-500') ?></div>
                             </div>
                             <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[0.45fr_1fr]">
                                 <label class="block space-y-2">
@@ -261,11 +263,69 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                 <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($user['name'] ?? 'Usuario')) ?><?php if (($creator['name'] ?? '') !== ''): ?> • <?= e((string) ($creator['name'] ?? '')) ?><?php endif; ?></p>
                                 <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['type'] ?? 'mov')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
                             </div>
-                            <strong class="<?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?> text-xl font-extrabold"><?= $isIn ? '+' : '-' ?><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></strong>
+                            <div class="text-right">
+                                <div class="<?= $isIn ? 'text-emerald-600' : 'text-rose-700' ?> text-xl font-extrabold"><?= $isIn ? '+' : '-' ?><?= luacoin_amount_html((int) ($transaction['amount'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-[0.85em] w-[0.85em] shrink-0') ?></div>
+                                <p class="mt-1 text-xs font-bold text-slate-500"><?= e(brl_amount(luacoin_to_brl((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl))) ?></p>
+                            </div>
                         </div>
                     </article>
                 <?php endforeach; ?>
                 <?php if ($transactions === []): ?><p class="rounded-3xl bg-surface-container-low p-6 text-sm text-on-surface-variant">Nenhuma transacao encontrada com esse filtro.</p><?php endif; ?>
+            </div>
+
+            <div class="mt-8 border-t border-slate-100 pt-8">
+                <div class="mb-6 flex items-center justify-between">
+                    <h3 class="text-2xl font-extrabold">Gestão de saques</h3>
+                    <span class="text-sm font-bold text-primary"><?= count($payoutTransactions) ?> registros</span>
+                </div>
+                <div class="space-y-4">
+                    <?php foreach ($payoutTransactions as $transaction): ?>
+                        <?php
+                        $status = (string) ($transaction['status'] ?? 'pending');
+                        $statusClass = match ($status) {
+                            'paid' => 'bg-emerald-100 text-emerald-700',
+                            'rejected' => 'bg-rose-100 text-rose-700',
+                            'processing', 'pending' => 'bg-amber-100 text-amber-700',
+                            default => 'bg-slate-200 text-slate-600',
+                        };
+                        ?>
+                        <form action="/admin/finance/review-payout" class="rounded-3xl bg-surface-container-low p-5" method="post">
+                            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                            <input name="transaction_id" type="hidden" value="<?= e((string) ($transaction['id'] ?? 0)) ?>">
+                            <div class="flex flex-wrap items-start justify-between gap-4">
+                                <div>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <p class="text-lg font-bold"><?= e((string) ($transaction['user']['name'] ?? 'Criador')) ?></p>
+                                        <span class="inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] <?= e($statusClass) ?>"><?= e($status) ?></span>
+                                    </div>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($transaction['user']['email'] ?? '')) ?></p>
+                                    <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['payout_method'] ?? 'pix')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
+                                    <?php if ((string) ($transaction['admin_note'] ?? '') !== ''): ?>
+                                        <p class="mt-3 text-sm text-slate-500"><?= e((string) ($transaction['admin_note'] ?? '')) ?></p>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="text-right"><?= luacoin_brl_pair_html((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center gap-2 whitespace-nowrap text-xl font-extrabold text-primary', 'text-xs font-bold text-slate-500') ?></div>
+                            </div>
+                            <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[0.45fr_1fr]">
+                                <label class="block space-y-2">
+                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Status</span>
+                                    <select class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="status">
+                                        <option value="pending" <?= $status === 'pending' ? 'selected' : '' ?>>Pendente</option>
+                                        <option value="processing" <?= $status === 'processing' ? 'selected' : '' ?>>Em processamento</option>
+                                        <option value="paid" <?= $status === 'paid' ? 'selected' : '' ?>>Pago</option>
+                                        <option value="rejected" <?= $status === 'rejected' ? 'selected' : '' ?>>Rejeitado</option>
+                                    </select>
+                                </label>
+                                <label class="block space-y-2">
+                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota interna</span>
+                                    <textarea class="min-h-24 w-full rounded-3xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="admin_note" placeholder="Ex.: comprovante enviado, pago em lote ou devolvido."><?= e((string) ($transaction['admin_note'] ?? '')) ?></textarea>
+                                </label>
+                            </div>
+                            <button class="mt-5 rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Salvar status do saque</button>
+                        </form>
+                    <?php endforeach; ?>
+                    <?php if ($payoutTransactions === []): ?><p class="rounded-3xl bg-surface-container-low p-6 text-sm text-on-surface-variant">Nenhum saque registrado ainda.</p><?php endif; ?>
+                </div>
             </div>
         </section>
     </div>
