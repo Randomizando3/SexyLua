@@ -271,7 +271,7 @@ final class CreatorController extends Controller
         ];
 
         if ($request->hasFile('attachment_file')) {
-            $attachment = store_private_uploaded_file(
+            $attachment = \store_private_uploaded_file(
                 $request->file('attachment_file'),
                 'messages/creator',
                 ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm', 'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z'],
@@ -304,7 +304,7 @@ final class CreatorController extends Controller
         ];
 
         if ($request->hasFile('attachment_file')) {
-            $attachment = store_private_uploaded_file(
+            $attachment = \store_private_uploaded_file(
                 $request->file('attachment_file'),
                 'messages/creator',
                 ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm', 'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z'],

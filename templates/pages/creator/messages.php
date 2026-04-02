@@ -214,7 +214,7 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
                                 <span class="mt-2 block text-xs text-on-surface-variant" data-file-label="creator-chat-file-name">Imagem, video, documento ou pacote privado.</span>
                             </label>
                             <label class="block">
-                                <span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">Plano necessario</span>
+                                <span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">Plano min.</span>
                                 <select class="w-full rounded-2xl border-none bg-white px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="required_plan_id">
                                     <option value="0">Sem bloqueio por plano</option>
                                     <?php foreach ($availablePlans as $plan): ?>
@@ -223,8 +223,11 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
                                 </select>
                             </label>
                             <label class="block">
-                                <span class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">Microconteudo</span>
-                                <input class="w-full rounded-2xl border-none bg-white px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="unlock_price" placeholder="Valor em LuaCoins" type="number" value="">
+                                <span class="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                                    <span>Valor em</span>
+                                    <img alt="LuaCoin" class="h-4 w-4 shrink-0" decoding="async" loading="lazy" src="/assets/img/luacoin.png">
+                                </span>
+                                <input class="w-full rounded-2xl border-none bg-white px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="unlock_price" placeholder="0" type="number" value="">
                             </label>
                         </div>
                     </form>

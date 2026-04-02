@@ -195,7 +195,7 @@ final class SubscriberController extends Controller
         $options = [];
 
         if ($request->hasFile('attachment_file')) {
-            $attachment = store_private_uploaded_file(
+            $attachment = \store_private_uploaded_file(
                 $request->file('attachment_file'),
                 'messages/subscriber',
                 ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm', 'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z'],
