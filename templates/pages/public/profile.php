@@ -21,6 +21,7 @@ $selectedContentPayload = null;
 $selectedLockedPayload = null;
 $viewerId = (int) ($currentUser['id'] ?? 0);
 $viewerRole = (string) ($currentUser['role'] ?? '');
+$guestPreviewLocked = ! is_array($currentUser) || $currentUser === [];
 $canAccessContent = static function (array $item) use ($creatorId, $viewerId, $viewerRole, $isSubscribed): bool {
     $visibility = (string) ($item['visibility'] ?? 'public');
     if ($visibility === 'public') {
@@ -37,7 +38,11 @@ $canAccessContent = static function (array $item) use ($creatorId, $viewerId, $v
 
     return $isSubscribed;
 };
-$lockedMessageForContent = static function (array $item): string {
+$lockedMessageForContent = static function (array $item) use ($guestPreviewLocked): string {
+    if ($guestPreviewLocked) {
+        return 'Entre na sua conta para visualizar este conteudo.';
+    }
+
     $visibility = (string) ($item['visibility'] ?? 'subscriber');
     return $visibility === 'premium'
         ? 'Este conteúdo exige um plano ativo para ser desbloqueado.'
@@ -51,7 +56,7 @@ if ($requestedContentId > 0) {
         }
 
         $candidatePlan = is_array($candidate['plan'] ?? null) ? $candidate['plan'] : null;
-        if ($canAccessContent($candidate)) {
+        if ($canAccessContent($candidate) && ! $guestPreviewLocked) {
             $selectedContentPayload = [
                 'id' => (int) ($candidate['id'] ?? 0),
                 'title' => (string) ($candidate['title'] ?? 'Conteúdo'),
@@ -193,10 +198,16 @@ if ($requestedContentId > 0) {
                                 <a class="min-w-[260px] max-w-[260px] snap-start overflow-hidden rounded-3xl bg-[#fbf9fb] ring-1 ring-[#f0e8ee] transition-transform hover:-translate-y-1" href="<?= e($liveUrl) ?>">
                                     <div class="relative aspect-[4/3] bg-slate-900">
                                         <?php if ($liveCover !== ''): ?>
-                                            <img alt="<?= e((string) ($live['title'] ?? 'Live agendada')) ?>" class="h-full w-full scale-105 object-cover blur-[2px]" src="<?= e($liveCover) ?>">
+                                            <img alt="<?= e((string) ($live['title'] ?? 'Live agendada')) ?>" class="h-full w-full scale-105 object-cover <?= $guestPreviewLocked ? 'blur-[10px]' : '' ?>" src="<?= e($liveCover) ?>">
                                         <?php else: ?>
                                             <div class="signature-glow flex h-full w-full items-center justify-center text-white">
                                                 <span class="headline px-6 text-center text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if ($guestPreviewLocked): ?>
+                                            <div class="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"></div>
+                                            <div class="absolute inset-x-4 top-4 rounded-full bg-white/90 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]">
+                                                Entre para liberar
                                             </div>
                                         <?php endif; ?>
                                         <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 text-white">
@@ -233,7 +244,7 @@ if ($requestedContentId > 0) {
                             $itemId = (int) ($item['id'] ?? 0);
                             $kind = (string) ($item['kind'] ?? 'gallery');
                             $itemPlan = is_array($item['plan'] ?? null) ? $item['plan'] : null;
-                            $itemAccessible = $canAccessContent($item);
+                            $itemAccessible = $canAccessContent($item) && ! $guestPreviewLocked;
                             $contentPayload = null;
                             $lockedPayload = null;
 
@@ -275,6 +286,8 @@ if ($requestedContentId > 0) {
                                 <div class="relative aspect-[4/3] bg-slate-900">
                                     <?php if ($itemAccessible && !empty($thumbnail ?? '')): ?>
                                         <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover" src="<?= e($thumbnail) ?>">
+                                    <?php elseif (!empty($thumbnail ?? '')): ?>
+                                        <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover blur-[10px]" src="<?= e($thumbnail) ?>">
                                     <?php else: ?>
                                         <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
                                             <div class="<?= $itemAccessible ? '' : 'blur-md' ?>">
@@ -301,7 +314,7 @@ if ($requestedContentId > 0) {
                                                 </div>
                                                 <div>
                                                     <p class="text-sm font-bold uppercase tracking-[0.25em] text-white/80">Conteúdo bloqueado</p>
-                                                    <p class="mt-2 text-sm text-white/85">Assine para liberar este material.</p>
+                                                    <p class="mt-2 text-sm text-white/85"><?= e($guestPreviewLocked ? 'Entre para visualizar este material.' : 'Assine para liberar este material.') ?></p>
                                                 </div>
                                             </div>
                                         </div>

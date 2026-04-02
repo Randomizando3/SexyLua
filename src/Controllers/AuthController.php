@@ -60,6 +60,7 @@ final class AuthController extends Controller
         $email = trim((string) $request->input('email'));
         $password = (string) $request->input('password');
         $role = (string) $request->input('role', 'subscriber');
+        $age = (int) $request->input('age', 0);
 
         if ($name === '' || $email === '' || $password === '') {
             $this->redirect('/register', 'Preencha nome, e-mail e senha.', 'error');
@@ -71,6 +72,10 @@ final class AuthController extends Controller
 
         if (strlen($password) < 6) {
             $this->redirect('/register', 'A senha precisa ter pelo menos 6 caracteres.', 'error');
+        }
+
+        if ($age < 18) {
+            $this->redirect('/register', 'O cadastro na plataforma e permitido apenas para maiores de 18 anos.', 'error');
         }
 
         if ((string) $request->input('terms_accepted', '0') !== '1') {
@@ -102,6 +107,7 @@ final class AuthController extends Controller
             'password' => $password,
             'role' => $role,
             'city' => (string) $request->input('city', 'Brasil'),
+            'age' => $age,
             'terms_accepted_at' => date('Y-m-d H:i:s'),
             'terms_version' => '2026-04',
             'identity_document' => $identityDocument,

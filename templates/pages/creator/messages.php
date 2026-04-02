@@ -139,12 +139,12 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
                     </div>
                 </div>
             <?php elseif ($selectedConversation): ?>
-                <div class="flex h-full min-h-0 flex-col lg:h-[78vh]">
-                    <a class="mx-4 mt-3 inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-3 text-sm font-bold text-primary lg:hidden" href="<?= e($mobileConversationListUrl) ?>">
+                <div class="flex h-full min-h-0 flex-col px-4 lg:h-[78vh] lg:px-0">
+                    <a class="mt-3 inline-flex items-center gap-2 self-start rounded-full bg-surface-container-low px-4 py-3 text-sm font-bold text-primary lg:hidden" href="<?= e($mobileConversationListUrl) ?>">
                         <span class="material-symbols-outlined text-[18px]">arrow_back</span>
                         Voltar
                     </a>
-                    <div class="mx-4 flex items-center gap-4 border-b border-slate-200 pb-4 lg:mx-0">
+                    <div class="flex items-center gap-4 border-b border-slate-200 pb-4">
                         <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($selectedConversation['subscriber']['name'] ?? 'Assinante'))) ?></div>
                         <div class="min-w-0 flex-1">
                             <h3 class="truncate text-2xl font-extrabold"><?= e((string) ($selectedConversation['subscriber']['name'] ?? 'Assinante')) ?></h3>
@@ -155,13 +155,13 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
                         <?php endif; ?>
                     </div>
 
-                    <div class="mx-4 mt-3 min-h-0 flex-1 overflow-y-auto pr-1 lg:mx-0 lg:mt-4" data-chat-thread>
+                    <div class="mt-3 min-h-0 flex-1 overflow-y-auto pr-1 lg:mt-4" data-chat-thread>
                         <div class="h-full">
                             <div class="flex min-h-full flex-col justify-end gap-3">
                                 <?php foreach ($messages as $message): ?>
                                     <?php $isMine = (int) ($message['sender_id'] ?? 0) === (int) ($creator['id'] ?? 0); ?>
                                     <article class="flex <?= $isMine ? 'justify-end' : 'justify-start' ?>">
-                                        <div class="max-w-[86%] rounded-[28px] px-4 py-3 shadow-sm <?= $isMine ? 'bg-primary text-white' : 'bg-white text-on-surface' ?>">
+                                        <div class="max-w-[92vw] sm:max-w-[82%] rounded-[28px] px-4 py-3 shadow-sm <?= $isMine ? 'bg-primary text-white' : 'bg-white text-on-surface' ?>">
                                             <?php if (trim((string) ($message['body'] ?? '')) !== ''): ?>
                                                 <p class="text-sm leading-6"><?= nl2br(e((string) ($message['body'] ?? ''))) ?></p>
                                             <?php endif; ?>
@@ -223,7 +223,7 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
                         </div>
                     </div>
 
-                    <form action="/creator/messages/send" class="mx-4 mt-3 shrink-0 border-t border-slate-200 pt-3 lg:mx-0" enctype="multipart/form-data" method="post">
+                    <form action="/creator/messages/send" class="mt-3 shrink-0 border-t border-slate-200 pt-3" enctype="multipart/form-data" method="post">
                         <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                         <input name="conversation_id" type="hidden" value="<?= e((string) ($selectedConversation['id'] ?? 0)) ?>">
                         <details class="group relative">
@@ -288,7 +288,7 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
             return;
         }
 
-        panel.classList.add('fixed', 'left-0', 'right-0', 'top-16', 'bottom-0', 'z-[90]', 'm-0', 'flex', 'overflow-hidden', 'rounded-none', 'bg-[#fbf9fb]', 'px-0', 'pb-0', 'pt-0');
+        panel.classList.add('fixed', 'left-0', 'right-0', 'top-16', 'bottom-0', 'z-[90]', 'm-0', 'flex', 'w-screen', 'max-w-none', 'overflow-hidden', 'rounded-none', 'bg-[#fbf9fb]', 'px-0', 'pb-0', 'pt-0');
         document.body.classList.add('overflow-hidden');
         window.addEventListener('beforeunload', () => {
             document.body.classList.remove('overflow-hidden');

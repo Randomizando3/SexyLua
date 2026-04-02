@@ -6,9 +6,11 @@
     <title>SexyLua - Privacidade</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <style>
         body { background: #fbf9fb; color: #1b1c1d; font-family: Manrope, sans-serif; }
         .headline { font-family: "Plus Jakarta Sans", sans-serif; }
+        .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; }
     </style>
 </head>
 <body>

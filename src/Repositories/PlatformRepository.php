@@ -113,6 +113,7 @@ final class PlatformRepository
             'headline' => $role === 'creator' ? 'Novo criador em fase de estreia.' : 'Novo assinante da comunidade SexyLua.',
             'bio' => $role === 'creator' ? 'Perfil criado para publicar conteudo, planos e lives.' : 'Perfil criado para acompanhar criadores, salvar colecoes e conversar.',
             'city' => trim((string) ($data['city'] ?? 'Brasil')),
+            'age' => max(18, (int) ($data['age'] ?? 18)),
             'created_at' => date('Y-m-d H:i:s'),
             'terms_accepted_at' => $termsAcceptedAt !== '' ? $termsAcceptedAt : date('Y-m-d H:i:s'),
             'terms_version' => trim((string) ($data['terms_version'] ?? '2026-04')),

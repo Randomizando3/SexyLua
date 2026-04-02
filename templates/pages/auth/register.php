@@ -120,10 +120,15 @@
                         <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" name="email" placeholder="voce@sexylua.local" required type="email">
                     </label>
 
-                    <div class="grid gap-5 md:grid-cols-2">
+                    <div class="grid gap-5 md:grid-cols-3">
                         <label class="block space-y-2">
                             <span class="px-1 text-sm font-semibold text-on-surface-variant">Cidade</span>
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" name="city" placeholder="Brasil" type="text" value="Brasil">
+                        </label>
+
+                        <label class="block space-y-2">
+                            <span class="px-1 text-sm font-semibold text-on-surface-variant">Idade</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" max="120" min="18" name="age" placeholder="18" required type="number">
                         </label>
 
                         <label class="block space-y-2">

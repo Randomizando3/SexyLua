@@ -10,6 +10,7 @@ $filters = $data['filters'] ?? [];
 $query = (string) ($filters['q'] ?? '');
 $kind = (string) ($filters['kind'] ?? '');
 $liveOnly = (bool) ($filters['live_only'] ?? false);
+$guestPreviewLocked = ! is_array($currentUser) || $currentUser === [];
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -71,13 +72,21 @@ $liveOnly = (bool) ($filters['live_only'] ?? false);
                 <a class="group overflow-hidden rounded-3xl bg-white shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
                     <div class="relative aspect-[3/4] bg-slate-900">
                         <?php if ($cover !== ''): ?>
-                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover blur-[2px] transition-transform duration-500 group-hover:scale-[1.08]" src="<?= e($cover) ?>">
+                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'blur-[10px]' : '' ?>" src="<?= e($cover) ?>">
                         <?php else: ?>
                             <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
                                 <span class="headline text-2xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
                             </div>
                         <?php endif; ?>
+                        <?php if ($guestPreviewLocked): ?>
+                            <div class="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"></div>
+                        <?php endif; ?>
                         <div class="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-white"><?= e((string) (($live['status'] ?? '') === 'live' ? 'Ao vivo' : 'Agendada')) ?></div>
+                        <?php if ($guestPreviewLocked): ?>
+                            <div class="absolute inset-x-4 bottom-4 rounded-full bg-white/90 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]">
+                                Entre para liberar
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div class="space-y-2 p-5">
                         <p class="headline truncate text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
@@ -134,12 +143,18 @@ $liveOnly = (bool) ($filters['live_only'] ?? false);
             <?php foreach (array_slice($content, 0, 9) as $item): ?>
                 <?php $thumbnail = media_url((string) ($item['thumbnail_url'] ?? $item['media_url'] ?? '')); ?>
                 <a class="overflow-hidden rounded-3xl bg-white shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0)])) ?>">
-                    <div class="aspect-[4/3] bg-slate-900">
+                    <div class="relative aspect-[4/3] bg-slate-900">
                         <?php if ($thumbnail !== ''): ?>
-                            <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover" src="<?= e($thumbnail) ?>">
+                            <img alt="<?= e((string) ($item['title'] ?? 'Conteúdo')) ?>" class="h-full w-full object-cover <?= $guestPreviewLocked ? 'blur-[10px]' : '' ?>" src="<?= e($thumbnail) ?>">
                         <?php else: ?>
                             <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
                                 <span class="headline text-2xl font-extrabold"><?= e((string) strtoupper((string) ($item['kind'] ?? 'conteúdo'))) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($guestPreviewLocked): ?>
+                            <div class="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"></div>
+                            <div class="absolute inset-x-4 bottom-4 rounded-full bg-white/90 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]">
+                                Entre para desbloquear
                             </div>
                         <?php endif; ?>
                     </div>
