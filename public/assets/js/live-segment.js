@@ -195,6 +195,13 @@
         hidePlaybackButton()
     }
 
+    const scheduleMediaRetry = (message = '') => {
+        destroyPlayer()
+        if (message) {
+            setWaiting(message)
+        }
+    }
+
     const tryPlay = async (node, allowButton = true) => {
         if (!node) return
         try {
@@ -225,13 +232,20 @@
             hls.attachMedia(node)
             hls.on(window.Hls.Events.MANIFEST_PARSED, () => { tryPlay(node) })
             hls.on(window.Hls.Events.ERROR, (_event, data) => {
-                if (data && data.fatal) showError('Nao foi possivel carregar a transmissao agora.')
+                if (data && data.fatal) {
+                    showError('Preparando preview da transmissao...')
+                    scheduleMediaRetry('Sinal detectado. Preparando preview...')
+                }
             })
             state.hls = hls
             return
         }
 
         node.src = url
+        node.addEventListener('error', () => {
+            showError('Preparando preview da transmissao...')
+            scheduleMediaRetry('Sinal detectado. Preparando preview...')
+        }, { once: true })
         node.addEventListener('loadedmetadata', () => { tryPlay(node) }, { once: true })
         tryPlay(node)
     }
