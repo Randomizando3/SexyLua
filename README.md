@@ -2,6 +2,8 @@
 
 SexyLua e uma plataforma premium para criadores, assinantes e operacao administrativa, com assinaturas, mensagens privadas, microconteudos pagos, lives, carteira em LuaCoins e recarga via PIX.
 
+Producao: [https://sexylua.izzihub.com.br](https://sexylua.izzihub.com.br)
+
 ## Visao geral
 
 - area publica com home, explorar, perfil do criador, lives e catalogo
