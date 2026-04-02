@@ -28,27 +28,7 @@ $liveOnly = (bool) ($filters['live_only'] ?? false);
     </style>
 </head>
 <body>
-<nav class="fixed top-0 z-50 flex h-20 w-full items-center justify-between bg-[#D81B60] px-8 text-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-    <div class="flex items-center gap-12">
-        <a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
-        <div class="hidden items-center gap-8 md:flex">
-            <a class="text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/">Home</a>
-            <a class="border-b-2 border-white pb-1 text-sm font-bold uppercase tracking-wide" href="/explore">Explorar</a>
-        </div>
-    </div>
-    <div class="flex items-center gap-4">
-        <?php if ($currentUser): ?>
-            <a class="rounded-full border border-white/20 px-6 py-2 text-sm font-bold uppercase tracking-widest" href="<?= e(($currentUser['role'] ?? '') === 'creator' ? '/creator' : (($currentUser['role'] ?? '') === 'admin' ? '/admin' : '/subscriber')) ?>">Painel</a>
-            <form action="/logout" method="post">
-                <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                <button class="rounded-full bg-white/10 px-6 py-2 text-sm font-bold uppercase tracking-widest text-white" type="submit">Sair</button>
-            </form>
-        <?php else: ?>
-            <a class="rounded-full px-6 py-2 text-sm font-bold uppercase tracking-widest text-white transition-transform hover:scale-105" href="/login">Login</a>
-            <a class="rounded-full bg-white px-6 py-2 text-sm font-bold uppercase tracking-widest text-[#ab1155] shadow-lg transition-transform hover:scale-105" href="/register">Registro</a>
-        <?php endif; ?>
-    </div>
-</nav>
+<?php require BASE_PATH . '/templates/partials/public_topbar.php'; ?>
 
 <main class="mx-auto max-w-7xl px-6 pb-20 pt-28 md:px-8">
     <section class="mb-10 rounded-[2rem] bg-[linear-gradient(135deg,#fff5f8_0%,#fbf9fb_100%)] p-8 shadow-sm">

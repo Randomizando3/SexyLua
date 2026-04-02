@@ -163,20 +163,80 @@ if (! defined('SEXYLUA_APP_TOPBAR_INCLUDED')) {
         ?>
     </div>
 
-    <details class="relative md:hidden" data-mobile-nav>
-        <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-white/20 bg-white/10 text-white marker:content-none">
-            <span class="material-symbols-outlined text-[22px]" data-mobile-nav-icon>menu</span>
-        </summary>
-        <div class="absolute right-0 top-[calc(100%+0.75rem)] z-[90] w-80 max-w-[calc(100vw-2rem)] rounded-3xl bg-white p-4 text-slate-700 shadow-[0px_24px_48px_rgba(27,28,29,0.18)]">
+    <div class="flex items-center gap-2 md:hidden">
+        <details class="relative" data-feed-menu data-feed-kind="messages" data-feed-storage-key="<?= e('sexylua-feed:' . $appTopbarRole . ':' . (int) ($appTopbarUser['id'] ?? 0) . ':messages') ?>" data-feed-latest-marker="<?= e((string) ((int) ($appTopbarMessages['latest_marker'] ?? 0))) ?>">
+            <summary class="relative flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-white/20 bg-white/10 text-white marker:content-none">
+                <span class="material-symbols-outlined text-[20px]">chat</span>
+                <span class="absolute -right-1 -top-1 hidden min-w-[1.25rem] rounded-full bg-[#1b1c1d] px-1.5 py-0.5 text-center text-[10px] font-extrabold leading-none text-white" data-feed-badge></span>
+            </summary>
+            <div class="absolute right-0 top-[calc(100%+0.75rem)] z-[90] w-[20rem] max-w-[calc(100vw-2rem)] rounded-3xl border border-white/10 bg-white p-4 text-slate-700 shadow-[0px_24px_48px_rgba(27,28,29,0.18)]">
+                <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-1 pb-3">
+                    <div>
+                        <p class="text-sm font-extrabold text-slate-900">Mensagens</p>
+                        <p class="mt-1 text-xs text-slate-500"><?= e($appTopbarRole === 'admin' ? 'Comunicados e envios recentes.' : 'Conversas recentes da sua conta.') ?></p>
+                    </div>
+                    <a class="rounded-full bg-[#f7f4f7] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#D81B60]" href="<?= e($appTopbarMessagesHref) ?>">Abrir</a>
+                </div>
+                <div class="mt-3 max-h-[22rem] space-y-2 overflow-y-auto pr-1" data-feed-items>
+                    <?php foreach ((array) ($appTopbarMessages['items'] ?? []) as $item): ?>
+                        <a class="flex items-start gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-slate-50" data-feed-item-marker="<?= e((string) ((int) ($item['marker'] ?? 0))) ?>" href="<?= e((string) ($item['href'] ?? $appTopbarMessagesHref)) ?>">
+                            <span class="material-symbols-outlined mt-0.5 text-lg text-[#D81B60]"><?= e((string) ($item['icon'] ?? 'chat')) ?></span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate text-sm font-bold text-slate-900"><?= e((string) ($item['title'] ?? 'Mensagem')) ?></span>
+                                <span class="mt-1 block text-sm text-slate-500"><?= e((string) ($item['body'] ?? '')) ?></span>
+                                <span class="mt-2 block text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400"><?= e((string) ($item['time'] ?? 'Agora')) ?></span>
+                            </span>
+                        </a>
+                    <?php endforeach; ?>
+                    <?php if (((array) ($appTopbarMessages['items'] ?? [])) === []): ?>
+                        <div class="rounded-2xl bg-[#f7f4f7] px-4 py-5 text-sm text-slate-500">Nenhuma mensagem nova por aqui.</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </details>
+
+        <details class="relative" data-feed-menu data-feed-kind="notifications" data-feed-storage-key="<?= e('sexylua-feed:' . $appTopbarRole . ':' . (int) ($appTopbarUser['id'] ?? 0) . ':notifications') ?>" data-feed-latest-marker="<?= e((string) ((int) ($appTopbarNotifications['latest_marker'] ?? 0))) ?>">
+            <summary class="relative flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-white/20 bg-white/10 text-white marker:content-none">
+                <span class="material-symbols-outlined text-[20px]">notifications</span>
+                <span class="absolute -right-1 -top-1 hidden min-w-[1.25rem] rounded-full bg-[#1b1c1d] px-1.5 py-0.5 text-center text-[10px] font-extrabold leading-none text-white" data-feed-badge></span>
+            </summary>
+            <div class="absolute right-0 top-[calc(100%+0.75rem)] z-[90] w-[20rem] max-w-[calc(100vw-2rem)] rounded-3xl border border-white/10 bg-white p-4 text-slate-700 shadow-[0px_24px_48px_rgba(27,28,29,0.18)]">
+                <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-1 pb-3">
+                    <div>
+                        <p class="text-sm font-extrabold text-slate-900">Notificacoes</p>
+                        <p class="mt-1 text-xs text-slate-500">Alertas relevantes para sua area.</p>
+                    </div>
+                    <a class="rounded-full bg-[#f7f4f7] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#D81B60]" href="<?= e($appTopbarNotificationsHref) ?>">Abrir</a>
+                </div>
+                <div class="mt-3 max-h-[22rem] space-y-2 overflow-y-auto pr-1" data-feed-items>
+                    <?php foreach ((array) ($appTopbarNotifications['items'] ?? []) as $item): ?>
+                        <a class="flex items-start gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-slate-50" data-feed-item-marker="<?= e((string) ((int) ($item['marker'] ?? 0))) ?>" href="<?= e((string) ($item['href'] ?? $appTopbarNotificationsHref)) ?>">
+                            <span class="material-symbols-outlined mt-0.5 text-lg text-[#D81B60]"><?= e((string) ($item['icon'] ?? 'notifications')) ?></span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate text-sm font-bold text-slate-900"><?= e((string) ($item['title'] ?? 'Atualizacao')) ?></span>
+                                <span class="mt-1 block text-sm text-slate-500"><?= e((string) ($item['body'] ?? '')) ?></span>
+                                <span class="mt-2 block text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400"><?= e((string) ($item['time'] ?? 'Agora')) ?></span>
+                            </span>
+                        </a>
+                    <?php endforeach; ?>
+                    <?php if (((array) ($appTopbarNotifications['items'] ?? [])) === []): ?>
+                        <div class="rounded-2xl bg-[#f7f4f7] px-4 py-5 text-sm text-slate-500">Nenhuma notificacao nova por aqui.</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </details>
+
+        <details class="relative" data-mobile-nav>
+            <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-white/20 bg-white/10 text-white marker:content-none">
+                <span class="material-symbols-outlined text-[22px]" data-mobile-nav-icon>menu</span>
+            </summary>
+            <div class="absolute right-0 top-[calc(100%+0.75rem)] z-[90] max-h-[calc(100vh-6rem)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-3xl bg-white p-4 text-slate-700 shadow-[0px_24px_48px_rgba(27,28,29,0.18)]">
             <div class="space-y-2">
-                <?php foreach ($appTopbarNavItems as $item): ?>
+                <?php foreach (array_filter($appTopbarNavItems, static fn (array $item): bool => (string) ($item['href'] ?? '') !== '/') as $item): ?>
                     <a class="block rounded-2xl px-4 py-3 text-sm font-bold <?= current_path() === (string) ($item['href'] ?? '/') ? 'bg-[#f7f4f7] text-[#D81B60]' : 'text-slate-700 hover:bg-[#f7f4f7]' ?>" href="<?= e((string) ($item['href'] ?? '/')) ?>">
                         <?= e((string) ($item['label'] ?? 'Link')) ?>
                     </a>
                 <?php endforeach; ?>
-
-                <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="<?= e($appTopbarMessagesHref) ?>">Mensagens</a>
-                <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="<?= e($appTopbarNotificationsHref) ?>">Notificacoes</a>
 
                 <?php if ($appTopbarAction !== null): ?>
                     <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="<?= e((string) ($appTopbarAction['href'] ?? '#')) ?>">
@@ -199,8 +259,9 @@ if (! defined('SEXYLUA_APP_TOPBAR_INCLUDED')) {
                     </button>
                 </form>
             </div>
-        </div>
-    </details>
+            </div>
+        </details>
+    </div>
 </header>
 <?php if (! defined('SEXYLUA_APP_TOPBAR_SCRIPT_INCLUDED')): ?>
     <?php define('SEXYLUA_APP_TOPBAR_SCRIPT_INCLUDED', true); ?>

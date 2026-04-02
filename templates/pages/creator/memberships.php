@@ -195,9 +195,9 @@ include base_path('templates/partials/creator_topbar.php');
                         <option value="cancelled" <?= (string) ($filters['subscriber_status'] ?? '') === 'cancelled' ? 'selected' : '' ?>>Cancelado</option>
                     </select>
                 </label>
-                <div class="flex flex-wrap items-end gap-3">
-                    <button class="min-w-[120px] rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
-                    <a class="min-w-[110px] rounded-full bg-white px-5 py-4 text-center text-sm font-bold text-[#5a4044]" href="/creator/memberships">Reset</a>
+                <div class="grid w-full grid-cols-2 gap-3 md:flex md:w-auto md:flex-wrap md:items-end">
+                    <button class="w-full rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
+                    <a class="w-full rounded-full bg-white px-6 py-4 text-center text-sm font-bold text-[#5a4044]" href="/creator/memberships">Reset</a>
                 </div>
             </form>
 
@@ -297,13 +297,13 @@ include base_path('templates/partials/creator_topbar.php');
 
 <div class="fixed inset-0 z-[90] hidden items-start justify-center overflow-y-auto bg-slate-950/40 px-4 py-8 sm:py-12 backdrop-blur-sm" data-plan-modal>
     <div class="my-auto w-full max-w-3xl rounded-3xl bg-white p-8 shadow-[0px_30px_80px_rgba(27,28,29,0.22)] max-h-[calc(100vh-4rem)] overflow-y-auto sm:max-h-[calc(100vh-6rem)]">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div class="relative pr-14">
             <div>
                 <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#ab1155]" data-plan-modal-kicker>Novo plano</p>
                 <h3 class="mt-2 text-3xl font-extrabold" data-plan-modal-title>Montar novo plano</h3>
                 <p class="mt-2 text-sm text-slate-500">Preencha as informa&ccedil;&otilde;es do plano e salve sem sair desta tela.</p>
             </div>
-            <button class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#f5f3f5] text-slate-500" data-plan-close type="button">
+            <button class="absolute right-0 top-0 inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#f5f3f5] text-slate-500" data-plan-close type="button">
                 <span class="material-symbols-outlined">close</span>
             </button>
         </div>

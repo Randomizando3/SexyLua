@@ -100,59 +100,7 @@ $accessMessage = $canWatch
     </style>
 </head>
 <body class="antialiased">
-<nav class="fixed top-0 z-50 flex h-20 w-full items-center justify-between bg-[#D81B60] px-4 text-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)] sm:px-8">
-    <div class="flex items-center gap-6 md:gap-12">
-        <a class="block" href="/"><?= brand_logo_white('h-8 w-auto') ?></a>
-        <div class="hidden items-center gap-8 md:flex">
-            <a class="border-b-2 border-white pb-1 text-sm font-bold uppercase tracking-wide" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">Live Cam</a>
-            <a class="text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="/explore">Explorar</a>
-            <a class="text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="<?= e($subscriptionsUrl) ?>">Assinaturas</a>
-            <a class="text-sm font-bold uppercase tracking-wide text-white/80 transition-colors hover:text-white" href="<?= e($messagesUrl) ?>">Mensagens</a>
-        </div>
-    </div>
-    <div class="flex items-center gap-3">
-        <details class="relative md:hidden">
-            <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-white/20 bg-white/10 text-white marker:content-none">
-                <span class="material-symbols-outlined text-[22px]">menu</span>
-            </summary>
-            <div class="absolute right-0 top-[calc(100%+0.75rem)] z-[80] w-72 max-w-[calc(100vw-2rem)] rounded-3xl bg-white p-4 text-slate-700 shadow-[0px_24px_48px_rgba(27,28,29,0.18)]">
-                <div class="space-y-2">
-                    <a class="block rounded-2xl bg-[#f7f4f7] px-4 py-3 text-sm font-bold text-[#ab1155]" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">Live Cam</a>
-                    <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="/explore">Explorar</a>
-                    <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="<?= e($subscriptionsUrl) ?>">Assinaturas</a>
-                    <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="<?= e($messagesUrl) ?>">Mensagens</a>
-                    <?php foreach ($mobileShortcutItems as $item): ?>
-                        <a class="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="<?= e((string) ($item['href'] ?? '#')) ?>">
-                            <span class="material-symbols-outlined text-[20px]"><?= e((string) ($item['icon'] ?? 'chevron_right')) ?></span>
-                            <span><?= e((string) ($item['label'] ?? 'Atalho')) ?></span>
-                        </a>
-                    <?php endforeach; ?>
-                    <?php if ($authUser === null): ?>
-                        <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="/login">Entrar</a>
-                        <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="/register">Registro</a>
-                    <?php else: ?>
-                        <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="<?= e(($authUser['role'] ?? '') === 'creator' ? '/creator' : (($authUser['role'] ?? '') === 'admin' ? '/admin' : '/subscriber')) ?>">Painel</a>
-                        <form action="/logout" method="post">
-                            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                            <button class="block w-full rounded-2xl px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" data-prototype-skip="1" type="submit">Sair</button>
-                        </form>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </details>
-
-        <?php if ($authUser === null): ?>
-            <a class="hidden rounded-full px-6 py-2 text-sm font-bold uppercase tracking-widest text-white transition-transform hover:scale-105 md:inline-flex" href="/login">Entrar</a>
-            <a class="hidden rounded-full bg-white px-6 py-2 text-sm font-bold uppercase tracking-widest text-[#ab1155] shadow-lg transition-transform hover:scale-105 md:inline-flex" href="/register">Registro</a>
-        <?php else: ?>
-            <a class="hidden rounded-full border border-white/20 px-6 py-2 text-sm font-bold uppercase tracking-widest md:inline-flex" href="<?= e(($authUser['role'] ?? '') === 'creator' ? '/creator' : (($authUser['role'] ?? '') === 'admin' ? '/admin' : '/subscriber')) ?>">Painel</a>
-            <form action="/logout" class="hidden md:block" method="post">
-                <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                <button class="rounded-full bg-white/10 px-6 py-2 text-sm font-bold uppercase tracking-widest text-white" data-prototype-skip="1" type="submit">Sair</button>
-            </form>
-        <?php endif; ?>
-    </div>
-</nav>
+<?php require BASE_PATH . '/templates/partials/public_topbar.php'; ?>
 
 <main class="mx-auto max-w-7xl px-4 pb-20 pt-24 md:px-8">
     <div class="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">

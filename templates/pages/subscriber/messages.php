@@ -9,6 +9,7 @@ $conversations = $data['filtered_conversations'] ?? $data['conversations'] ?? []
 $selectedConversation = $data['selected_conversation'] ?? null;
 $messages = $data['messages'] ?? [];
 $filters = $data['filters'] ?? [];
+$mobileConversationListUrl = path_with_query('/subscriber/messages', ['q' => $filters['q'] ?? '']);
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -107,9 +108,13 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
             </div>
         </section>
 
-        <section class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
+        <section class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm lg:p-8" data-mobile-chat-panel data-mobile-chat-state="<?= ($selectedAnnouncement || $selectedConversation) ? 'selected' : 'empty' ?>">
             <?php if ($selectedAnnouncement): ?>
                 <div class="space-y-6">
+                    <a class="inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-3 text-sm font-bold text-primary lg:hidden" href="<?= e($mobileConversationListUrl) ?>">
+                        <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                        Voltar
+                    </a>
                     <div class="flex items-center gap-4 border-b border-slate-200 pb-6">
                         <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
                             <span class="material-symbols-outlined">campaign</span>
@@ -131,6 +136,10 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                 </div>
             <?php elseif ($selectedConversation): ?>
                 <div class="flex min-h-[72vh] flex-col">
+                    <a class="mb-4 inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-3 text-sm font-bold text-primary lg:hidden" href="<?= e($mobileConversationListUrl) ?>">
+                        <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                        Voltar
+                    </a>
                     <div class="flex items-center gap-4 border-b border-slate-200 pb-5">
                         <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($selectedConversation['creator']['name'] ?? 'Criador'))) ?></div>
                         <div class="min-w-0 flex-1">
@@ -139,8 +148,8 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         </div>
                     </div>
 
-                    <div class="mt-5 flex-1 overflow-hidden rounded-3xl bg-surface-container-low p-4">
-                        <div class="h-[min(62vh,620px)] overflow-y-auto pr-2" data-chat-thread>
+                    <div class="mt-5 flex-1">
+                        <div class="h-[min(68vh,700px)] overflow-y-auto pr-2" data-chat-thread>
                             <div class="flex min-h-full flex-col justify-end gap-3">
                                 <?php foreach ($messages as $message): ?>
                                     <?php $isMine = (int) ($message['sender_id'] ?? 0) === (int) ($subscriber['id'] ?? 0); ?>
@@ -196,12 +205,14 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         </div>
                     </div>
 
-                    <form action="/subscriber/messages/send" class="mt-4 shrink-0 rounded-3xl bg-surface-container-low p-4 shadow-sm" enctype="multipart/form-data" method="post">
+                    <form action="/subscriber/messages/send" class="mt-4 shrink-0 border-t border-slate-200 pt-4" enctype="multipart/form-data" method="post">
                         <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                         <input name="conversation_id" type="hidden" value="<?= e((string) ($selectedConversation['id'] ?? 0)) ?>">
                         <div class="flex items-end gap-3">
-                            <textarea class="h-16 flex-1 resize-none rounded-2xl border-none bg-white px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="body" placeholder="Responder ao criador..."></textarea>
-                            <button class="rounded-full bg-primary px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Enviar</button>
+                            <textarea class="h-12 flex-1 resize-none rounded-2xl border-none bg-surface-container-low px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="body" placeholder="Responder ao criador..."></textarea>
+                            <button class="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white" data-prototype-skip="1" type="submit">
+                                <span class="material-symbols-outlined text-[20px]">send</span>
+                            </button>
                         </div>
                         <div class="mt-3">
                             <label class="block">
@@ -222,6 +233,24 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
     document.querySelectorAll('[data-chat-thread]').forEach((element) => {
         element.scrollTop = element.scrollHeight;
     });
+
+    (() => {
+        const panel = document.querySelector('[data-mobile-chat-panel]');
+        if (!panel || !window.matchMedia('(max-width: 1023px)').matches) {
+            return;
+        }
+
+        if (panel.getAttribute('data-mobile-chat-state') !== 'selected') {
+            panel.classList.add('hidden');
+            return;
+        }
+
+        panel.classList.add('fixed', 'inset-0', 'z-[90]', 'm-0', 'min-h-screen', 'overflow-y-auto', 'rounded-none', 'bg-[#fbf9fb]', 'px-4', 'pb-6', 'pt-24');
+        document.body.classList.add('overflow-hidden');
+        window.addEventListener('beforeunload', () => {
+            document.body.classList.remove('overflow-hidden');
+        }, { once: true });
+    })();
 
     document.querySelectorAll('input[type="file"][data-file-label-target]').forEach((input) => {
         input.addEventListener('change', () => {

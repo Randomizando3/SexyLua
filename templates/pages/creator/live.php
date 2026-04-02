@@ -39,6 +39,11 @@ $selectedAccessMode = (string) ($selected['access_mode'] ?? 'public');
 $selectedAccessLabel = $selectedAccessMode === 'subscriber' ? 'Assinantes' : 'Público';
 $selectedMaxDurationMinutes = max(5, (int) ($selected['max_live_duration_minutes'] ?? 30));
 $categories = ['Chatting & Chill', 'Dancing', 'ASMR Lunar', 'Cosplay', 'Editorial', 'Backstage'];
+$statusTabIcons = [
+    'scheduled' => 'event',
+    'ended' => 'task_alt',
+    'expired' => 'alarm',
+];
 $statusTabs = [
     'scheduled' => ['label' => 'Agendadas', 'count' => (int) ($summary['scheduled'] ?? 0)],
     'ended' => ['label' => 'Concluídas', 'count' => (int) ($summary['ended'] ?? 0)],
@@ -107,8 +112,9 @@ include base_path('templates/partials/creator_topbar.php');
             <div class="flex flex-wrap gap-3">
                 <?php foreach ($statusTabs as $key => $tab): ?>
                     <?php $tabUrl = path_with_query('/creator/live', ['status' => $key, 'q' => $filters['q'] ?? '']); ?>
-                    <a class="<?= ($filters['status'] ?? 'scheduled') === $key ? 'signature-glow text-white' : 'bg-[#f7f4f7] text-slate-600' ?> rounded-full px-5 py-3 text-sm font-bold" href="<?= e($tabUrl) ?>">
-                        <?= e($tab['label']) ?>
+                    <a aria-label="<?= e((string) $tab['label']) ?>" class="<?= ($filters['status'] ?? 'scheduled') === $key ? 'signature-glow text-white' : 'bg-[#f7f4f7] text-slate-600' ?> inline-flex h-12 items-center gap-2 rounded-full px-4 text-sm font-bold" href="<?= e($tabUrl) ?>" title="<?= e((string) $tab['label']) ?>">
+                        <span class="material-symbols-outlined text-[20px]"><?= e((string) ($statusTabIcons[$key] ?? 'event')) ?></span>
+                        <span class="sr-only"><?= e((string) $tab['label']) ?></span>
                         <span class="ml-2 rounded-full <?= ($filters['status'] ?? 'scheduled') === $key ? 'bg-white/20 text-white' : 'bg-white text-slate-500' ?> px-2.5 py-1 text-[11px]"><?= e((string) $tab['count']) ?></span>
                     </a>
                 <?php endforeach; ?>
@@ -168,7 +174,7 @@ include base_path('templates/partials/creator_topbar.php');
         </div>
     </section>
 
-    <section class="mt-8">
+    <section class="mt-8" data-live-details>
         <?php if ($selected === null): ?>
             <div class="rounded-3xl bg-white p-10 text-center shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
                 <h2 class="headline text-3xl font-extrabold">Escolha uma live para ver os detalhes</h2>
@@ -451,6 +457,13 @@ include base_path('templates/partials/creator_topbar.php');
     (() => {
         const form = document.querySelector('[data-live-form]');
         if (!form) {
+            const detailsSection = document.querySelector('[data-live-details]');
+            const params = new URLSearchParams(window.location.search);
+            if (detailsSection && window.matchMedia('(max-width: 1023px)').matches && params.has('live')) {
+                window.setTimeout(() => {
+                    detailsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 120);
+            }
             return;
         }
 
@@ -476,6 +489,14 @@ include base_path('templates/partials/creator_topbar.php');
         });
 
         updateScheduleVisibility();
+
+        const detailsSection = document.querySelector('[data-live-details]');
+        const params = new URLSearchParams(window.location.search);
+        if (detailsSection && window.matchMedia('(max-width: 1023px)').matches && params.has('live')) {
+            window.setTimeout(() => {
+                detailsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 120);
+        }
     })();
 </script>
 </body>
