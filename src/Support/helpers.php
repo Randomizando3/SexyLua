@@ -7,14 +7,49 @@ function base_path(string $path = ''): string
     return BASE_PATH . ($path !== '' ? '/' . ltrim($path, '/') : '');
 }
 
+function public_root_path(string $path = ''): string
+{
+    static $root = null;
+
+    if ($root === null) {
+        $candidates = [
+            dirname(BASE_PATH, 2) . '/public_html',
+            base_path('public'),
+            dirname(BASE_PATH) . '/public',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_dir($candidate)) {
+                $root = $candidate;
+                break;
+            }
+        }
+
+        $root ??= base_path('public');
+    }
+
+    return $root . ($path !== '' ? '/' . ltrim($path, '/') : '');
+}
+
 function asset(string $path): string
 {
-    return '/assets/' . ltrim($path, '/');
+    $relative = 'assets/' . ltrim($path, '/');
+    $url = '/' . $relative;
+    $absolute = public_root_path($relative);
+
+    if (is_file($absolute)) {
+        $version = @filemtime($absolute);
+        if ($version !== false) {
+            return $url . '?v=' . (string) $version;
+        }
+    }
+
+    return $url;
 }
 
 function public_path(string $path = ''): string
 {
-    return base_path('public' . ($path !== '' ? '/' . ltrim($path, '/') : ''));
+    return public_root_path($path);
 }
 
 function private_path(string $path = ''): string
