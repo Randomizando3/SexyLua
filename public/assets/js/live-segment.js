@@ -37,6 +37,7 @@
         viewerCounts: Array.from(document.querySelectorAll('[data-live-viewer-count]')),
         startButton: document.querySelector('[data-live-start]'),
         stopButton: document.querySelector('[data-live-stop]'),
+        previewEmbed: document.querySelector('[data-live-local-embed]'),
         previewVideo: document.querySelector('[data-live-local-video]'),
         remoteVideo: document.querySelector('[data-live-remote-video]'),
         playbackButton: document.querySelector('[data-live-playback]'),
@@ -69,6 +70,7 @@
         lastPriorityAlertId: 0,
         priorityAlertTimer: null,
         audioContext: null,
+        previewEmbedUrl: '',
     }
 
     const video = () => mode === 'creator' ? el.previewVideo : el.remoteVideo
@@ -178,6 +180,14 @@
             try { state.hls.destroy() } catch {}
             state.hls = null
         }
+        if (el.previewEmbed) {
+            try { el.previewEmbed.src = 'about:blank' } catch {}
+            el.previewEmbed.classList.add('hidden')
+            state.previewEmbedUrl = ''
+        }
+        if (el.previewVideo && mode === 'creator') {
+            el.previewVideo.classList.remove('hidden')
+        }
         const node = video()
         if (!node) {
             state.currentUrl = ''
@@ -193,6 +203,25 @@
         state.currentUrl = ''
         state.currentType = ''
         hidePlaybackButton()
+    }
+
+    const previewEmbedUrl = (playlistUrl) => {
+        const base = String(playlistUrl || '').replace(/\/index\.m3u8(?:\?.*)?$/i, '/')
+        if (!base) return ''
+        return `${base}${base.includes('?') ? '&' : '?'}controls=true&muted=true&autoplay=true&playsInline=true`
+    }
+
+    const attachCreatorPreview = (playlistUrl) => {
+        if (!el.previewEmbed) return false
+        const embedUrl = previewEmbedUrl(playlistUrl)
+        if (!embedUrl) return false
+        if (state.previewEmbedUrl !== embedUrl) {
+            try { el.previewEmbed.src = embedUrl } catch {}
+            state.previewEmbedUrl = embedUrl
+        }
+        el.previewEmbed.classList.remove('hidden')
+        if (el.previewVideo) el.previewVideo.classList.add('hidden')
+        return true
     }
 
     const scheduleMediaRetry = (message = '') => {
@@ -392,7 +421,9 @@
         if (mode === 'creator') {
             if (streamReady && nextHlsUrl) {
                 hideWaiting()
-                attachMedia(nextHlsUrl, 'hls', true).catch(() => showError('Nao foi possivel abrir o preview do MediaMTX.'))
+                if (!attachCreatorPreview(nextHlsUrl)) {
+                    attachMedia(nextHlsUrl, 'hls', true).catch(() => showError('Nao foi possivel abrir o preview do MediaMTX.'))
+                }
                 if (status !== 'live') {
                     setText(el.streamState, 'Sinal detectado')
                 }

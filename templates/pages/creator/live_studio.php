@@ -132,6 +132,14 @@ include base_path('templates/partials/creator_topbar.php');
                 <section class="overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
                     <div class="hidden border-b border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-800" data-live-error></div>
                     <div class="relative h-[340px] bg-slate-950 md:h-[420px] xl:h-[480px]">
+                        <iframe
+                            allow="autoplay; fullscreen; picture-in-picture"
+                            class="absolute inset-0 hidden h-full w-full border-0 bg-slate-950"
+                            data-live-local-embed
+                            loading="eager"
+                            referrerpolicy="same-origin"
+                            title="Preview da live"
+                        ></iframe>
                         <video class="h-full w-full object-cover" controls data-live-local-video muted playsinline></video>
                         <?php if ($selectedCover !== ''): ?><img alt="Capa da live" class="absolute inset-0 h-full w-full object-cover opacity-20" src="<?= e($selectedCover) ?>"><?php endif; ?>
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/35"></div>
