@@ -62,14 +62,95 @@ function e(?string $value): string
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
+function site_settings(): array
+{
+    static $cache = null;
+    static $loading = false;
+
+    if (is_array($cache)) {
+        return $cache;
+    }
+
+    if ($loading) {
+        return [];
+    }
+
+    $loading = true;
+
+    try {
+        $app = $GLOBALS['app'] ?? null;
+        if (is_object($app) && isset($app->repository) && method_exists($app->repository, 'settings')) {
+            $cache = (array) $app->repository->settings();
+        } else {
+            $cache = [];
+        }
+    } catch (Throwable) {
+        $cache = [];
+    }
+
+    $loading = false;
+
+    return $cache;
+}
+
+function site_setting(string $key, mixed $default = ''): mixed
+{
+    $settings = site_settings();
+
+    return array_key_exists($key, $settings) ? $settings[$key] : $default;
+}
+
+function site_brand_name(): string
+{
+    $name = trim((string) site_setting('seo_site_title', 'SexyLua'));
+
+    return $name !== '' ? $name : 'SexyLua';
+}
+
+function site_meta_title(?string $pageTitle = null): string
+{
+    $baseTitle = trim((string) site_setting('seo_meta_title', site_brand_name()));
+    $pageTitle = trim((string) $pageTitle);
+
+    if ($pageTitle === '' || mb_strtolower($pageTitle) === mb_strtolower($baseTitle)) {
+        return $baseTitle;
+    }
+
+    return $pageTitle . ' | ' . $baseTitle;
+}
+
+function site_meta_description(string $fallback = ''): string
+{
+    $description = trim((string) site_setting('seo_meta_description', ''));
+
+    if ($description !== '') {
+        return $description;
+    }
+
+    return $fallback !== '' ? $fallback : 'Plataforma de assinaturas, chats privados, lives e monetizacao com LuaCoins.';
+}
+
+function site_favicon_url(): string
+{
+    $customLogo = media_url((string) site_setting('seo_logo_color_url', ''));
+
+    return $customLogo !== '' ? $customLogo : asset('img/luacoin.png');
+}
+
 function brand_logo_white(string $classes = 'h-8 w-auto', string $alt = 'SexyLua'): string
 {
-    return '<img alt="' . e($alt) . '" class="' . e($classes) . '" decoding="async" loading="eager" src="' . e(asset('img/sexylualogobranco.png')) . '">';
+    $customLogo = media_url((string) site_setting('seo_logo_white_url', ''));
+    $source = $customLogo !== '' ? $customLogo : asset('img/sexylualogobranco.png');
+
+    return '<img alt="' . e($alt) . '" class="' . e($classes) . '" decoding="async" loading="eager" src="' . e($source) . '">';
 }
 
 function brand_logo_magenta(string $classes = 'h-8 w-auto', string $alt = 'SexyLua'): string
 {
-    return '<img alt="' . e($alt) . '" class="' . e($classes) . '" decoding="async" loading="eager" src="' . e(asset('img/sexylualogomagenta.png')) . '">';
+    $customLogo = media_url((string) site_setting('seo_logo_color_url', ''));
+    $source = $customLogo !== '' ? $customLogo : asset('img/sexylualogomagenta.png');
+
+    return '<img alt="' . e($alt) . '" class="' . e($classes) . '" decoding="async" loading="eager" src="' . e($source) . '">';
 }
 
 function redirect_to(string $path): never

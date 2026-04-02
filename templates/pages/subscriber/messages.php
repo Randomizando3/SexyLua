@@ -108,7 +108,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
             </div>
         </section>
 
-        <section class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm lg:p-8" data-mobile-chat-panel data-mobile-chat-state="<?= ($selectedAnnouncement || $selectedConversation) ? 'selected' : 'empty' ?>">
+        <section class="overflow-hidden rounded-3xl bg-surface-container-lowest p-0 shadow-sm lg:p-8" data-mobile-chat-panel data-mobile-chat-state="<?= ($selectedAnnouncement || $selectedConversation) ? 'selected' : 'empty' ?>">
             <?php if ($selectedAnnouncement): ?>
                 <div class="space-y-6">
                     <a class="inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-3 text-sm font-bold text-primary lg:hidden" href="<?= e($mobileConversationListUrl) ?>">
@@ -135,12 +135,12 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                     </div>
                 </div>
             <?php elseif ($selectedConversation): ?>
-                <div class="flex min-h-[72vh] flex-col lg:h-[78vh]">
-                    <a class="mb-4 inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-3 text-sm font-bold text-primary lg:hidden" href="<?= e($mobileConversationListUrl) ?>">
+                <div class="flex h-full min-h-0 flex-col lg:h-[78vh]">
+                    <a class="mx-4 mt-3 inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-3 text-sm font-bold text-primary lg:hidden" href="<?= e($mobileConversationListUrl) ?>">
                         <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                        Voltar para conversas
+                        Voltar
                     </a>
-                    <div class="flex items-center gap-4 border-b border-slate-200 pb-5">
+                    <div class="mx-4 flex items-center gap-4 border-b border-slate-200 pb-4 lg:mx-0">
                         <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($selectedConversation['creator']['name'] ?? 'Criador'))) ?></div>
                         <div class="min-w-0 flex-1">
                             <h3 class="truncate text-2xl font-extrabold"><?= e((string) ($selectedConversation['creator']['name'] ?? 'Criador')) ?></h3>
@@ -148,8 +148,8 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         </div>
                     </div>
 
-                    <div class="mt-5 flex-1 overflow-hidden">
-                        <div class="h-full overflow-y-auto pr-2" data-chat-thread>
+                    <div class="mx-4 mt-3 min-h-0 flex-1 overflow-y-auto pr-1 lg:mx-0 lg:mt-4" data-chat-thread>
+                        <div class="h-full">
                             <div class="flex min-h-full flex-col justify-end gap-3">
                                 <?php foreach ($messages as $message): ?>
                                     <?php $isMine = (int) ($message['sender_id'] ?? 0) === (int) ($subscriber['id'] ?? 0); ?>
@@ -205,7 +205,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         </div>
                     </div>
 
-                    <form action="/subscriber/messages/send" class="mt-4 shrink-0 border-t border-slate-200 pt-4" enctype="multipart/form-data" method="post">
+                    <form action="/subscriber/messages/send" class="mx-4 mt-3 shrink-0 border-t border-slate-200 pt-3 lg:mx-0" enctype="multipart/form-data" method="post">
                         <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                         <input name="conversation_id" type="hidden" value="<?= e((string) ($selectedConversation['id'] ?? 0)) ?>">
                         <details class="group relative">
@@ -220,7 +220,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                                 </label>
                             </div>
                         </details>
-                        <div class="mt-3 flex items-end gap-3">
+                        <div class="mt-3 flex items-end gap-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] lg:pb-0">
                             <textarea class="h-12 flex-1 resize-none rounded-2xl border-none bg-surface-container-low px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="body" placeholder="Responder ao criador..."></textarea>
                             <button class="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white" data-prototype-skip="1" type="submit">
                                 <span class="material-symbols-outlined text-[20px]">send</span>
@@ -229,7 +229,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                     </form>
                 </div>
             <?php else: ?>
-                <div class="flex min-h-[420px] items-center justify-center rounded-3xl bg-surface-container-low p-8 text-center text-on-surface-variant">Selecione uma conversa para visualizar o historico e responder.</div>
+                <div class="flex min-h-[420px] items-center justify-center rounded-none bg-surface-container-low p-8 text-center text-on-surface-variant lg:rounded-3xl">Selecione uma conversa para visualizar o historico e responder.</div>
             <?php endif; ?>
         </section>
     </div>
@@ -250,7 +250,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
             return;
         }
 
-        panel.classList.add('fixed', 'inset-0', 'z-[90]', 'm-0', 'h-[calc(100vh-5rem)]', 'overflow-hidden', 'rounded-none', 'bg-[#fbf9fb]', 'px-4', 'pb-6', 'pt-24');
+        panel.classList.add('fixed', 'left-0', 'right-0', 'top-16', 'bottom-0', 'z-[90]', 'm-0', 'flex', 'overflow-hidden', 'rounded-none', 'bg-[#fbf9fb]', 'px-0', 'pb-0', 'pt-0');
         document.body.classList.add('overflow-hidden');
         window.addEventListener('beforeunload', () => {
             document.body.classList.remove('overflow-hidden');

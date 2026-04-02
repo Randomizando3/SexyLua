@@ -43,8 +43,8 @@ if (($authUser['role'] ?? '') === 'subscriber') {
     $messagesUrl = '/creator/messages';
     $subscriptionsUrl = '/creator/memberships';
     $mobileShortcutItems = [
-        ['href' => '/creator', 'label' => 'Metricas Lunares', 'icon' => 'insights'],
-        ['href' => '/profile?id=' . (int) ($authUser['id'] ?? 0), 'label' => 'Pagina Publica', 'icon' => 'public'],
+        ['href' => '/creator', 'label' => 'Metricas', 'icon' => 'insights'],
+        ['href' => '/profile?id=' . (int) ($authUser['id'] ?? 0), 'label' => 'Minha Pagina', 'icon' => 'public'],
         ['href' => '/creator/content', 'label' => 'Meu Conteudo', 'icon' => 'movie'],
         ['href' => '/creator/messages', 'label' => 'Mensagens', 'icon' => 'chat'],
         ['href' => '/creator/live', 'label' => 'Configurar Live', 'icon' => 'settings_input_antenna'],
@@ -121,6 +121,7 @@ $accessMessage = $canWatch
                 data-ice-servers="<?= e($iceServers) ?>"
                 data-ice-transport-policy="<?= e($iceTransportPolicy) ?>"
                 data-segment-duration-ms="<?= e((string) ($segmentDurationSeconds * 1000)) ?>"
+                data-live-priority-alert-duration-ms="<?= e((string) ((int) site_setting('live_priority_alert_duration_ms', 8000))) ?>"
             >
                 <div class="relative aspect-video bg-slate-950">
                     <video class="absolute inset-0 z-[1] h-full w-full bg-slate-950 object-cover transition-opacity duration-500 opacity-100" controls data-live-remote-video playsinline></video>
@@ -350,7 +351,7 @@ $accessMessage = $canWatch
                     ?>
                     <a class="overflow-hidden rounded-3xl bg-[#f5f3f5] transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($item['id'] ?? 0)])) ?>">
                         <div class="aspect-[4/3] bg-slate-900">
-                            <?php if ($itemCover !== ''): ?><img alt="<?= e((string) ($item['title'] ?? 'Live')) ?>" class="h-full w-full object-cover" src="<?= e($itemCover) ?>"><?php else: ?><div class="signature-glow flex h-full w-full items-center justify-center text-white"><span class="headline text-xl font-extrabold">LIVE</span></div><?php endif; ?>
+                            <?php if ($itemCover !== ''): ?><img alt="<?= e((string) ($item['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover blur-[2px]" src="<?= e($itemCover) ?>"><?php else: ?><div class="signature-glow flex h-full w-full items-center justify-center text-white"><span class="headline text-xl font-extrabold">LIVE</span></div><?php endif; ?>
                         </div>
                         <div class="space-y-2 p-4">
                             <p class="headline text-lg font-extrabold"><?= e((string) ($item['title'] ?? 'Live')) ?></p>

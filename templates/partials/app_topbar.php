@@ -33,11 +33,12 @@ $appTopbarSidebarItems = is_array($appTopbarSidebarItems ?? null) ? $appTopbarSi
         ['href' => '/admin/finance', 'label' => 'Financeiro', 'icon' => 'monitoring'],
         ['href' => '/admin/operations', 'label' => 'Operacoes', 'icon' => 'dataset'],
         ['href' => '/admin/messages', 'label' => 'Mensagens', 'icon' => 'chat'],
+        ['href' => '/admin/settings#seo', 'label' => 'SEO', 'icon' => 'travel_explore'],
         ['href' => '/admin/settings#perfil', 'label' => 'Perfil', 'icon' => 'settings'],
     ],
     'creator' => [
-        ['href' => '/creator', 'label' => 'Metricas Lunares', 'icon' => 'insights'],
-        ['href' => '/profile?id=' . (int) ($appTopbarUser['id'] ?? 0), 'label' => 'Pagina Publica', 'icon' => 'public'],
+        ['href' => '/creator', 'label' => 'Metricas', 'icon' => 'insights'],
+        ['href' => '/profile?id=' . (int) ($appTopbarUser['id'] ?? 0), 'label' => 'Minha Pagina', 'icon' => 'public'],
         ['href' => '/creator/content', 'label' => 'Meu Conteudo', 'icon' => 'movie'],
         ['href' => '/creator/messages', 'label' => 'Mensagens', 'icon' => 'chat'],
         ['href' => '/creator/live', 'label' => 'Configurar Live', 'icon' => 'settings_input_antenna'],
@@ -72,6 +73,13 @@ if ($appTopbarRole === 'subscriber') {
 if (! defined('SEXYLUA_APP_TOPBAR_INCLUDED')) {
     define('SEXYLUA_APP_TOPBAR_INCLUDED', true);
 }
+$appTopbarVerificationStatus = trim((string) ($appTopbarUser['verification_status'] ?? ''));
+$appTopbarShowVerificationNotice = in_array($appTopbarRole, ['creator', 'subscriber'], true)
+    && $appTopbarVerificationStatus !== ''
+    && $appTopbarVerificationStatus !== 'approved';
+$appTopbarVerificationMessage = $appTopbarVerificationStatus === 'rejected'
+    ? 'Usuario nao verificado. Reenvie sua documentacao no perfil. A aprovacao pode durar ate 48h.'
+    : 'Usuario nao verificado. A aprovacao pode durar ate 48h.';
 ?>
 <header class="fixed top-0 z-[60] flex h-16 w-full items-center justify-between bg-[#D81B60] px-4 font-['Plus_Jakarta_Sans'] font-bold tracking-wide text-white shadow-lg shadow-[#D81B60]/20 sm:px-6 lg:pr-8">
     <div class="flex min-w-0 items-center gap-4 lg:gap-8">
@@ -238,7 +246,7 @@ if (! defined('SEXYLUA_APP_TOPBAR_INCLUDED')) {
             <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-white/20 bg-white/10 text-white marker:content-none">
                 <span class="material-symbols-outlined text-[22px]" data-mobile-nav-icon>menu</span>
             </summary>
-            <div class="absolute right-0 top-[calc(100%+0.75rem)] z-[90] max-h-[calc(100vh-6rem)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-3xl bg-white p-4 text-slate-700 shadow-[0px_24px_48px_rgba(27,28,29,0.18)]">
+            <div class="absolute right-0 top-[calc(100%+0.75rem)] z-[90] max-h-[calc(100dvh-6rem)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-3xl bg-white p-4 pb-6 text-slate-700 shadow-[0px_24px_48px_rgba(27,28,29,0.18)]">
             <div class="space-y-2">
                 <?php foreach (array_filter($appTopbarNavItems, static fn (array $item): bool => (string) ($item['href'] ?? '') !== '/') as $item): ?>
                     <a class="block rounded-2xl px-4 py-3 text-sm font-bold <?= current_path() === (string) ($item['href'] ?? '/') ? 'bg-[#f7f4f7] text-[#D81B60]' : 'text-slate-700 hover:bg-[#f7f4f7]' ?>" href="<?= e((string) ($item['href'] ?? '/')) ?>">
@@ -271,6 +279,31 @@ if (! defined('SEXYLUA_APP_TOPBAR_INCLUDED')) {
         </details>
     </div>
 </header>
+<?php if ($appTopbarShowVerificationNotice): ?>
+    <div class="fixed inset-x-0 bottom-0 z-[58] border-t border-amber-300 bg-amber-100/95 px-4 py-2 text-center text-[11px] font-bold tracking-[0.15em] text-amber-900 backdrop-blur-sm sm:text-xs">
+        <a class="inline-flex items-center justify-center gap-2 hover:underline" href="<?= e($appTopbarSettingsHref) ?>">
+            <span class="material-symbols-outlined text-[16px]">verified_user</span>
+            <span><?= e($appTopbarVerificationMessage) ?></span>
+        </a>
+    </div>
+<?php endif; ?>
+<script>
+    (() => {
+        const href = <?= json_encode(site_favicon_url(), JSON_UNESCAPED_SLASHES) ?>;
+        if (!href) {
+            return;
+        }
+
+        let icon = document.querySelector('link[rel="icon"]');
+        if (!icon) {
+            icon = document.createElement('link');
+            icon.rel = 'icon';
+            document.head.appendChild(icon);
+        }
+
+        icon.href = href;
+    })();
+</script>
 <?php if (! defined('SEXYLUA_APP_TOPBAR_SCRIPT_INCLUDED')): ?>
     <?php define('SEXYLUA_APP_TOPBAR_SCRIPT_INCLUDED', true); ?>
     <script src="<?= e(asset('js/app-topbar.js')) ?>"></script>

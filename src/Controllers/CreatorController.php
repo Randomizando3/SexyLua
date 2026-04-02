@@ -439,6 +439,19 @@ final class CreatorController extends Controller
             }
         }
 
+        if ($request->hasFile('identity_document_file')) {
+            $identityDocument = store_private_uploaded_file(
+                $request->file('identity_document_file'),
+                'users/identity',
+                ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+                10485760
+            );
+
+            if ($identityDocument !== null) {
+                $payload['identity_document'] = $identityDocument;
+            }
+        }
+
         $ok = $this->app->repository->updateCreatorSettings((int) $this->user()['id'], $payload);
 
         $this->redirect('/creator/settings', $ok ? 'Configuracoes atualizadas com sucesso.' : 'Nao foi possivel salvar as configuracoes.', $ok ? 'success' : 'error');

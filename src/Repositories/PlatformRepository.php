@@ -20,7 +20,7 @@ final class PlatformRepository
     private const LIVE_DEFAULT_GOP_SECONDS = 2;
     private const LIVE_DEFAULT_AUDIO_BITRATE_KBPS = 96;
     private const LIVE_DEFAULT_AUDIO_SAMPLE_RATE = 48000;
-    private const CREATOR_CONTENT_STORAGE_LIMIT_BYTES = 524288000;
+    private const CREATOR_CONTENT_STORAGE_LIMIT_BYTES = 52428800;
     private const SEEDED_COLLECTIONS = [
         'users',
         'creator_profiles',
@@ -117,6 +117,10 @@ final class PlatformRepository
             'terms_accepted_at' => $termsAcceptedAt !== '' ? $termsAcceptedAt : date('Y-m-d H:i:s'),
             'terms_version' => trim((string) ($data['terms_version'] ?? '2026-04')),
             'identity_document' => $identityDocument,
+            'verification_status' => $role === 'admin' ? 'approved' : 'pending',
+            'verification_note' => '',
+            'verification_requested_at' => date('Y-m-d H:i:s'),
+            'verification_reviewed_at' => $role === 'admin' ? date('Y-m-d H:i:s') : null,
         ];
 
         $users[] = $user;
@@ -407,6 +411,10 @@ final class PlatformRepository
         return [
             'subscriber' => $subscriber,
             'wallet' => $wallet,
+            'verification' => [
+                'status' => $this->verificationStatusValue((string) ($subscriber['verification_status'] ?? 'pending')),
+                'identity_document' => is_array($subscriber['identity_document'] ?? null) ? $subscriber['identity_document'] : null,
+            ],
             'stats' => [
                 'subscriptions' => count(array_filter($subscriptions, static fn (array $subscription): bool => (string) ($subscription['status'] ?? '') === 'active')),
                 'favorites' => count($favorites['favorite_creators'] ?? []),
@@ -2824,6 +2832,7 @@ final class PlatformRepository
         $wallet = $this->walletData($creatorId);
         $minWithdrawal = (int) ($this->settings()['withdraw_min_luacoins'] ?? 50);
         $creator = $this->findCreatorBySlugOrId(null, $creatorId);
+        $verificationStatus = $this->verificationStatusValue((string) ($creator['verification_status'] ?? 'pending'));
         $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
         $type = trim((string) ($filters['type'] ?? ''));
         $transactions = array_values(array_filter($wallet['transactions'], static function (array $transaction) use ($query, $type): bool {
@@ -2858,7 +2867,7 @@ final class PlatformRepository
         return $wallet + [
             'creator' => $creator,
             'transactions_filtered' => $transactions,
-            'can_withdraw' => $wallet['balance'] >= $minWithdrawal,
+            'can_withdraw' => $wallet['balance'] >= $minWithdrawal && $verificationStatus === 'approved',
             'min_withdrawal' => $minWithdrawal,
             'filters' => [
                 'q' => $query,
@@ -2873,6 +2882,10 @@ final class PlatformRepository
             'payout_profile' => [
                 'method' => (string) ($creator['payout_method'] ?? 'pix'),
                 'key' => (string) ($creator['payout_key'] ?? ''),
+            ],
+            'verification' => [
+                'status' => $verificationStatus,
+                'identity_document' => is_array($creator['identity_document'] ?? null) ? $creator['identity_document'] : null,
             ],
         ];
     }
@@ -2957,6 +2970,11 @@ final class PlatformRepository
                 'has_stream_key' => trim((string) ($creator['stream_key'] ?? '')) !== '',
                 'has_payout_key' => trim((string) ($creator['payout_key'] ?? '')) !== '',
             ],
+            'verification' => [
+                'status' => $this->verificationStatusValue((string) ($creator['verification_status'] ?? 'pending')),
+                'can_withdraw' => $this->verificationStatusValue((string) ($creator['verification_status'] ?? 'pending')) === 'approved',
+                'identity_document' => is_array($creator['identity_document'] ?? null) ? $creator['identity_document'] : null,
+            ],
         ];
     }
 
@@ -3012,6 +3030,8 @@ final class PlatformRepository
             ) ?: []
         );
         $newPassword = (string) ($data['new_password'] ?? '');
+        $identityDocument = is_array($data['identity_document'] ?? null) ? $data['identity_document'] : null;
+        $verificationReset = false;
 
         foreach ($users as &$user) {
             if ((int) $user['id'] !== $creatorId || ($user['role'] ?? null) !== 'creator') {
@@ -3043,6 +3063,16 @@ final class PlatformRepository
             if ($newPassword !== '' && ! password_verify($newPassword, (string) ($user['password'] ?? ''))) {
                 $user['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
                 $changedUsers = true;
+            }
+
+            if ($identityDocument !== null) {
+                $user['identity_document'] = $identityDocument;
+                $user['verification_status'] = 'pending';
+                $user['verification_note'] = '';
+                $user['verification_requested_at'] = date('Y-m-d H:i:s');
+                $user['verification_reviewed_at'] = null;
+                $changedUsers = true;
+                $verificationReset = true;
             }
         }
         unset($user);
@@ -3172,6 +3202,16 @@ final class PlatformRepository
             $this->save('creator_profiles', $profiles);
         }
 
+        if ($verificationReset) {
+            $creator = $this->findCreatorBySlugOrId(null, $creatorId);
+            $this->notifyAdmins(
+                'verification',
+                'Documento reenviado para analise',
+                (string) ($creator['name'] ?? 'Criador') . ' reenviou a documentacao para verificacao.',
+                '/admin/users'
+            );
+        }
+
         return true;
     }
 
@@ -3190,9 +3230,13 @@ final class PlatformRepository
         $tokens = (int) ($data['luacoins'] ?? $data['tokens'] ?? 0);
         $minWithdrawal = (int) ($this->settings()['withdraw_min_luacoins'] ?? 50);
         $creator = $this->findCreatorBySlugOrId(null, $creatorId) ?? [];
-        $payoutMethod = trim((string) ($data['payout_method'] ?? ($creator['payout_method'] ?? 'pix')));
+        $payoutMethod = 'pix';
         $payoutKey = trim((string) ($data['payout_key'] ?? ($creator['payout_key'] ?? '')));
         $note = trim((string) ($data['note'] ?? ''));
+
+        if ($this->verificationStatusValue((string) ($creator['verification_status'] ?? 'pending')) !== 'approved') {
+            return ['ok' => false, 'message' => 'Sua conta ainda nao foi verificada. Reenvie a documentacao em Configuracoes e aguarde ate 48h.'];
+        }
 
         if ($tokens < $minWithdrawal) {
             return ['ok' => false, 'message' => 'O valor minimo para saque em LuaCoins nao foi atingido.'];
@@ -3335,13 +3379,18 @@ final class PlatformRepository
         $search = mb_strtolower(trim((string) ($filters['q'] ?? '')));
         $role = trim((string) ($filters['role'] ?? ''));
         $status = trim((string) ($filters['status'] ?? ''));
+        $verification = $this->verificationStatusValue((string) ($filters['verification'] ?? ''));
         $allUsers = $this->users();
-        $users = array_values(array_filter($allUsers, function (array $user) use ($search, $role, $status): bool {
+        $users = array_values(array_filter($allUsers, function (array $user) use ($search, $role, $status, $verification): bool {
             if ($role !== '' && (string) ($user['role'] ?? '') !== $role) {
                 return false;
             }
 
             if ($status !== '' && (string) ($user['status'] ?? '') !== $status) {
+                return false;
+            }
+
+            if ($verification !== '' && $this->verificationStatusValue((string) ($user['verification_status'] ?? 'pending')) !== $verification) {
                 return false;
             }
 
@@ -3378,11 +3427,13 @@ final class PlatformRepository
                 'creators' => count(array_filter($allUsers, static fn (array $user): bool => (string) ($user['role'] ?? '') === 'creator')),
                 'subscribers' => count(array_filter($allUsers, static fn (array $user): bool => (string) ($user['role'] ?? '') === 'subscriber')),
                 'suspended' => count(array_filter($allUsers, static fn (array $user): bool => (string) ($user['status'] ?? '') === 'suspended')),
+                'verification_pending' => count(array_filter($allUsers, fn (array $user): bool => $this->verificationStatusValue((string) ($user['verification_status'] ?? 'pending')) === 'pending')),
             ],
             'filters' => [
                 'q' => $search,
                 'role' => $role,
                 'status' => $status,
+                'verification' => $verification,
             ],
         ];
     }
@@ -3412,11 +3463,15 @@ final class PlatformRepository
         $instagram = trim((string) ($data['instagram'] ?? ''));
         $telegram = trim((string) ($data['telegram'] ?? ''));
         $streamKey = trim((string) ($data['stream_key'] ?? ''));
+        $verificationStatus = $this->verificationStatusValue((string) ($data['verification_status'] ?? ''));
+        $verificationNote = trim((string) ($data['verification_note'] ?? ''));
+        $previousVerificationStatus = '';
 
         foreach ($users as &$user) {
             if ((int) $user['id'] === $userId) {
                 $found = true;
                 $originalRole = (string) ($user['role'] ?? 'subscriber');
+                $previousVerificationStatus = $this->verificationStatusValue((string) ($user['verification_status'] ?? 'pending'));
                 $user['status'] = in_array(($data['status'] ?? $user['status']), ['active', 'suspended'], true) ? $data['status'] : $user['status'];
                 if (array_key_exists('headline', $data)) {
                     $user['headline'] = $headline;
@@ -3444,6 +3499,11 @@ final class PlatformRepository
                 }
                 if (isset($data['role']) && in_array($data['role'], ['subscriber', 'creator', 'admin'], true)) {
                     $user['role'] = $data['role'];
+                }
+                if ($verificationStatus !== '') {
+                    $user['verification_status'] = $verificationStatus;
+                    $user['verification_note'] = $verificationNote;
+                    $user['verification_reviewed_at'] = date('Y-m-d H:i:s');
                 }
                 $targetRole = (string) ($user['role'] ?? $originalRole);
                 $changed = true;
@@ -3529,6 +3589,28 @@ final class PlatformRepository
             $this->save('creator_profiles', $profiles);
         }
 
+        if ($verificationStatus !== '' && $verificationStatus !== $previousVerificationStatus) {
+            $targetUser = $this->findUserById($userId);
+            $href = $this->settingsRouteForRole((string) ($targetUser['role'] ?? $targetRole ?: $originalRole));
+            if ($verificationStatus === 'approved') {
+                $this->notifyUser(
+                    $userId,
+                    'verification',
+                    'Documentacao aprovada',
+                    'Sua documentacao foi aprovada e sua conta ja pode solicitar saque.',
+                    $href
+                );
+            } elseif ($verificationStatus === 'rejected') {
+                $this->notifyUser(
+                    $userId,
+                    'verification',
+                    'Reenvie sua documentacao',
+                    $verificationNote !== '' ? $verificationNote : 'Sua documentacao precisa ser reenviada. Abra seu perfil e envie um novo documento.',
+                    $href
+                );
+            }
+        }
+
         return $changed || $profileChanged;
     }
 
@@ -3565,6 +3647,10 @@ final class PlatformRepository
             'avatar_url' => $avatarUrl,
             'cover_url' => $coverUrl,
             'created_at' => date('Y-m-d H:i:s'),
+            'verification_status' => $role === 'admin' ? 'approved' : 'pending',
+            'verification_note' => '',
+            'verification_requested_at' => date('Y-m-d H:i:s'),
+            'verification_reviewed_at' => $role === 'admin' ? date('Y-m-d H:i:s') : null,
         ];
         $this->save('users', $users);
 
@@ -3609,6 +3695,8 @@ final class PlatformRepository
         $found = false;
         $name = trim((string) ($data['name'] ?? ''));
         $newPassword = (string) ($data['new_password'] ?? '');
+        $identityDocument = is_array($data['identity_document'] ?? null) ? $data['identity_document'] : null;
+        $verificationReset = false;
 
         foreach ($users as &$user) {
             if ((int) ($user['id'] ?? 0) !== $userId || (string) ($user['role'] ?? '') !== $role) {
@@ -3639,6 +3727,16 @@ final class PlatformRepository
                 $changed = true;
             }
 
+            if ($identityDocument !== null && $role !== 'admin') {
+                $user['identity_document'] = $identityDocument;
+                $user['verification_status'] = 'pending';
+                $user['verification_note'] = '';
+                $user['verification_requested_at'] = date('Y-m-d H:i:s');
+                $user['verification_reviewed_at'] = null;
+                $changed = true;
+                $verificationReset = true;
+            }
+
             break;
         }
         unset($user);
@@ -3649,6 +3747,16 @@ final class PlatformRepository
 
         if ($changed) {
             $this->save('users', $users);
+        }
+
+        if ($verificationReset) {
+            $user = $this->findUserById($userId);
+            $this->notifyAdmins(
+                'verification',
+                'Documento reenviado para analise',
+                (string) ($user['name'] ?? 'Usuario') . ' reenviou a documentacao para verificacao.',
+                '/admin/users'
+            );
         }
 
         return true;
@@ -4369,13 +4477,20 @@ final class PlatformRepository
         $settings['withdraw_max_luacoins'] = max($settings['withdraw_min_luacoins'], (int) ($data['withdraw_max_luacoins'] ?? $data['withdraw_max_tokens'] ?? $settings['withdraw_max_luacoins']));
         $settings['live_replay_expiration_days'] = max(1, (int) ($data['live_replay_expiration_days'] ?? $settings['live_replay_expiration_days'] ?? 7));
         $settings['live_max_duration_minutes'] = max(5, (int) ($data['live_max_duration_minutes'] ?? $settings['live_max_duration_minutes'] ?? 30));
+        $settings['creator_content_storage_limit_mb'] = max(1, (int) ($data['creator_content_storage_limit_mb'] ?? $settings['creator_content_storage_limit_mb'] ?? 50));
         $settings['maintenance_mode'] = ($data['maintenance_mode'] ?? '0') === '1';
         $settings['slow_mode_seconds'] = max(0, (int) ($data['slow_mode_seconds'] ?? $settings['slow_mode_seconds']));
         $settings['auto_moderation'] = ($data['auto_moderation'] ?? '0') === '1';
         $settings['blur_sensitive_thumbs'] = ($data['blur_sensitive_thumbs'] ?? '0') === '1';
         $settings['live_chat_enabled'] = ($data['live_chat_enabled'] ?? '0') === '1';
+        $settings['live_priority_alert_duration_ms'] = max(2000, (int) ($data['live_priority_alert_duration_ms'] ?? $settings['live_priority_alert_duration_ms'] ?? 8000));
         $settings['announcement'] = trim((string) ($data['announcement'] ?? $settings['announcement']));
         $settings['site_base_url'] = rtrim(trim((string) ($data['site_base_url'] ?? $settings['site_base_url'] ?? '')), '/');
+        $settings['seo_site_title'] = trim((string) ($data['seo_site_title'] ?? $settings['seo_site_title'] ?? 'SexyLua'));
+        $settings['seo_meta_title'] = trim((string) ($data['seo_meta_title'] ?? $settings['seo_meta_title'] ?? 'SexyLua'));
+        $settings['seo_meta_description'] = trim((string) ($data['seo_meta_description'] ?? $settings['seo_meta_description'] ?? 'Plataforma de assinaturas, chats privados, lives e monetizacao com LuaCoins.'));
+        $settings['seo_logo_white_url'] = trim((string) ($data['seo_logo_white_url'] ?? $settings['seo_logo_white_url'] ?? ''));
+        $settings['seo_logo_color_url'] = trim((string) ($data['seo_logo_color_url'] ?? $settings['seo_logo_color_url'] ?? ''));
         $settings['syncpay_api_base_url'] = rtrim(trim((string) ($data['syncpay_api_base_url'] ?? $settings['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $settings['syncpay_client_id'] = trim((string) ($data['syncpay_client_id'] ?? $settings['syncpay_client_id'] ?? ''));
         $settings['syncpay_client_secret'] = trim((string) ($data['syncpay_client_secret'] ?? $settings['syncpay_client_secret'] ?? ''));
@@ -5393,7 +5508,14 @@ final class PlatformRepository
         $normalized['withdraw_max_luacoins'] = max($normalized['withdraw_min_luacoins'], (int) ($normalized['withdraw_max_luacoins'] ?? 25000));
         $normalized['live_replay_expiration_days'] = max(1, (int) ($normalized['live_replay_expiration_days'] ?? 7));
         $normalized['live_max_duration_minutes'] = max(5, (int) ($normalized['live_max_duration_minutes'] ?? 30));
+        $normalized['creator_content_storage_limit_mb'] = max(1, (int) ($normalized['creator_content_storage_limit_mb'] ?? 50));
+        $normalized['live_priority_alert_duration_ms'] = max(2000, (int) ($normalized['live_priority_alert_duration_ms'] ?? 8000));
         $normalized['site_base_url'] = rtrim(trim((string) ($normalized['site_base_url'] ?? '')), '/');
+        $normalized['seo_site_title'] = trim((string) ($normalized['seo_site_title'] ?? 'SexyLua'));
+        $normalized['seo_meta_title'] = trim((string) ($normalized['seo_meta_title'] ?? $normalized['seo_site_title'] ?? 'SexyLua'));
+        $normalized['seo_meta_description'] = trim((string) ($normalized['seo_meta_description'] ?? 'Plataforma de assinaturas, chats privados, lives e monetizacao com LuaCoins.'));
+        $normalized['seo_logo_white_url'] = trim((string) ($normalized['seo_logo_white_url'] ?? ''));
+        $normalized['seo_logo_color_url'] = trim((string) ($normalized['seo_logo_color_url'] ?? ''));
         $normalized['syncpay_api_base_url'] = rtrim(trim((string) ($normalized['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $normalized['syncpay_client_id'] = trim((string) ($normalized['syncpay_client_id'] ?? ''));
         $normalized['syncpay_client_secret'] = trim((string) ($normalized['syncpay_client_secret'] ?? ''));
@@ -5419,14 +5541,21 @@ final class PlatformRepository
             'withdraw_max_luacoins' => 25000,
             'live_replay_expiration_days' => 7,
             'live_max_duration_minutes' => 30,
+            'creator_content_storage_limit_mb' => 50,
             'maintenance_mode' => false,
             'slow_mode_seconds' => 3,
             'auto_moderation' => true,
             'blur_sensitive_thumbs' => true,
             'live_chat_enabled' => true,
+            'live_priority_alert_duration_ms' => 8000,
             'theme' => 'lunar-metamorphosis',
             'announcement' => 'Noite especial com criadores em destaque e novas colecoes em aprovacao.',
             'site_base_url' => trim((string) ($this->config['app']['base_url'] ?? '')),
+            'seo_site_title' => 'SexyLua',
+            'seo_meta_title' => 'SexyLua',
+            'seo_meta_description' => 'Plataforma de assinaturas, chats privados, lives e monetizacao com LuaCoins.',
+            'seo_logo_white_url' => '',
+            'seo_logo_color_url' => '',
             'syncpay_api_base_url' => 'https://api.syncpayments.com.br',
             'syncpay_client_id' => '',
             'syncpay_client_secret' => '',
@@ -5918,6 +6047,18 @@ final class PlatformRepository
             ];
         }
 
+        foreach (array_slice(array_values(array_filter($this->users(), fn (array $user): bool => $this->verificationStatusValue((string) ($user['verification_status'] ?? 'pending')) === 'pending' && is_array($user['identity_document'] ?? null))), 0, 2) as $user) {
+            $items[] = [
+                'id' => 'verification-' . (int) ($user['id'] ?? 0),
+                'marker' => $this->feedMarker((string) ($user['verification_requested_at'] ?? $user['created_at'] ?? ''), (int) ($user['id'] ?? 0)),
+                'title' => 'Documento aguardando analise',
+                'body' => (string) ($user['name'] ?? 'Usuario') . ' enviou documentacao para verificacao.',
+                'href' => '/admin/users',
+                'icon' => 'badge',
+                'time' => format_datetime((string) ($user['verification_requested_at'] ?? $user['created_at'] ?? ''), 'd/m H:i'),
+            ];
+        }
+
         usort($items, static fn (array $left, array $right): int => ((int) ($right['marker'] ?? 0)) <=> ((int) ($left['marker'] ?? 0)));
         $items = array_slice($items, 0, $limit);
 
@@ -5980,6 +6121,7 @@ final class PlatformRepository
             'payout' => 'payments',
             'moderation' => 'gavel',
             'announcement' => 'campaign',
+            'verification' => 'badge',
             default => 'notifications',
         };
     }
@@ -6327,7 +6469,25 @@ final class PlatformRepository
 
     private function creatorContentStorageLimitBytes(): int
     {
-        return self::CREATOR_CONTENT_STORAGE_LIMIT_BYTES;
+        return max(10485760, ((int) ($this->settings()['creator_content_storage_limit_mb'] ?? 50)) * 1024 * 1024);
+    }
+
+    private function verificationStatusValue(string $status): string
+    {
+        return match ($status) {
+            'approved', 'rejected', 'pending' => $status,
+            default => 'pending',
+        };
+    }
+
+    private function settingsRouteForRole(string $role): string
+    {
+        return match ($role) {
+            'creator' => '/creator/settings',
+            'subscriber' => '/subscriber/settings',
+            'admin' => '/admin/settings#perfil',
+            default => '/',
+        };
     }
 
     private function creatorContentUsageBytes(int $creatorId, int $excludeContentId = 0): int

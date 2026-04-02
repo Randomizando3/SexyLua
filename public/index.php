@@ -14,9 +14,15 @@ if (PHP_SAPI === 'cli-server') {
     }
 }
 
-$app = require dirname(__DIR__) . '/bootstrap.php';
+$basePath = dirname(__DIR__);
+
+if (is_dir($basePath . '/private/app')) {
+    $basePath .= '/private/app';
+}
+
+$app = require $basePath . '/bootstrap.php';
 $router = new Router($app);
 
-require dirname(__DIR__) . '/routes/web.php';
+require $basePath . '/routes/web.php';
 
 $router->dispatch(Request::capture());

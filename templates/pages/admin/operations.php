@@ -63,6 +63,7 @@ $paginationUrl = static function (array $params): string {
         body { background: #fbf9fb; color: #1b1c1d; font-family: "Manrope", sans-serif; }
         h1, h2, h3, h4 { font-family: "Plus Jakarta Sans", sans-serif; }
         .admin-operation-toggle[aria-expanded="true"] .admin-operation-chevron { transform: rotate(180deg); }
+        body.admin-operation-modal-open { overflow: hidden; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -179,7 +180,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                             <td class="px-6 py-5"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] <?= e($statusClass) ?>"><?= e($status) ?></span></td>
                             <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e(format_datetime((string) ($item['created_at'] ?? ''), 'd/m/Y H:i')) ?></td>
                             <td class="px-6 py-5">
-                                <button class="admin-operation-toggle inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-primary/10 hover:text-primary" data-operation-toggle aria-expanded="false" aria-controls="<?= e($rowId) ?>" type="button">
+                                <button class="admin-operation-toggle inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-primary/10 hover:text-primary" data-operation-toggle data-operation-modal-title="Editar conteudo" aria-expanded="false" aria-controls="<?= e($rowId) ?>" type="button">
                                     <span>Editar</span>
                                     <span class="admin-operation-chevron material-symbols-outlined text-slate-400 transition-transform">expand_more</span>
                                 </button>
@@ -296,7 +297,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                             <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e((string) ($plan['subscriber_count'] ?? 0)) ?></td>
                             <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e((string) ($plan['label'] ?? '-')) ?></td>
                             <td class="px-6 py-5">
-                                <button class="admin-operation-toggle inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-primary/10 hover:text-primary" data-operation-toggle aria-expanded="false" aria-controls="<?= e($rowId) ?>" type="button">
+                                <button class="admin-operation-toggle inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-primary/10 hover:text-primary" data-operation-toggle data-operation-modal-title="Editar plano" aria-expanded="false" aria-controls="<?= e($rowId) ?>" type="button">
                                     <span>Editar</span>
                                     <span class="admin-operation-chevron material-symbols-outlined text-slate-400 transition-transform">expand_more</span>
                                 </button>
@@ -417,10 +418,58 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                             </td>
                             <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e(format_datetime((string) ($microcontent['created_at'] ?? ''), 'd/m/Y H:i')) ?></td>
                             <td class="px-6 py-5">
+                                <div class="flex flex-wrap gap-2">
+                                <button class="inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-primary/10 hover:text-primary" data-operation-preview data-operation-modal-title="Detalhes do microconteudo" data-operation-template-id="operation-micro-<?= e((string) ((int) ($microcontent['id'] ?? 0))) ?>" type="button">
+                                    <span class="material-symbols-outlined text-base">edit_square</span>
+                                    <span>Detalhes</span>
+                                </button>
                                 <a class="inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-primary/10 hover:text-primary" href="<?= e((string) ($microcontent['asset_href'] ?? '#')) ?>" target="_blank">
                                     <span class="material-symbols-outlined text-base">visibility</span>
                                     <span>Abrir anexo</span>
                                 </a>
+                                </div>
+                                <template id="operation-micro-<?= e((string) ((int) ($microcontent['id'] ?? 0))) ?>">
+                                    <div class="space-y-6">
+                                        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                                            <div class="rounded-3xl bg-surface-container-low p-5">
+                                                <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Descricao</p>
+                                                <p class="mt-3 text-sm leading-6 text-on-surface"><?= e((string) ($microcontent['body'] ?: 'Microconteudo sem descricao')) ?></p>
+                                            </div>
+                                            <div class="rounded-3xl bg-surface-container-low p-5">
+                                                <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Arquivo</p>
+                                                <p class="mt-3 text-sm font-bold text-on-surface"><?= e((string) ($attachment['original_name'] ?? $microcontent['filename'] ?? 'Arquivo privado')) ?></p>
+                                                <p class="mt-2 text-sm text-slate-500"><?= e((string) ($attachment['kind'] ?? 'documento')) ?></p>
+                                            </div>
+                                            <div class="rounded-3xl bg-surface-container-low p-5">
+                                                <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Criador</p>
+                                                <p class="mt-3 text-sm font-bold text-on-surface"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
+                                                <p class="mt-2 text-sm text-slate-500">@<?= e((string) ($creator['slug'] ?? 'studio')) ?></p>
+                                            </div>
+                                            <div class="rounded-3xl bg-surface-container-low p-5">
+                                                <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Assinante</p>
+                                                <p class="mt-3 text-sm font-bold text-on-surface"><?= e((string) ($subscriber['name'] ?? 'Assinante')) ?></p>
+                                                <p class="mt-2 text-sm text-slate-500"><?= e((string) ($subscriber['email'] ?? '')) ?></p>
+                                            </div>
+                                            <div class="rounded-3xl bg-surface-container-low p-5">
+                                                <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Valor em LuaCoins</p>
+                                                <div class="mt-3 text-sm font-bold text-primary"><?= luacoin_amount_html((int) ($microcontent['unlock_price'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></div>
+                                            </div>
+                                            <div class="rounded-3xl bg-surface-container-low p-5">
+                                                <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Status</p>
+                                                <span class="mt-3 inline-flex rounded-full px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] <?= e($statusClass) ?>"><?= e((string) ($microcontent['unlock_label'] ?? 'Aguardando desbloqueio')) ?></span>
+                                                <?php if ((string) ($microcontent['unlock_at'] ?? '') !== ''): ?>
+                                                    <p class="mt-3 text-sm text-slate-500"><?= e((string) ($microcontent['unlock_user_name'] ?? 'Assinante')) ?> • <?= e(format_datetime((string) ($microcontent['unlock_at'] ?? ''), 'd/m/Y H:i')) ?></p>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap gap-3">
+                                            <a class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" href="<?= e((string) ($microcontent['asset_href'] ?? '#')) ?>" target="_blank">
+                                                <span class="material-symbols-outlined text-base">visibility</span>
+                                                Abrir anexo
+                                            </a>
+                                        </div>
+                                    </div>
+                                </template>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -502,7 +551,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                             <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e(format_datetime((string) ($live['scheduled_for'] ?? ''), 'd/m/Y H:i')) ?></td>
                             <td class="px-6 py-5 text-sm font-extrabold text-primary"><?= luacoin_amount_html((int) ($live['goal_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></td>
                             <td class="px-6 py-5">
-                                <button class="admin-operation-toggle inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-primary/10 hover:text-primary" data-operation-toggle aria-expanded="false" aria-controls="<?= e($rowId) ?>" type="button">
+                                <button class="admin-operation-toggle inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-primary/10 hover:text-primary" data-operation-toggle data-operation-modal-title="Editar live" aria-expanded="false" aria-controls="<?= e($rowId) ?>" type="button">
                                     <span>Editar</span>
                                     <span class="admin-operation-chevron material-symbols-outlined text-slate-400 transition-transform">expand_more</span>
                                 </button>
@@ -570,25 +619,87 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
         </div>
     </section>
 </main>
+<div class="fixed inset-0 z-[90] hidden items-center justify-center bg-slate-950/50 px-3 py-4 backdrop-blur-sm" data-operation-modal>
+    <button aria-label="Fechar modal" class="absolute inset-0" data-operation-modal-close type="button"></button>
+    <div class="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-[0px_28px_60px_rgba(27,28,29,0.24)]">
+        <div class="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 lg:px-8">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-[0.22em] text-primary">Operacoes</p>
+                <h3 class="mt-2 text-2xl font-extrabold" data-operation-modal-title>Editar item</h3>
+            </div>
+            <button class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface-container-low text-slate-600" data-operation-modal-close type="button">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="overflow-y-auto px-6 py-6 lg:px-8 lg:py-8" data-operation-modal-content></div>
+    </div>
+</div>
 <script>
-    document.addEventListener('click', function (event) {
-        const toggle = event.target.closest('[data-operation-toggle]');
+    (() => {
+        const modal = document.querySelector('[data-operation-modal]');
+        const modalTitle = modal ? modal.querySelector('[data-operation-modal-title]') : null;
+        const modalContent = modal ? modal.querySelector('[data-operation-modal-content]') : null;
 
-        if (! toggle) {
+        if (!modal || !modalTitle || !modalContent) {
             return;
         }
 
-        const panelId = toggle.getAttribute('aria-controls');
-        const panel = panelId ? document.getElementById(panelId) : null;
+        const openModal = (title, html) => {
+            modalTitle.textContent = title || 'Editar item';
+            modalContent.innerHTML = html;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.classList.add('admin-operation-modal-open');
+        };
 
-        if (! panel) {
-            return;
-        }
+        const closeModal = () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            modalContent.innerHTML = '';
+            document.body.classList.remove('admin-operation-modal-open');
+        };
 
-        const expanded = toggle.getAttribute('aria-expanded') === 'true';
-        toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-        panel.classList.toggle('hidden', expanded);
-    });
+        document.addEventListener('click', function (event) {
+            const toggle = event.target.closest('[data-operation-toggle]');
+
+            if (toggle) {
+                const panelId = toggle.getAttribute('aria-controls');
+                const panel = panelId ? document.getElementById(panelId) : null;
+                const panelCell = panel ? panel.querySelector('td') : null;
+
+                if (!panelCell) {
+                    return;
+                }
+
+                openModal(toggle.getAttribute('data-operation-modal-title') || 'Editar item', panelCell.innerHTML);
+                return;
+            }
+
+            const preview = event.target.closest('[data-operation-preview]');
+
+            if (preview) {
+                const templateId = preview.getAttribute('data-operation-template-id');
+                const template = templateId ? document.getElementById(templateId) : null;
+
+                if (!template) {
+                    return;
+                }
+
+                openModal(preview.getAttribute('data-operation-modal-title') || 'Detalhes', template.innerHTML);
+                return;
+            }
+
+            if (event.target.closest('[data-operation-modal-close]')) {
+                closeModal();
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+                closeModal();
+            }
+        });
+    })();
 </script>
 </body>
 </html>

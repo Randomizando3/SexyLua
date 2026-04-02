@@ -93,9 +93,9 @@
                             <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">Ideal para quem vai gerenciar conteudo, assinaturas, transmissao ao vivo, carteira e toda a operacao criativa.</p>
                         </div>
                     </div>
-                    <div class="rounded-[2rem] signature-glow p-6 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)]">
-                        <h2 class="font-headline text-xl font-bold">Pronto para a etapa seguinte</h2>
-                        <p class="mt-2 text-sm leading-relaxed text-white/85">O cadastro ja cria a conta funcional no backend e redireciona automaticamente para a area correta depois do envio.</p>
+                    <div class="rounded-[2rem] bg-white/70 p-6 shadow-sm">
+                        <h2 class="font-headline text-xl font-bold text-on-surface">Conta pronta para validar</h2>
+                        <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">Depois do envio, o perfil ja nasce funcional e a documentacao segue para revisao administrativa.</p>
                     </div>
                 </div>
             </section>
@@ -159,7 +159,6 @@
 
                 <div class="mt-8 rounded-2xl bg-white/70 p-5">
                     <p class="text-sm text-on-surface-variant">Ja possui conta? <a class="font-bold text-primary hover:underline" href="/login">Entrar agora</a></p>
-                    <p class="mt-2 text-xs uppercase tracking-[0.2em] text-outline">O cadastro entra direto no fluxo funcional do backend, sem depender de framework no servidor.</p>
                 </div>
             </section>
         </div>

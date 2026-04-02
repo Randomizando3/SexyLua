@@ -30,6 +30,7 @@ final class AdminController extends Controller
             'q' => (string) $request->query('q', ''),
             'role' => (string) $request->query('role', ''),
             'status' => (string) $request->query('status', ''),
+            'verification' => (string) $request->query('verification', ''),
         ];
 
         $this->render('pages/admin/users', [
@@ -201,7 +202,23 @@ final class AdminController extends Controller
     {
         $this->app->auth->requireRole('admin');
         $this->validateCsrf($request, '/admin/settings');
-        $this->app->repository->updateSettings($request->all());
+        $payload = $request->all();
+
+        if ($request->hasFile('seo_logo_white_file')) {
+            $whiteLogoPath = store_uploaded_file($request->file('seo_logo_white_file'), 'admin/branding', ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif']);
+            if ($whiteLogoPath !== null) {
+                $payload['seo_logo_white_url'] = $whiteLogoPath;
+            }
+        }
+
+        if ($request->hasFile('seo_logo_color_file')) {
+            $colorLogoPath = store_uploaded_file($request->file('seo_logo_color_file'), 'admin/branding', ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif']);
+            if ($colorLogoPath !== null) {
+                $payload['seo_logo_color_url'] = $colorLogoPath;
+            }
+        }
+
+        $this->app->repository->updateSettings($payload);
 
         $this->redirect('/admin/settings', 'Configuracoes salvas.');
     }

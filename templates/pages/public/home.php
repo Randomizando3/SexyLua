@@ -86,7 +86,7 @@ $liveSectionDescription = $liveNow !== [] ? 'Quem já está no ar neste momento.
                 <a class="group overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)] transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
                     <div class="relative aspect-[3/4] bg-slate-900">
                         <?php if ($cover !== ''): ?>
-                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" src="<?= e($cover) ?>">
+                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover blur-[2px] transition-transform duration-500 group-hover:scale-[1.08]" src="<?= e($cover) ?>">
                         <?php else: ?>
                             <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
                                 <span class="headline text-2xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
@@ -199,7 +199,7 @@ $liveSectionDescription = $liveNow !== [] ? 'Quem já está no ar neste momento.
         <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/terms">Termos</a>
         <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/privacy">Privacidade</a>
         <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/help">Ajuda</a>
-        <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="#">Carreiras</a>
+        <a class="text-xs uppercase tracking-widest text-white/70 transition-all duration-300 hover:text-white" href="/terms">Termos</a>
     </div>
     <p class="text-[10px] uppercase tracking-[0.2em] text-white/80">© 2026 SexyLua. Plataforma conectada aos dados reais.</p>
 </footer>

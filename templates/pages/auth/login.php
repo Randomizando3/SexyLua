@@ -100,16 +100,9 @@
                             <p class="text-sm text-on-surface-variant">subscriber123</p>
                         </div>
                     </div>
-                    <div class="rounded-[2rem] signature-glow p-6 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)]">
-                        <div class="flex items-start gap-4">
-                            <div class="flex h-12 w-12 items-center justify-center rounded-full bg-white/15">
-                                <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">diamond</span>
-                            </div>
-                            <div class="space-y-2">
-                                <h2 class="font-headline text-xl font-bold">Fluxo sem mudar o layout</h2>
-                                <p class="text-sm leading-relaxed text-white/85">Essas telas de acesso foram criadas no mesmo idioma visual das telas publicas, para manter consistencia enquanto o backend vai ficando 100% funcional.</p>
-                            </div>
-                        </div>
+                    <div class="rounded-[2rem] bg-white/70 p-6 shadow-sm">
+                        <h2 class="font-headline text-xl font-bold text-on-surface">Acesso rapido</h2>
+                        <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">Escolha uma conta de teste acima ou entre com seu proprio acesso para seguir direto para a area correspondente.</p>
                     </div>
                 </div>
             </section>
@@ -142,7 +135,6 @@
 
                 <div class="mt-8 rounded-2xl bg-white/70 p-5">
                     <p class="text-sm text-on-surface-variant">Ainda nao tem conta? <a class="font-bold text-primary hover:underline" href="/register">Criar conta</a></p>
-                    <p class="mt-2 text-xs uppercase tracking-[0.2em] text-outline">Depois do login o sistema redireciona automaticamente para Publico, Criador, Assinante ou Admin.</p>
                 </div>
             </section>
         </div>

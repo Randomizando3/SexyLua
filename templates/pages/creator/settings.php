@@ -5,6 +5,9 @@ declare(strict_types=1);
 $creator = $data['creator'] ?? [];
 $wallet = $data['wallet'] ?? [];
 $platform = $data['platform'] ?? [];
+$verification = $data['verification'] ?? [];
+$verificationStatus = (string) ($verification['status'] ?? 'pending');
+$identityDocument = is_array($verification['identity_document'] ?? null) ? $verification['identity_document'] : null;
 $activeSubscribers = (int) ($data['active_subscribers'] ?? 0);
 $liveDefaults = $data['live_defaults'] ?? [];
 $priorityTipTiers = $liveDefaults['priority_tip_tiers'] ?? [1, 10, 25, 50, 100, 150];
@@ -59,6 +62,19 @@ $publicProfileUrl = '/profile?slug=' . (string) ($creator['slug'] ?? 'criador');
         }
         h1, h2, h3, h4 {
             font-family: "Plus Jakarta Sans", sans-serif;
+        }
+        @media (max-width: 768px) {
+            .settings-mobile-wrap {
+                background: transparent !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+            }
+            .settings-mobile-card {
+                border-radius: 1.75rem;
+                background: #ffffff;
+                padding: 1.25rem;
+                box-shadow: 0 12px 32px rgba(27, 28, 29, 0.08);
+            }
         }
     </style>
 </head>
@@ -121,14 +137,14 @@ include base_path('templates/partials/creator_topbar.php');
                         <textarea class="min-h-[160px] w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="bio"><?= e((string) ($creator['bio'] ?? '')) ?></textarea>
                     </label>
 
-                    <div class="rounded-3xl bg-surface-container-low p-6">
+                    <div class="settings-mobile-wrap rounded-3xl bg-surface-container-low p-6">
                         <div class="mb-5">
                             <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Mídia do perfil</p>
                             <h4 class="mt-2 text-2xl font-extrabold">Avatar e capa</h4>
                             <p class="mt-2 text-sm text-on-surface-variant">Ao selecionar um arquivo, o preview abaixo já é atualizado para indicar que o envio foi preparado.</p>
                         </div>
                         <div class="grid gap-6 lg:grid-cols-2">
-                            <div class="space-y-4 rounded-3xl bg-white p-5 shadow-sm">
+                            <div class="settings-mobile-card space-y-4 rounded-3xl bg-white p-5 shadow-sm">
                                 <div class="flex items-center gap-4">
                                     <div class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-lg font-bold text-primary" data-upload-preview-box="avatar" data-upload-preview-fallback="<?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?>">
                                         <?php if ($avatarUrl !== ''): ?>
@@ -149,7 +165,7 @@ include base_path('templates/partials/creator_topbar.php');
                                 <p class="text-xs font-semibold text-primary/80" data-upload-preview-status="avatar">Nenhum novo avatar selecionado.</p>
                             </div>
 
-                            <div class="space-y-4 rounded-3xl bg-white p-5 shadow-sm">
+                            <div class="settings-mobile-card space-y-4 rounded-3xl bg-white p-5 shadow-sm">
                                 <div class="flex h-40 w-full items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-pink-700 via-rose-600 to-orange-400 text-lg font-bold text-white" data-upload-preview-box="cover" data-upload-preview-fallback="SexyLua">
                                     <?php if ($coverUrl !== ''): ?>
                                         <img alt="Capa do criador" class="h-full w-full object-cover" data-upload-preview-image="cover" src="<?= e($coverUrl) ?>">
@@ -177,18 +193,49 @@ include base_path('templates/partials/creator_topbar.php');
                         </div>
                     </div>
 
-                    <div class="rounded-3xl bg-surface-container-low p-6">
+                    <div class="settings-mobile-wrap rounded-3xl bg-surface-container-low p-6">
                         <div class="mb-5">
                             <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Financeiro</p>
                             <h4 class="mt-2 text-2xl font-extrabold">Recebimentos</h4>
                         </div>
-                        <label class="block space-y-2">
+                        <label class="settings-mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm">
                             <span class="text-sm font-semibold text-on-surface-variant">Chave PIX</span>
-                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="payout_key" type="text" value="<?= e((string) ($creator['payout_key'] ?? '')) ?>">
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="payout_key" type="text" value="<?= e((string) ($creator['payout_key'] ?? '')) ?>">
                         </label>
                     </div>
 
-                    <div class="rounded-3xl bg-surface-container-low p-6">
+                    <div class="settings-mobile-wrap rounded-3xl bg-surface-container-low p-6">
+                        <div class="mb-5">
+                            <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Verificacao</p>
+                            <h4 class="mt-2 text-2xl font-extrabold">Documento de identidade</h4>
+                            <p class="mt-2 text-sm text-on-surface-variant">Enquanto a documentacao nao for aprovada, saques ficam bloqueados.</p>
+                        </div>
+                        <div class="grid gap-5">
+                            <div class="settings-mobile-card rounded-3xl bg-white p-5 shadow-sm">
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <p class="text-sm font-semibold text-on-surface-variant">Status atual</p>
+                                        <p class="mt-2 text-lg font-extrabold <?= $verificationStatus === 'approved' ? 'text-emerald-600' : ($verificationStatus === 'rejected' ? 'text-rose-600' : 'text-amber-600') ?>">
+                                            <?= e($verificationStatus === 'approved' ? 'Aprovado' : ($verificationStatus === 'rejected' ? 'Reenviar documento' : 'Pendente')) ?>
+                                        </p>
+                                    </div>
+                                    <?php if ($identityDocument): ?>
+                                        <a class="inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-3 text-sm font-bold text-on-surface-variant" href="<?= e('/messages/asset?scope=identity&id=' . (int) ($creator['id'] ?? 0)) ?>" target="_blank">
+                                            <span class="material-symbols-outlined text-base">id_card</span>
+                                            Ver enviado
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <label class="settings-mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm">
+                                <span class="text-sm font-semibold text-on-surface-variant">Enviar novo documento</span>
+                                <input accept=".jpg,.jpeg,.png,.webp,.pdf" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="identity_document_file" type="file">
+                                <span class="block text-xs text-on-surface-variant">Frente, verso ou PDF. O admin revisa em ate 48h.</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-mobile-wrap rounded-3xl bg-surface-container-low p-6">
                         <div class="mb-5">
                             <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Segurança</p>
                             <h4 class="mt-2 text-2xl font-extrabold">Acesso da conta</h4>
@@ -198,14 +245,14 @@ include base_path('templates/partials/creator_topbar.php');
                                 <span class="text-sm font-semibold text-on-surface-variant">Nova senha</span>
                                 <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password" type="password">
                             </label>
-                            <label class="block space-y-2">
+                            <label class="settings-mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm md:col-span-2">
                                 <span class="text-sm font-semibold text-on-surface-variant">Confirmar nova senha</span>
-                                <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password_confirmation" type="password">
+                                <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password_confirmation" type="password">
                             </label>
                         </div>
                     </div>
 
-                    <div class="rounded-3xl bg-surface-container-low p-6">
+                    <div class="settings-mobile-wrap rounded-3xl bg-surface-container-low p-6">
                         <div class="mb-5">
                             <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Lives e chat</p>
                             <h4 class="mt-2 text-2xl font-extrabold">Padrões do estúdio</h4>

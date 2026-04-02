@@ -6,6 +6,9 @@ $subscriber = $data['subscriber'] ?? [];
 $wallet = $data['wallet'] ?? [];
 $stats = $data['stats'] ?? [];
 $recentTransactions = $data['recent_transactions'] ?? [];
+$verification = $data['verification'] ?? [];
+$verificationStatus = (string) ($verification['status'] ?? 'pending');
+$identityDocument = is_array($verification['identity_document'] ?? null) ? $verification['identity_document'] : null;
 $avatarUrl = media_url((string) ($subscriber['avatar_url'] ?? ''));
 $coverUrl = media_url((string) ($subscriber['cover_url'] ?? ''));
 ?>
@@ -51,6 +54,19 @@ $coverUrl = media_url((string) ($subscriber['cover_url'] ?? ''));
         body { background: #fbf9fb; color: #1b1c1d; font-family: "Manrope", sans-serif; }
         h1, h2, h3, h4 { font-family: "Plus Jakarta Sans", sans-serif; }
         .signature-glow { background: linear-gradient(135deg, #ab1155 0%, #cc326e 100%); }
+        @media (max-width: 768px) {
+            .settings-mobile-wrap {
+                background: transparent !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+            }
+            .settings-mobile-card {
+                border-radius: 1.75rem;
+                background: #ffffff !important;
+                padding: 1.15rem !important;
+                box-shadow: 0 12px 32px rgba(27, 28, 29, 0.08);
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -143,6 +159,40 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload da capa</span>
                         <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp,.gif">
                     </label>
+                </div>
+
+                <div class="settings-mobile-wrap rounded-3xl bg-surface-container-low p-6">
+                    <div class="mb-5">
+                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Verificacao</p>
+                        <h4 class="mt-2 text-2xl font-extrabold">Documento de identidade</h4>
+                        <p class="mt-2 text-sm text-on-surface-variant">Enquanto a documentacao nao for aprovada, o saque continua bloqueado.</p>
+                    </div>
+                    <div class="grid gap-5">
+                        <div class="settings-mobile-card rounded-3xl bg-white p-5 shadow-sm">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-semibold text-on-surface-variant">Status atual</p>
+                                    <p class="mt-2 text-lg font-extrabold <?= $verificationStatus === 'approved' ? 'text-emerald-600' : ($verificationStatus === 'rejected' ? 'text-rose-600' : 'text-amber-600') ?>">
+                                        <?= e($verificationStatus === 'approved' ? 'Aprovado' : ($verificationStatus === 'rejected' ? 'Reenviar documento' : 'Pendente')) ?>
+                                    </p>
+                                </div>
+                                <?php if ($identityDocument): ?>
+                                    <a class="inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-3 text-sm font-bold text-on-surface-variant" href="<?= e('/messages/asset?scope=identity&id=' . (int) ($subscriber['id'] ?? 0)) ?>" target="_blank">
+                                        <span class="material-symbols-outlined text-base">id_card</span>
+                                        Ver enviado
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <label class="settings-mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm">
+                            <span class="text-sm font-semibold text-on-surface-variant">Enviar novo documento</span>
+                            <input accept=".jpg,.jpeg,.png,.webp,.pdf" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="identity_document_file" type="file">
+                            <span class="block text-xs text-on-surface-variant">Frente, verso ou PDF. O admin revisa em ate 48h.</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <label class="block space-y-2">
                         <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nova senha</span>
                         <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password" type="password">

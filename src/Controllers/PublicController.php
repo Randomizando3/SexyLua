@@ -130,21 +130,21 @@ final class PublicController extends Controller
     {
         $this->render('pages/public/help', [
             'title' => 'Ajuda',
-        ], 'layouts/marketing');
+        ], null);
     }
 
     public function terms(Request $request): void
     {
         $this->render('pages/public/terms', [
             'title' => 'Termos de Uso',
-        ], 'layouts/marketing');
+        ], null);
     }
 
     public function privacy(Request $request): void
     {
         $this->render('pages/public/privacy', [
             'title' => 'Politica de Privacidade',
-        ], 'layouts/marketing');
+        ], null);
     }
 
     public function postLiveMessage(Request $request): void

@@ -373,13 +373,15 @@ include base_path('templates/partials/creator_topbar.php');
 </main>
 
 <div class="<?= $openForm ? '' : 'hidden ' ?>fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-4 py-8" data-live-modal>
-    <div class="w-full max-w-4xl rounded-3xl bg-white p-6 shadow-[0px_30px_80px_rgba(27,28,29,0.18)] sm:p-8">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div class="relative w-full max-w-4xl rounded-3xl bg-white p-6 shadow-[0px_30px_80px_rgba(27,28,29,0.18)] sm:p-8">
+        <a aria-label="Fechar modal" class="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#f5f3f5] text-slate-500 transition-colors hover:bg-[#ebe6eb] sm:right-6 sm:top-6" href="<?= e($closeModalUrl) ?>">
+            <span class="material-symbols-outlined">close</span>
+        </a>
+        <div class="flex flex-col gap-3 pr-12 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <h3 class="headline text-2xl font-extrabold"><?= e($modalTitle) ?></h3>
                 <p class="mt-2 text-sm text-slate-500">Crie uma live instantânea para entrar no ar hoje ou agende uma sessão completa para depois.</p>
             </div>
-            <a class="rounded-full bg-[#f5f3f5] px-5 py-3 text-sm font-bold text-slate-600" href="<?= e($closeModalUrl) ?>">Fechar</a>
         </div>
 
         <form action="/creator/live/save" class="mt-6 space-y-4" enctype="multipart/form-data" method="post" data-live-form>

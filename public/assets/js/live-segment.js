@@ -21,6 +21,7 @@
     const videoFps = Math.max(12, Number(root.dataset.videoFps || 30))
     const segmentDurationSeconds = Math.max(2, Math.round(Number(root.dataset.segmentDurationMs || 10000) / 1000))
     const maxDurationSeconds = Math.max(300, Number(root.dataset.maxDurationSeconds || 1800))
+    const priorityAlertDurationMs = Math.max(2000, Number(root.dataset.livePriorityAlertDurationMs || 8000))
     const creatorEndedUrl = liveId > 0 ? `/creator/live?status=ended&live=${liveId}` : '/creator/live?status=ended'
 
     const el = {
@@ -417,7 +418,7 @@
         el.priorityAlert.classList.remove('hidden')
         beepAlert()
         if (state.priorityAlertTimer) window.clearTimeout(state.priorityAlertTimer)
-        state.priorityAlertTimer = window.setTimeout(() => { el.priorityAlert.classList.add('hidden') }, 8000)
+        state.priorityAlertTimer = window.setTimeout(() => { el.priorityAlert.classList.add('hidden') }, priorityAlertDurationMs)
     }
 
     const tipAmountField = () => el.tipForm ? el.tipForm.querySelector('[name="amount"]') : null

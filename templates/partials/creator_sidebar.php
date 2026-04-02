@@ -6,8 +6,8 @@ $creatorShellCreator = $creatorShellCreator ?? ($creator ?? []);
 $creatorShellCurrent = (string) ($creatorShellCurrent ?? 'dashboard');
 $creatorShellCta = $creatorShellCta ?? null;
 $creatorMenuItems = [
-    ['key' => 'dashboard', 'href' => '/creator', 'icon' => 'insights', 'label' => 'Metricas Lunares'],
-    ['key' => 'public_profile', 'href' => '/profile?id=' . (int) ($creatorShellCreator['id'] ?? 0), 'icon' => 'public', 'label' => 'Pagina Publica'],
+    ['key' => 'dashboard', 'href' => '/creator', 'icon' => 'insights', 'label' => 'Metricas'],
+    ['key' => 'public_profile', 'href' => '/profile?id=' . (int) ($creatorShellCreator['id'] ?? 0), 'icon' => 'public', 'label' => 'Minha Pagina'],
     ['key' => 'content', 'href' => '/creator/content', 'icon' => 'movie', 'label' => 'Meu Conteudo'],
     ['key' => 'messages', 'href' => '/creator/messages', 'icon' => 'chat', 'label' => 'Mensagens'],
     ['key' => 'live', 'href' => '/creator/live', 'icon' => 'settings_input_antenna', 'label' => 'Configurar Live'],

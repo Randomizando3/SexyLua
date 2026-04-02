@@ -87,7 +87,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
         <a class="rounded-full bg-primary px-6 py-4 text-sm font-bold text-white shadow-sm" href="#create-user-modal">Novo usuario</a>
     </div>
 
-    <form action="/admin/users" class="mb-8 grid grid-cols-1 gap-4 rounded-3xl bg-surface-container-lowest p-6 shadow-sm xl:grid-cols-[1fr_0.4fr_0.4fr_auto]" method="get">
+    <form action="/admin/users" class="mb-8 grid grid-cols-1 gap-4 rounded-3xl bg-surface-container-lowest p-6 shadow-sm xl:grid-cols-[1fr_0.4fr_0.4fr_0.4fr_auto]" method="get">
         <input class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="q" placeholder="Buscar usuario..." type="search" value="<?= e((string) ($filters['q'] ?? '')) ?>">
         <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="role">
             <option value="">Todos os papeis</option>
@@ -99,6 +99,12 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
             <option value="">Todos os status</option>
             <option value="active" <?= (string) ($filters['status'] ?? '') === 'active' ? 'selected' : '' ?>>Ativo</option>
             <option value="suspended" <?= (string) ($filters['status'] ?? '') === 'suspended' ? 'selected' : '' ?>>Suspenso</option>
+        </select>
+        <select class="rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="verification">
+            <option value="">Toda a verificacao</option>
+            <option value="pending" <?= (string) ($filters['verification'] ?? '') === 'pending' ? 'selected' : '' ?>>Pendente</option>
+            <option value="approved" <?= (string) ($filters['verification'] ?? '') === 'approved' ? 'selected' : '' ?>>Aprovado</option>
+            <option value="rejected" <?= (string) ($filters['verification'] ?? '') === 'rejected' ? 'selected' : '' ?>>Reprovado</option>
         </select>
         <div class="flex items-center gap-3">
             <button class="rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Filtrar</button>
@@ -114,6 +120,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Usuario</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Papel</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Status</th>
+                    <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Verificacao</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Carteira</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Cidade</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Criado em</th>
@@ -125,9 +132,20 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <?php
                     $role = (string) ($user['role'] ?? 'subscriber');
                     $status = (string) ($user['status'] ?? 'active');
+                    $verificationStatus = (string) ($user['verification_status'] ?? 'pending');
                     $roleLabel = $role === 'creator' ? 'Criador' : ($role === 'admin' ? 'Admin' : 'Assinante');
                     $statusLabel = $status === 'suspended' ? 'Suspenso' : 'Ativo';
                     $statusClass = $status === 'suspended' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
+                    $verificationLabel = match ($verificationStatus) {
+                        'approved' => 'Aprovado',
+                        'rejected' => 'Reprovado',
+                        default => 'Pendente',
+                    };
+                    $verificationClass = match ($verificationStatus) {
+                        'approved' => 'bg-emerald-100 text-emerald-700',
+                        'rejected' => 'bg-rose-100 text-rose-700',
+                        default => 'bg-amber-100 text-amber-700',
+                    };
                     ?>
                     <tr class="border-t border-slate-100 first:border-t-0">
                         <td class="px-6 py-5">
@@ -142,6 +160,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                         </td>
                         <td class="px-6 py-5"><span class="inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-primary"><?= e($roleLabel) ?></span></td>
                         <td class="px-6 py-5"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] <?= e($statusClass) ?>"><?= e($statusLabel) ?></span></td>
+                        <td class="px-6 py-5"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] <?= e($verificationClass) ?>"><?= e($verificationLabel) ?></span></td>
                         <td class="px-6 py-5 text-sm font-extrabold text-primary"><?= luacoin_amount_html((int) ($user['wallet_balance'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></td>
                         <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e((string) ($user['city'] ?? 'Sem cidade')) ?></td>
                         <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e(format_datetime((string) ($user['created_at'] ?? ''), 'd/m/Y')) ?></td>
@@ -166,6 +185,8 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
         <?php
         $identityDocument = is_array($user['identity_document'] ?? null) ? $user['identity_document'] : null;
         $termsAcceptedAt = trim((string) ($user['terms_accepted_at'] ?? ''));
+        $verificationStatus = (string) ($user['verification_status'] ?? 'pending');
+        $verificationNote = trim((string) ($user['verification_note'] ?? ''));
         ?>
         <div class="fixed inset-0 z-[70] items-center justify-center bg-slate-900/45 p-4 md:p-6" data-modal-overlay id="edit-user-modal-<?= e((string) ($user['id'] ?? 0)) ?>">
             <div class="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-[2rem] bg-surface-container-lowest p-6 shadow-2xl md:p-8">
@@ -291,6 +312,18 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                     <option value="active" <?= (string) ($user['status'] ?? '') === 'active' ? 'selected' : '' ?>>Ativo</option>
                                     <option value="suspended" <?= (string) ($user['status'] ?? '') === 'suspended' ? 'selected' : '' ?>>Suspenso</option>
                                 </select>
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Verificacao</span>
+                                <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="verification_status">
+                                    <option value="pending" <?= $verificationStatus === 'pending' ? 'selected' : '' ?>>Pendente</option>
+                                    <option value="approved" <?= $verificationStatus === 'approved' ? 'selected' : '' ?>>Aprovado</option>
+                                    <option value="rejected" <?= $verificationStatus === 'rejected' ? 'selected' : '' ?>>Reprovado</option>
+                                </select>
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota da verificacao</span>
+                                <textarea class="min-h-24 w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="verification_note" placeholder="Ex.: documento cortado, reenviar frente e verso."><?= e($verificationNote) ?></textarea>
                             </label>
 
                             <button class="w-full rounded-full bg-primary px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Salvar usuario</button>

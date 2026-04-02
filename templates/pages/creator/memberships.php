@@ -82,7 +82,10 @@ include base_path('templates/partials/creator_topbar.php');
                 <p class="mt-3 max-w-3xl text-slate-500">Agora os planos ficam em uma vis&atilde;o mais compacta, no mesmo clima de gest&atilde;o da base de assinantes, enquanto a cria&ccedil;&atilde;o e a edi&ccedil;&atilde;o acontecem em modal.</p>
             </div>
             <div class="flex flex-wrap gap-3">
-                <button class="inline-flex items-center justify-center rounded-full bg-[#f5f3f5] px-6 py-3 text-sm font-bold text-[#5a4044]" data-plan-open="new" type="button">Novo plano</button>
+                <button class="signature-glow inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-white" data-plan-open="new" type="button">
+                    <span class="material-symbols-outlined text-[18px]">add</span>
+                    <span>Novo plano</span>
+                </button>
                 <a class="inline-flex items-center justify-center rounded-full bg-[#f5f3f5] px-6 py-3 text-sm font-bold text-[#5a4044]" href="#members-dashboard">Ir para membros</a>
             </div>
         </section>
@@ -101,7 +104,10 @@ include base_path('templates/partials/creator_topbar.php');
                     <h3 class="mt-2 text-3xl font-extrabold">Vis&atilde;o geral dos planos</h3>
                     <p class="mt-2 text-sm text-slate-500">Cada plano aparece no mesmo padr&atilde;o visual dos membros: status, valor, benef&iacute;cios, base ativa e a&ccedil;&otilde;es r&aacute;pidas.</p>
                 </div>
-                <button class="inline-flex items-center justify-center rounded-full bg-[#f5f3f5] px-6 py-3 text-sm font-bold text-[#5a4044]" data-plan-open="new" type="button">Criar plano</button>
+                <button class="signature-glow inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-white" data-plan-open="new" type="button">
+                    <span class="material-symbols-outlined text-[18px]">add</span>
+                    <span>Novo plano</span>
+                </button>
             </div>
 
             <div class="mt-6 space-y-4">

@@ -193,7 +193,7 @@ if ($requestedContentId > 0) {
                                 <a class="min-w-[260px] max-w-[260px] snap-start overflow-hidden rounded-3xl bg-[#fbf9fb] ring-1 ring-[#f0e8ee] transition-transform hover:-translate-y-1" href="<?= e($liveUrl) ?>">
                                     <div class="relative aspect-[4/3] bg-slate-900">
                                         <?php if ($liveCover !== ''): ?>
-                                            <img alt="<?= e((string) ($live['title'] ?? 'Live agendada')) ?>" class="h-full w-full object-cover" src="<?= e($liveCover) ?>">
+                                            <img alt="<?= e((string) ($live['title'] ?? 'Live agendada')) ?>" class="h-full w-full scale-105 object-cover blur-[2px]" src="<?= e($liveCover) ?>">
                                         <?php else: ?>
                                             <div class="signature-glow flex h-full w-full items-center justify-center text-white">
                                                 <span class="headline px-6 text-center text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>

@@ -298,6 +298,19 @@ final class SubscriberController extends Controller
             }
         }
 
+        if ($request->hasFile('identity_document_file')) {
+            $identityDocument = store_private_uploaded_file(
+                $request->file('identity_document_file'),
+                'users/identity',
+                ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+                10485760
+            );
+
+            if ($identityDocument !== null) {
+                $payload['identity_document'] = $identityDocument;
+            }
+        }
+
         $ok = $this->app->repository->updateSubscriberSettings((int) $this->user()['id'], $payload);
 
         $this->redirect('/subscriber/settings', $ok ? 'Perfil atualizado com sucesso.' : 'Nao foi possivel salvar seu perfil.', $ok ? 'success' : 'error');
