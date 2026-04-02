@@ -306,6 +306,7 @@ final class PlatformRepository
             'related_lives' => array_slice($related, 0, 5),
             'recent_tips' => $engagement['recent_tips'],
             'top_supporters' => $engagement['top_supporters'],
+            'tip_total_amount' => (int) ($engagement['tip_total_amount'] ?? 0),
             'can_watch' => (bool) ($access['granted'] ?? false),
             'requires_login' => (bool) ($access['requires_login'] ?? false),
             'requires_subscription' => (bool) ($access['requires_subscription'] ?? false),
@@ -313,6 +314,7 @@ final class PlatformRepository
             'can_tip' => $viewerId !== null && (bool) ($access['granted'] ?? false),
             'stream' => $this->publicLiveStreamState($liveId),
             'priority_tip_tiers' => $this->priorityTipTiersForLive($decoratedLive),
+            'priority_tip_messages' => $this->priorityTipMessagesForLive($decoratedLive),
             'priority_alert' => $this->latestPriorityAlertForLive($liveId),
         ];
     }
@@ -1352,7 +1354,7 @@ final class PlatformRepository
         return $conversationId;
     }
 
-    public function tipCreator(int $subscriberId, int $creatorId, int $amount, string $note = 'Gorjeta enviada', int $liveId = 0): array
+    public function tipCreator(int $subscriberId, int $creatorId, int $amount, string $note = 'Gorjeta enviada', int $liveId = 0, ?string $priorityMessage = null): array
     {
         if ($amount <= 0) {
             return ['ok' => false, 'message' => 'Informe uma quantidade valida de LuaCoins.'];
@@ -1366,7 +1368,7 @@ final class PlatformRepository
         if ($liveId > 0) {
             $live = $this->findLiveById($liveId);
             if ($live && (int) ($live['creator_id'] ?? 0) === $creatorId) {
-                $this->appendPriorityTipMessage($live, $subscriberId, $amount);
+                $this->appendPriorityTipMessage($live, $subscriberId, $amount, $priorityMessage);
             }
         }
 
@@ -2032,10 +2034,12 @@ final class PlatformRepository
         $selectedEngagement = [
             'recent_tips' => [],
             'top_supporters' => [],
+            'tip_total_amount' => 0,
         ];
         if ($selectedLive !== null) {
             $selectedMessages = $this->liveChatMessagesFor((int) ($selectedLive['id'] ?? 0), 8);
             $selectedEngagement = $this->liveEngagementData($selectedLive, 6, 4);
+            $selectedLive['tip_total_amount'] = (int) ($selectedEngagement['tip_total_amount'] ?? 0);
         }
 
         return [
@@ -2075,7 +2079,6 @@ final class PlatformRepository
             $liveType === 'instant' ? '+2 hours' : '+1 day'
         );
         $chatAudience = $this->sanitizeLiveChatAudience((string) ($data['chat_audience'] ?? ($creatorProfile['live_chat_audience_default'] ?? 'all')));
-        $replayVisibility = $this->sanitizeReplayVisibility((string) ($data['replay_visibility'] ?? ($creatorProfile['replay_visibility_default'] ?? 'subscriber')));
         $defaultSettings = $this->settings();
         $chatEnabled = $chatAudience !== 'off';
         $payload = [
@@ -2094,9 +2097,8 @@ final class PlatformRepository
             'goal_tokens' => max(0, (int) ($data['goal_luacoins'] ?? $data['goal_tokens'] ?? 0)),
             'cover_url' => trim((string) ($data['cover_url'] ?? '')),
             'pinned_notice' => trim((string) ($data['pinned_notice'] ?? '')),
-            'recording_enabled' => ($data['recording_enabled'] ?? '1') === '1',
-            'replay_visibility' => $replayVisibility,
-            'replay_expiration_days' => max(1, (int) ($defaultSettings['live_replay_expiration_days'] ?? 7)),
+            // Replay automatico desabilitado para reduzir uso de armazenamento na VPS.
+            'recording_enabled' => false,
             'max_live_duration_minutes' => max(5, (int) ($defaultSettings['live_max_duration_minutes'] ?? 30)),
             'stream_mode' => $this->liveDriver() === 'mediamtx' ? 'mediamtx' : 'segment_queue',
             'segment_duration_seconds' => self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS,
@@ -2124,7 +2126,6 @@ final class PlatformRepository
                         $live['stream_path'] = $this->buildMediaMtxPath((int) ($live['id'] ?? $liveId), (string) ($live['stream_key'] ?? ''));
                     }
                     $live = array_merge($live, array_filter($payload, static fn (mixed $value): bool => $value !== ''));
-                    $this->syncReplayContentWithLive($live);
                     $this->save('live_sessions', $lives);
 
                     return $live;
@@ -2190,8 +2191,6 @@ final class PlatformRepository
                 : (string) ($live['access_mode'] ?? 'public');
             $live['chat_audience'] = $this->sanitizeLiveChatAudience((string) ($data['chat_audience'] ?? ($live['chat_audience'] ?? 'all')));
             $live['chat_enabled'] = (string) $live['chat_audience'] !== 'off';
-            $live['replay_visibility'] = $this->sanitizeReplayVisibility((string) ($data['replay_visibility'] ?? ($live['replay_visibility'] ?? 'subscriber')));
-            $this->syncReplayContentWithLive($live);
             $changed = true;
             break;
         }
@@ -2439,12 +2438,9 @@ final class PlatformRepository
             'viewer_count' => 0,
             'ended_at' => $now,
             'duration_seconds' => $durationSeconds,
-            'recording_status' => 'processing',
+            'recording_status' => 'disabled',
         ]);
-
-        if ($this->liveDriver() === 'mediamtx') {
-            $this->attachLatestMediaMtxRecordingToLive($creatorId, $liveId, $durationSeconds);
-        }
+        // Replay automatico desabilitado para reduzir uso de armazenamento na VPS.
 
         return [
             'ok' => true,
@@ -2556,6 +2552,13 @@ final class PlatformRepository
 
     public function saveLiveRecording(int $creatorId, int $liveId, array $data): array
     {
+        // O replay automatico foi desabilitado para reduzir uso de armazenamento na VPS.
+        return [
+            'ok' => false,
+            'code' => 'recording_disabled',
+            'message' => 'A gravacao automatica da live esta desabilitada neste ambiente.',
+        ];
+
         $lives = $this->liveSessions();
         $recordingUrl = trim((string) ($data['recording_url'] ?? ''));
         $thumbnailUrl = trim((string) ($data['thumbnail_url'] ?? ''));
@@ -2671,6 +2674,7 @@ final class PlatformRepository
             'chat_messages' => $this->liveChatMessagesFor($liveId, 20),
             'recent_tips' => $engagement['recent_tips'],
             'top_supporters' => $engagement['top_supporters'],
+            'tip_total_amount' => (int) ($engagement['tip_total_amount'] ?? 0),
             'priority_alert' => $this->latestPriorityAlertForLive($liveId),
             'viewer_count' => $this->activeViewerCountForLive($liveId),
             'can_chat' => $this->canUserChatInLive($decoratedLive, $userId),
@@ -2909,12 +2913,10 @@ final class PlatformRepository
             ],
             'live_defaults' => [
                 'chat_audience' => $this->sanitizeLiveChatAudience((string) ($creator['live_chat_audience_default'] ?? 'all')),
-                'replay_visibility' => $this->sanitizeReplayVisibility((string) ($creator['replay_visibility_default'] ?? 'subscriber')),
                 'priority_tip_tiers' => $this->priorityTipTiersForCreator($creatorId),
                 'priority_tip_messages' => $this->priorityTipMessagesForCreator($creatorId),
                 'priority_tip_custom' => max(1, (int) ($creator['priority_tip_custom'] ?? 150)),
                 'max_duration_minutes' => max(5, (int) ($settings['live_max_duration_minutes'] ?? 30)),
-                'replay_expiration_days' => max(1, (int) ($settings['live_replay_expiration_days'] ?? 7)),
             ],
             'security' => [
                 'has_stream_key' => trim((string) ($creator['stream_key'] ?? '')) !== '',
@@ -4164,7 +4166,7 @@ final class PlatformRepository
             $live['goal_tokens'] = max(0, (int) ($data['goal_luacoins'] ?? $data['goal_tokens'] ?? $live['goal_tokens'] ?? 0));
             $live['viewer_count'] = max(0, (int) ($data['viewer_count'] ?? $live['viewer_count'] ?? 0));
             $live['chat_enabled'] = ($data['chat_enabled'] ?? ($live['chat_enabled'] ? '1' : '0')) === '1';
-            $live['recording_enabled'] = ($data['recording_enabled'] ?? ($live['recording_enabled'] ? '1' : '0')) === '1';
+            $live['recording_enabled'] = false;
             $live['cover_url'] = trim((string) ($data['cover_url'] ?? $live['cover_url'] ?? ''));
             $live['pinned_notice'] = trim((string) ($data['pinned_notice'] ?? $live['pinned_notice'] ?? ''));
             $changed = true;
@@ -4735,8 +4737,10 @@ final class PlatformRepository
     {
         $tipTransactions = $this->liveTipTransactionsFor($live);
         $supporters = [];
+        $tipTotalAmount = 0;
 
         foreach ($tipTransactions as $transaction) {
+            $tipTotalAmount += (int) ($transaction['amount'] ?? 0);
             $senderId = (int) ($transaction['sender']['id'] ?? 0);
 
             if ($senderId === 0) {
@@ -4759,6 +4763,7 @@ final class PlatformRepository
         return [
             'recent_tips' => array_slice($tipTransactions, 0, max(1, $tipLimit)),
             'top_supporters' => array_slice($supporters, 0, max(1, $supporterLimit)),
+            'tip_total_amount' => $tipTotalAmount,
         ];
     }
 
@@ -4917,8 +4922,13 @@ final class PlatformRepository
         return $this->priorityTipMessagesForCreator((int) ($live['creator_id'] ?? 0));
     }
 
-    private function priorityTipAlertTextForLive(array $live, int $tier, int $amount, int $subscriberId): string
+    private function priorityTipAlertTextForLive(array $live, int $tier, int $amount, int $subscriberId, ?string $customMessage = null): string
     {
+        $customMessage = trim((string) $customMessage);
+        if ($customMessage !== '') {
+            return $customMessage;
+        }
+
         $sender = $this->findUserById($subscriberId);
         $senderName = trim((string) ($sender['name'] ?? 'Um assinante'));
         $template = trim((string) ($this->priorityTipMessagesForLive($live)[(string) $tier] ?? ''));
@@ -4961,7 +4971,7 @@ final class PlatformRepository
         return true;
     }
 
-    private function appendPriorityTipMessage(array $live, int $subscriberId, int $amount): void
+    private function appendPriorityTipMessage(array $live, int $subscriberId, int $amount, ?string $customMessage = null): void
     {
         $tiers = $this->priorityTipTiersForLive($live);
         $matchedTier = 0;
@@ -4989,7 +4999,7 @@ final class PlatformRepository
             'live_id' => (int) ($live['id'] ?? 0),
             'sender_id' => $subscriberId,
             'body' => 'enviou uma gorjeta em destaque.',
-            'alert_text' => $this->priorityTipAlertTextForLive($live, $matchedTier, $amount, $subscriberId),
+            'alert_text' => $this->priorityTipAlertTextForLive($live, $matchedTier, $amount, $subscriberId, $customMessage),
             'created_at' => date('Y-m-d H:i:s'),
             'kind' => 'priority_tip',
             'tip_amount' => $amount,
@@ -5127,7 +5137,7 @@ final class PlatformRepository
                 'viewer_count' => 0,
                 'ended_at' => $now,
                 'duration_seconds' => $durationSeconds,
-                'recording_status' => 'processing',
+                'recording_status' => 'disabled',
             ]);
         }
         unset($stream);
@@ -5191,6 +5201,9 @@ final class PlatformRepository
 
     private function syncReplayContentWithLive(array $live): void
     {
+        // O replay automatico foi desabilitado para reduzir uso de armazenamento na VPS.
+        return;
+
         if ((int) ($live['replay_content_id'] ?? 0) <= 0) {
             return;
         }
@@ -6411,6 +6424,9 @@ final class PlatformRepository
 
     private function attachLatestMediaMtxRecordingToLive(int $creatorId, int $liveId, int $durationSeconds): void
     {
+        // O replay automatico foi desabilitado para reduzir uso de armazenamento na VPS.
+        return;
+
         $live = $this->findLiveById($liveId);
         if (! $live || (int) ($live['creator_id'] ?? 0) !== $creatorId || ! (bool) ($live['recording_enabled'] ?? false)) {
             return;

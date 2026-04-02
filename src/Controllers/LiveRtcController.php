@@ -176,52 +176,11 @@ final class LiveRtcController extends Controller
     {
         $this->app->auth->requireRole('creator');
 
-        if (! $this->app->csrf->validate((string) $request->input('_token'))) {
-            $this->json(['ok' => false, 'message' => 'Sessao expirada para enviar o replay.'], 419);
-        }
-
-        if (! $request->hasFile('recording_file')) {
-            $this->json(['ok' => false, 'message' => 'Nenhum arquivo de replay foi enviado.'], 422);
-        }
-
-        $recordingPath = store_uploaded_file(
-            $request->file('recording_file'),
-            'creator/live/recordings',
-            ['webm', 'mp4', 'ogg', 'mov'],
-            1024 * 1024 * 700
-        );
-
-        if ($recordingPath === null) {
-            $this->json(['ok' => false, 'message' => 'Nao foi possivel salvar o arquivo da gravacao.'], 422);
-        }
-
-        $file = $request->file('recording_file') ?? [];
-        $thumbnailPath = '';
-
-        if ($request->hasFile('thumbnail_file')) {
-            $thumbnailPath = store_uploaded_file(
-                $request->file('thumbnail_file'),
-                'creator/live/recordings/thumbs',
-                ['jpg', 'jpeg', 'png', 'webp'],
-                1024 * 1024 * 8
-            ) ?? '';
-        }
-
-        $result = $this->app->repository->saveLiveRecording((int) $this->user()['id'], (int) $request->input('live_id', 0), [
-            'recording_url' => $recordingPath,
-            'thumbnail_url' => $thumbnailPath,
-            'recording_mime_type' => (string) ($file['type'] ?? 'video/webm'),
-            'recording_bytes' => (int) ($file['size'] ?? 0),
-            'thumbnail_bytes' => (int) (($request->file('thumbnail_file') ?? [])['size'] ?? 0),
-            'recording_duration_seconds' => max(0, (int) $request->input('recording_duration_seconds', 0)),
-            'recording_label' => trim((string) $request->input('recording_label', 'Replay local')),
-        ]);
-
-        if (! (bool) ($result['ok'] ?? false)) {
-            delete_public_media_file($recordingPath);
-            delete_public_media_file($thumbnailPath);
-        }
-
-        $this->json($result, (bool) ($result['ok'] ?? false) ? 200 : 422);
+        // O replay automatico foi desabilitado para reduzir uso de armazenamento na VPS.
+        $this->json([
+            'ok' => false,
+            'code' => 'recording_disabled',
+            'message' => 'A gravacao automatica da live esta desabilitada neste ambiente.',
+        ], 410);
     }
 }

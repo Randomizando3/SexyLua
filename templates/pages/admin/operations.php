@@ -444,7 +444,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                             <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="goal_luacoins" step="1" type="number" value="<?= e((string) ($live['goal_tokens'] ?? 0)) ?>">
                                         </div>
                                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                            <label class="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm font-bold text-on-surface">
+                                            <label class="hidden flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm font-bold text-on-surface">
                                                 <input class="rounded border-slate-300 text-primary focus:ring-primary/20" name="chat_enabled" type="checkbox" value="1" <?= (bool) ($live['chat_enabled'] ?? false) ? 'checked' : '' ?>>
                                                 <span>Chat habilitado</span>
                                             </label>
@@ -487,6 +487,11 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
         const expanded = toggle.getAttribute('aria-expanded') === 'true';
         toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
         panel.classList.toggle('hidden', expanded);
+    });
+
+    document.querySelectorAll('[name="recording_enabled"]').forEach((input) => {
+        const wrap = input.closest('label');
+        if (wrap) wrap.remove();
     });
 </script>
 </body>

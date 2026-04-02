@@ -532,7 +532,7 @@ if ($requestedContentId > 0) {
             video: 'Video',
             audio: 'Audio',
             article: 'Artigo',
-            live_teaser: 'Replay',
+            live_teaser: 'Live',
         };
         const visibilityLabels = {
             public: 'Publico',

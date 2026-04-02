@@ -239,6 +239,7 @@ final class PublicController extends Controller
         $creatorId = (int) $request->input('creator_id', 0);
         $liveId = (int) $request->input('live_id', 0);
         $amount = (int) $request->input('amount', 0);
+        $message = trim((string) $request->input('message', ''));
         $redirect = $liveId > 0 ? path_with_query('/live', ['id' => $liveId]) : path_with_query('/profile', ['id' => $creatorId]);
 
         if (! $this->app->csrf->validate((string) $request->input('_token'))) {
@@ -249,7 +250,7 @@ final class PublicController extends Controller
             $this->redirect($redirect, 'Sessao expirada. Envie o formulario novamente.', 'error');
         }
 
-        $result = $this->app->repository->tipCreator((int) $this->user()['id'], $creatorId, $amount, 'Gorjeta enviada ao criador', $liveId);
+        $result = $this->app->repository->tipCreator((int) $this->user()['id'], $creatorId, $amount, 'Gorjeta enviada ao criador', $liveId, $message);
 
         if ($expectsJson) {
             $this->json($result, (bool) ($result['ok'] ?? false) ? 200 : 422);

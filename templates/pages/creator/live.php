@@ -26,20 +26,15 @@ $selectedLiveDuration = (int) ($selected['duration_seconds'] ?? 0);
 $selectedDurationLabel = $selectedLiveDuration > 0 ? gmdate($selectedLiveDuration >= 3600 ? 'H:i:s' : 'i:s', $selectedLiveDuration) : '00:00';
 $selectedRoomUrl = $selectedLiveId > 0 ? path_with_query('/live', ['id' => $selectedLiveId]) : '';
 $selectedCover = media_url((string) ($selected['cover_url'] ?? ''));
-$selectedReplayUrl = media_url((string) ($selected['recording_url'] ?? ''));
-$selectedReplayThumb = media_url((string) ($selected['recording_thumbnail_url'] ?? $selected['cover_url'] ?? ''));
-$selectedHasReplay = $selectedReplayUrl !== '' && (bool) ($selected['recording_enabled'] ?? false);
-$selectedReplayLabel = (string) ($selected['recording_label'] ?? 'Replay automático');
 $selectedIsConcluded = $selectedStatus === 'ended';
 $viewerCount = (int) ($selected['viewer_count'] ?? 0);
+$selectedTipTotalAmount = (int) ($selected['tip_total_amount'] ?? 0);
 $chatAudienceLabels = [
     'all' => 'Assinantes e não assinantes',
     'subscriber' => 'Só assinantes',
     'off' => 'Chat desabilitado',
 ];
 $selectedChatAudience = (string) ($selected['chat_audience'] ?? 'all');
-$selectedReplayVisibility = (string) ($selected['replay_visibility'] ?? 'subscriber');
-$selectedReplayVisibilityLabel = $selectedReplayVisibility === 'public' ? 'Público' : 'Só assinantes';
 $selectedAccessMode = (string) ($selected['access_mode'] ?? 'public');
 $selectedAccessLabel = $selectedAccessMode === 'subscriber' ? 'Assinantes' : 'Público';
 $selectedMaxDurationMinutes = max(5, (int) ($selected['max_live_duration_minutes'] ?? 30));
@@ -195,9 +190,6 @@ include base_path('templates/partials/creator_topbar.php');
                         <?php if ($editLiveUrl !== ''): ?>
                             <a class="rounded-full bg-[#f7f4f7] px-5 py-3 text-sm font-bold text-slate-600" href="<?= e($editLiveUrl) ?>">Editar dados</a>
                         <?php endif; ?>
-                        <?php if ($selectedHasReplay): ?>
-                            <a class="signature-glow rounded-full px-5 py-3 text-sm font-bold text-white" href="<?= e($selectedReplayUrl) ?>" target="_blank">Abrir replay</a>
-                        <?php endif; ?>
                         <span class="rounded-full bg-[#f2dce6] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.25em] text-[#ab1155]"><?= e($selectedStatusLabel) ?></span>
                     </div>
                 </div>
@@ -219,32 +211,27 @@ include base_path('templates/partials/creator_topbar.php');
                         <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Duração</p>
                         <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedDurationLabel) ?></p>
                     </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Gorjetas</p>
+                        <div class="mt-2 text-sm font-bold text-slate-700"><?= luacoin_amount_html($selectedTipTotalAmount, 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></div>
+                    </div>
                 </div>
 
                 <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
                     <div class="overflow-hidden rounded-3xl bg-[#f7f4f7]">
                         <div class="relative aspect-video bg-slate-950">
-                            <?php if ($selectedReplayThumb !== ''): ?>
-                                <img alt="Thumb do replay" class="h-full w-full object-cover" src="<?= e($selectedReplayThumb) ?>">
-                            <?php elseif ($selectedCover !== ''): ?>
+                            <?php if ($selectedCover !== ''): ?>
                                 <img alt="Capa da live" class="h-full w-full object-cover" src="<?= e($selectedCover) ?>">
                             <?php else: ?>
                                 <div class="signature-glow flex h-full w-full items-center justify-center text-white">
-                                    <span class="headline text-2xl font-extrabold">REPLAY</span>
+                                    <span class="headline text-2xl font-extrabold"><?= e(mb_strtoupper(mb_substr((string) ($selected['title'] ?? 'LIVE'), 0, 18))) ?></span>
                                 </div>
                             <?php endif; ?>
                             <div class="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent"></div>
                             <div class="absolute inset-x-0 bottom-0 p-5 text-white">
-                                <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-white/75"><?= e($selectedReplayLabel) ?></p>
-                                <p class="mt-2 text-sm text-white/80"><?= $selectedHasReplay ? 'Replay salvo automaticamente ao encerrar a live.' : 'O replay ainda está sendo preparado.' ?></p>
+                                <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-white/75">Transmissão encerrada</p>
+                                <p class="mt-2 text-sm text-white/80">Confira abaixo os dados finais desta live e use a agenda para programar a próxima sessão.</p>
                             </div>
-                            <?php if ($selectedHasReplay): ?>
-                                <a class="absolute inset-0 flex items-center justify-center" href="<?= e($selectedReplayUrl) ?>" target="_blank">
-                                    <span class="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-[#ab1155] shadow-lg">
-                                        <span class="material-symbols-outlined text-4xl">play_arrow</span>
-                                    </span>
-                                </a>
-                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -257,12 +244,12 @@ include base_path('templates/partials/creator_topbar.php');
                                     <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedAccessLabel) ?></p>
                                 </div>
                                 <div class="rounded-2xl bg-white px-4 py-4">
-                                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Replay</p>
-                                    <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedReplayVisibilityLabel) ?></p>
-                                </div>
-                                <div class="rounded-2xl bg-white px-4 py-4 md:col-span-2">
                                     <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Chat</p>
                                     <p class="mt-2 text-sm font-bold text-slate-700"><?= e($chatAudienceLabels[$selectedChatAudience] ?? 'Assinantes e não assinantes') ?></p>
+                                </div>
+                                <div class="rounded-2xl bg-white px-4 py-4 md:col-span-2">
+                                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Resumo</p>
+                                    <p class="mt-2 text-sm text-slate-600">A gravação automática está desabilitada para reduzir uso de armazenamento. O foco desta sala é a transmissão ao vivo.</p>
                                 </div>
                             </div>
                         </div>
@@ -270,7 +257,7 @@ include base_path('templates/partials/creator_topbar.php');
                         <div class="rounded-3xl bg-[#f7f4f7] p-5">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Sala pública</p>
                             <a class="mt-3 block break-all text-sm font-bold text-[#D81B60] underline" href="<?= e($selectedRoomUrl) ?>" target="_blank"><?= e($selectedRoomUrl) ?></a>
-                            <p class="mt-4 text-sm text-slate-500">Para controlar o replay, disponibilidade e visibilidade, vá em Meus Conteúdos.</p>
+                            <p class="mt-4 text-sm text-slate-500">Use esta URL para compartilhar a sala pública desta transmissão sempre que quiser divulgar a próxima live.</p>
                         </div>
                     </div>
                 </div>
@@ -326,8 +313,8 @@ include base_path('templates/partials/creator_topbar.php');
                         <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) $viewerCount) ?></p>
                     </div>
                     <div class="rounded-2xl bg-[#f5f3f5] p-4">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Replay</p>
-                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedReplayVisibilityLabel) ?></p>
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Gorjetas</p>
+                        <div class="mt-2 text-sm font-bold text-slate-700"><?= luacoin_amount_html($selectedTipTotalAmount, 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></div>
                     </div>
                 </div>
 
@@ -425,10 +412,6 @@ include base_path('templates/partials/creator_topbar.php');
                     <option value="public" <?= (string) ($formLive['access_mode'] ?? 'public') === 'public' ? 'selected' : '' ?>>Público</option>
                     <option value="subscriber" <?= (string) ($formLive['access_mode'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Assinantes</option>
                 </select>
-                <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="replay_visibility">
-                    <option value="subscriber" <?= (string) ($formLive['replay_visibility'] ?? 'subscriber') === 'subscriber' ? 'selected' : '' ?>>Replay só para assinantes</option>
-                    <option value="public" <?= (string) ($formLive['replay_visibility'] ?? '') === 'public' ? 'selected' : '' ?>>Replay público</option>
-                </select>
                 <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="chat_audience">
                     <option value="all" <?= (string) ($formLive['chat_audience'] ?? 'all') === 'all' ? 'selected' : '' ?>>Chat para assinantes e não assinantes</option>
                     <option value="subscriber" <?= (string) ($formLive['chat_audience'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Chat só para assinantes</option>
@@ -446,10 +429,10 @@ include base_path('templates/partials/creator_topbar.php');
 
             <textarea class="min-h-[92px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="pinned_notice" placeholder="Aviso fixado"><?= e((string) ($formLive['pinned_notice'] ?? '')) ?></textarea>
 
-            <input name="max_bitrate_kbps" type="hidden" value="<?= e((string) ((int) ($formLive['max_bitrate_kbps'] ?? 1200))) ?>">
-            <input name="video_width" type="hidden" value="<?= e((string) ((int) ($formLive['video_width'] ?? 960))) ?>">
-            <input name="video_height" type="hidden" value="<?= e((string) ((int) ($formLive['video_height'] ?? 540))) ?>">
-            <input name="video_fps" type="hidden" value="<?= e((string) ((int) ($formLive['video_fps'] ?? 24))) ?>">
+            <input name="max_bitrate_kbps" type="hidden" value="<?= e((string) ((int) ($formLive['max_bitrate_kbps'] ?? 800))) ?>">
+            <input name="video_width" type="hidden" value="<?= e((string) ((int) ($formLive['video_width'] ?? 854))) ?>">
+            <input name="video_height" type="hidden" value="<?= e((string) ((int) ($formLive['video_height'] ?? 480))) ?>">
+            <input name="video_fps" type="hidden" value="<?= e((string) ((int) ($formLive['video_fps'] ?? 30))) ?>">
 
             <div class="rounded-2xl bg-[#f5f3f5] p-4 text-sm text-slate-600">
                 <p class="font-bold text-slate-800">Fluxo da live</p>

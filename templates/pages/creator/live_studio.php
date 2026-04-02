@@ -23,11 +23,9 @@ $selectedLiveDuration = (int) ($selected['duration_seconds'] ?? 0);
 $selectedDurationLabel = $selectedLiveDuration > 0 ? gmdate($selectedLiveDuration >= 3600 ? 'H:i:s' : 'i:s', $selectedLiveDuration) : '00:00';
 $selectedRoomUrl = $selectedLiveId > 0 ? path_with_query('/live', ['id' => $selectedLiveId]) : '';
 $selectedCover = media_url((string) ($selected['cover_url'] ?? ''));
-$selectedReplayUrl = media_url((string) ($selected['recording_url'] ?? ''));
 $viewerCount = (int) ($selected['viewer_count'] ?? 0);
 $priorityTiers = is_array($selected['priority_tip_tiers'] ?? null) ? array_values($selected['priority_tip_tiers']) : [1, 10, 25, 50, 100, 150];
 $selectedChatAudience = (string) ($selected['chat_audience'] ?? 'all');
-$selectedReplayVisibility = (string) ($selected['replay_visibility'] ?? 'subscriber');
 $selectedMaxDurationMinutes = max(5, (int) ($selected['max_live_duration_minutes'] ?? 30));
 $selectedStatusBucket = (string) ($selected['status_bucket'] ?? 'scheduled');
 $backUrl = path_with_query('/creator/live', ['status' => $selectedStatusBucket, 'live' => $selectedLiveId > 0 ? $selectedLiveId : null]);
@@ -98,8 +96,6 @@ include base_path('templates/partials/creator_topbar.php');
             data-heartbeat-url="/live/rtc/heartbeat"
             data-leave-url="/live/rtc/leave"
             data-hls-url="<?= e($hlsUrl) ?>"
-            data-replay-url="<?= e($selectedReplayUrl) ?>"
-            data-replay-enabled="<?= $selectedReplayUrl !== '' ? '1' : '0' ?>"
             data-max-bitrate-kbps="<?= e((string) ((int) ($selected['max_bitrate_kbps'] ?? 800))) ?>"
             data-video-width="<?= e((string) ((int) ($selected['video_width'] ?? 854))) ?>"
             data-video-height="<?= e((string) ((int) ($selected['video_height'] ?? 480))) ?>"
@@ -292,14 +288,8 @@ include base_path('templates/partials/creator_topbar.php');
                                     <option value="off" <?= $selectedChatAudience === 'off' ? 'selected' : '' ?>>Chat desabilitado</option>
                                 </select>
                             </label>
-                            <label class="block space-y-2">
-                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Replay após encerrar</span>
-                                <select class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" name="replay_visibility">
-                                    <option value="subscriber" <?= $selectedReplayVisibility === 'subscriber' ? 'selected' : '' ?>>Só assinantes</option>
-                                    <option value="public" <?= $selectedReplayVisibility === 'public' ? 'selected' : '' ?>>Público</option>
-                                </select>
-                            </label>
                             <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-sm text-slate-500">As métricas, gorjetas e o chat permanecem ao vivo mesmo com o vídeo entrando pelo MediaMTX.</div>
+                            <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-sm text-slate-500">A gravação automática da live está desabilitada neste ambiente para preservar espaço na VPS.</div>
                         </div>
 
                         <div class="flex flex-wrap gap-3">
@@ -341,5 +331,11 @@ include base_path('templates/partials/creator_topbar.php');
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <script src="<?= e(asset('js/live-segment.js')) ?>"></script>
+<script>
+    document.querySelectorAll('div.rounded-2xl.bg-\\[\\#f5f3f5\\].px-4.py-3.text-sm.text-slate-500').forEach((node) => {
+        if (!node.textContent || !node.textContent.toLowerCase().includes('grava')) return;
+        node.textContent = 'O foco deste estudio esta na transmissao ao vivo e no acompanhamento do chat em tempo real.'
+    })
+</script>
 </body>
 </html>

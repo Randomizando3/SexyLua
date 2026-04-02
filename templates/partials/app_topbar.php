@@ -25,6 +25,41 @@ $appTopbarNavItems = [
     ['href' => '/', 'label' => 'Home'],
     ['href' => '/explore', 'label' => 'Explorar'],
 ];
+$appTopbarSidebarItems = is_array($appTopbarSidebarItems ?? null) ? $appTopbarSidebarItems : match ($appTopbarRole) {
+    'admin' => [
+        ['href' => '/admin', 'label' => 'Dashboard', 'icon' => 'dashboard'],
+        ['href' => '/admin/users', 'label' => 'Usuarios', 'icon' => 'group'],
+        ['href' => '/admin/moderation', 'label' => 'Moderacao', 'icon' => 'policy'],
+        ['href' => '/admin/finance', 'label' => 'Financeiro', 'icon' => 'monitoring'],
+        ['href' => '/admin/operations', 'label' => 'Operacoes', 'icon' => 'dataset'],
+        ['href' => '/admin/messages', 'label' => 'Mensagens', 'icon' => 'chat'],
+        ['href' => '/admin/settings#perfil', 'label' => 'Perfil', 'icon' => 'settings'],
+    ],
+    'creator' => [
+        ['href' => '/creator', 'label' => 'Metricas Lunares', 'icon' => 'insights'],
+        ['href' => '/profile?id=' . (int) ($appTopbarUser['id'] ?? 0), 'label' => 'Pagina Publica', 'icon' => 'public'],
+        ['href' => '/creator/content', 'label' => 'Meu Conteudo', 'icon' => 'movie'],
+        ['href' => '/creator/messages', 'label' => 'Mensagens', 'icon' => 'chat'],
+        ['href' => '/creator/live', 'label' => 'Configurar Live', 'icon' => 'settings_input_antenna'],
+        ['href' => '/creator/memberships', 'label' => 'Minhas Assinaturas', 'icon' => 'star'],
+        ['href' => '/creator/favorites', 'label' => 'Favoritos', 'icon' => 'favorite'],
+        ['href' => '/creator/wallet', 'label' => 'Carteira', 'icon' => 'account_balance_wallet'],
+        ['href' => '/creator/settings', 'label' => 'Configuracoes', 'icon' => 'settings'],
+    ],
+    default => [
+        ['href' => '/subscriber', 'label' => 'Inicio', 'icon' => 'home'],
+        ['href' => '/subscriber/subscriptions', 'label' => 'Minhas Assinaturas', 'icon' => 'stars'],
+        ['href' => '/subscriber/favorites', 'label' => 'Favoritos', 'icon' => 'favorite'],
+        ['href' => '/subscriber/messages', 'label' => 'Mensagens', 'icon' => 'chat'],
+        ['href' => '/subscriber/wallet', 'label' => 'Carteira', 'icon' => 'account_balance_wallet'],
+        ['href' => '/subscriber/settings', 'label' => 'Configuracoes', 'icon' => 'settings'],
+    ],
+};
+
+$appTopbarSidebarItems = array_values(array_filter(
+    $appTopbarSidebarItems,
+    static fn (array $item): bool => (string) ($item['href'] ?? '') !== '/profile?id=0'
+));
 
 if (! defined('SEXYLUA_APP_TOPBAR_INCLUDED')) {
     define('SEXYLUA_APP_TOPBAR_INCLUDED', true);
@@ -51,7 +86,7 @@ if (! defined('SEXYLUA_APP_TOPBAR_INCLUDED')) {
         <div class="hidden flex-1 xl:block"></div>
     <?php endif; ?>
 
-    <div class="flex items-center gap-2 sm:gap-3">
+    <div class="hidden items-center gap-2 sm:gap-3 md:flex">
         <?php if ($appTopbarAction !== null): ?>
             <a class="hidden rounded-full border border-white/20 px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-white/10 sm:inline-flex" href="<?= e((string) ($appTopbarAction['href'] ?? '#')) ?>">
                 <?= e((string) ($appTopbarAction['label'] ?? 'Abrir')) ?>
@@ -97,8 +132,8 @@ if (! defined('SEXYLUA_APP_TOPBAR_INCLUDED')) {
             <div class="absolute right-0 top-[calc(100%+0.75rem)] z-[90] w-[22rem] max-w-[calc(100vw-2rem)] rounded-3xl border border-white/10 bg-white p-4 text-slate-700 shadow-[0px_24px_48px_rgba(27,28,29,0.18)]">
                 <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-1 pb-3">
                     <div>
-                        <p class="text-sm font-extrabold text-slate-900">Notificações</p>
-                        <p class="mt-1 text-xs text-slate-500">Alertas relevantes para sua área.</p>
+                        <p class="text-sm font-extrabold text-slate-900">Notificacoes</p>
+                        <p class="mt-1 text-xs text-slate-500">Alertas relevantes para sua area.</p>
                     </div>
                     <a class="rounded-full bg-[#f7f4f7] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#D81B60]" href="<?= e($appTopbarNotificationsHref) ?>">Abrir</a>
                 </div>
@@ -107,14 +142,14 @@ if (! defined('SEXYLUA_APP_TOPBAR_INCLUDED')) {
                         <a class="flex items-start gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-slate-50" data-feed-item-marker="<?= e((string) ((int) ($item['marker'] ?? 0))) ?>" href="<?= e((string) ($item['href'] ?? $appTopbarNotificationsHref)) ?>">
                             <span class="material-symbols-outlined mt-0.5 text-lg text-[#D81B60]"><?= e((string) ($item['icon'] ?? 'notifications')) ?></span>
                             <span class="min-w-0 flex-1">
-                                <span class="block truncate text-sm font-bold text-slate-900"><?= e((string) ($item['title'] ?? 'Atualização')) ?></span>
+                                <span class="block truncate text-sm font-bold text-slate-900"><?= e((string) ($item['title'] ?? 'Atualizacao')) ?></span>
                                 <span class="mt-1 block text-sm text-slate-500"><?= e((string) ($item['body'] ?? '')) ?></span>
                                 <span class="mt-2 block text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400"><?= e((string) ($item['time'] ?? 'Agora')) ?></span>
                             </span>
                         </a>
                     <?php endforeach; ?>
                     <?php if (((array) ($appTopbarNotifications['items'] ?? [])) === []): ?>
-                        <div class="rounded-2xl bg-[#f7f4f7] px-4 py-5 text-sm text-slate-500">Nenhuma notificação nova por aqui.</div>
+                        <div class="rounded-2xl bg-[#f7f4f7] px-4 py-5 text-sm text-slate-500">Nenhuma notificacao nova por aqui.</div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -127,6 +162,45 @@ if (! defined('SEXYLUA_APP_TOPBAR_INCLUDED')) {
         require BASE_PATH . '/templates/partials/account_menu.php';
         ?>
     </div>
+
+    <details class="relative md:hidden" data-mobile-nav>
+        <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-white/20 bg-white/10 text-white marker:content-none">
+            <span class="material-symbols-outlined text-[22px]" data-mobile-nav-icon>menu</span>
+        </summary>
+        <div class="absolute right-0 top-[calc(100%+0.75rem)] z-[90] w-80 max-w-[calc(100vw-2rem)] rounded-3xl bg-white p-4 text-slate-700 shadow-[0px_24px_48px_rgba(27,28,29,0.18)]">
+            <div class="space-y-2">
+                <?php foreach ($appTopbarNavItems as $item): ?>
+                    <a class="block rounded-2xl px-4 py-3 text-sm font-bold <?= current_path() === (string) ($item['href'] ?? '/') ? 'bg-[#f7f4f7] text-[#D81B60]' : 'text-slate-700 hover:bg-[#f7f4f7]' ?>" href="<?= e((string) ($item['href'] ?? '/')) ?>">
+                        <?= e((string) ($item['label'] ?? 'Link')) ?>
+                    </a>
+                <?php endforeach; ?>
+
+                <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="<?= e($appTopbarMessagesHref) ?>">Mensagens</a>
+                <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="<?= e($appTopbarNotificationsHref) ?>">Notificacoes</a>
+
+                <?php if ($appTopbarAction !== null): ?>
+                    <a class="block rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" href="<?= e((string) ($appTopbarAction['href'] ?? '#')) ?>">
+                        <?= e((string) ($appTopbarAction['label'] ?? 'Abrir')) ?>
+                    </a>
+                <?php endif; ?>
+
+                <?php foreach ($appTopbarSidebarItems as $item): ?>
+                    <a class="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold <?= current_path() === (string) ($item['href'] ?? '') ? 'bg-[#f7f4f7] text-[#D81B60]' : 'text-slate-700 hover:bg-[#f7f4f7]' ?>" href="<?= e((string) ($item['href'] ?? '#')) ?>">
+                        <span class="material-symbols-outlined text-[20px]"><?= e((string) ($item['icon'] ?? 'chevron_right')) ?></span>
+                        <span><?= e((string) ($item['label'] ?? 'Atalho')) ?></span>
+                    </a>
+                <?php endforeach; ?>
+
+                <form action="/logout" method="post">
+                    <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                    <button class="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-[#f7f4f7]" data-prototype-skip="1" type="submit">
+                        <span class="material-symbols-outlined text-[20px]">logout</span>
+                        <span>Sair</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </details>
 </header>
 <?php if (! defined('SEXYLUA_APP_TOPBAR_SCRIPT_INCLUDED')): ?>
     <?php define('SEXYLUA_APP_TOPBAR_SCRIPT_INCLUDED', true); ?>

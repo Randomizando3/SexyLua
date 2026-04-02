@@ -382,5 +382,22 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
         </div>
     </form>
 </main>
+<script>
+    (() => {
+        const replayField = document.querySelector('[name="live_replay_expiration_days"]');
+        const replayFieldWrap = replayField ? replayField.closest('label') : null;
+        if (replayFieldWrap) replayFieldWrap.remove();
+
+        document.querySelectorAll('.rounded-3xl.bg-surface-container-low, .rounded-3xl.bg-surface-container-lowest, .rounded-3xl.bg-surface-container-low p, .rounded-3xl.bg-surface-container-lowest p').forEach((node) => {
+            if (!(node instanceof HTMLElement)) return;
+            if (!node.textContent || !node.textContent.toLowerCase().includes('replay')) return;
+
+            const card = node.closest('.rounded-3xl.bg-surface-container-low');
+            if (card && card.textContent.toLowerCase().includes('replay expira em')) {
+                card.remove();
+            }
+        });
+    })();
+</script>
 </body>
 </html>

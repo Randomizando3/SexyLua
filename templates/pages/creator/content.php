@@ -44,7 +44,7 @@ $kindLabels = [
     'video' => 'Vídeo',
     'audio' => 'Áudio',
     'article' => 'Artigo',
-    'live_teaser' => 'Replay',
+    'live_teaser' => 'Live',
 ];
 $storageUsedBytes = (int) ($summary['storage_used_bytes'] ?? 0);
 $storageLimitBytes = (int) ($summary['storage_limit_bytes'] ?? 524288000);
@@ -98,7 +98,7 @@ include base_path('templates/partials/creator_topbar.php');
         <div>
             <p class="text-xs font-bold uppercase tracking-[0.3em] text-[#D81B60]">Conte&uacute;do do criador</p>
             <h1 class="headline mt-2 text-4xl font-extrabold">Meu conte&uacute;do</h1>
-            <p class="mt-3 max-w-3xl text-slate-500">Gerencie posts, replays e arquivos reais do seu perfil com a cota correta de armazenamento.</p>
+            <p class="mt-3 max-w-3xl text-slate-500">Gerencie posts e arquivos reais do seu perfil com a cota correta de armazenamento.</p>
         </div>
         <button class="signature-glow inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-white xl:w-auto" data-content-open="new" type="button">
             <span class="material-symbols-outlined text-lg">add</span>
@@ -133,7 +133,7 @@ include base_path('templates/partials/creator_topbar.php');
             <div class="mt-5 h-3 overflow-hidden rounded-full bg-[#f1edf1]">
                 <div class="signature-glow h-full rounded-full" style="width: <?= e((string) min(100, max(0, $storagePercent))) ?>%;"></div>
             </div>
-            <p class="mt-3 text-sm text-slate-500">O c&aacute;lculo usa o tamanho real dos arquivos salvos, incluindo replays autom&aacute;ticos.</p>
+            <p class="mt-3 text-sm text-slate-500">O c&aacute;lculo usa o tamanho real dos arquivos salvos em seu perfil.</p>
         </div>
     </section>
 
@@ -290,7 +290,7 @@ include base_path('templates/partials/creator_topbar.php');
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <h3 class="headline text-2xl font-extrabold" data-content-modal-title><?= e($modalTitle) ?></h3>
-                <p class="mt-2 text-sm text-slate-500">Cadastre galerias, v&iacute;deos, &aacute;udios, artigos e replays da sua &aacute;rea de criador.</p>
+                <p class="mt-2 text-sm text-slate-500">Cadastre galerias, v&iacute;deos, &aacute;udios e artigos da sua &aacute;rea de criador.</p>
             </div>
             <button class="rounded-full bg-[#f5f3f5] px-5 py-3 text-sm font-bold text-slate-600" data-content-close type="button">Fechar</button>
         </div>
@@ -351,7 +351,7 @@ include base_path('templates/partials/creator_topbar.php');
 
             <div class="rounded-2xl bg-[#f5f3f5] p-4 text-sm text-slate-600">
                 <p class="font-bold text-slate-800">Espa&ccedil;o restante</p>
-                <p class="mt-2">Voc&ecirc; tem <?= e(human_file_size($storageRemainingBytes)) ?> livres de <?= e(human_file_size($storageLimitBytes, 0)) ?>. Se faltar espa&ccedil;o para um replay autom&aacute;tico, exclua um replay antigo antes de encerrar a live.</p>
+                <p class="mt-2">Voc&ecirc; tem <?= e(human_file_size($storageRemainingBytes)) ?> livres de <?= e(human_file_size($storageLimitBytes, 0)) ?> para publicar novos arquivos.</p>
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">

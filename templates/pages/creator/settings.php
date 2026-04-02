@@ -194,7 +194,7 @@ include base_path('templates/partials/creator_topbar.php');
                             <h4 class="mt-2 text-2xl font-extrabold">Acesso da conta</h4>
                         </div>
                         <div class="grid gap-6 md:grid-cols-2">
-                            <label class="block space-y-2">
+                            <label class="hidden block space-y-2">
                                 <span class="text-sm font-semibold text-on-surface-variant">Nova senha</span>
                                 <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password" type="password">
                             </label>
@@ -339,6 +339,19 @@ include base_path('templates/partials/creator_topbar.php');
 
         bindPreview('avatar');
         bindPreview('cover');
+
+        const replayVisibilityField = document.querySelector('[name="replay_visibility_default"]');
+        const replayVisibilityLabel = replayVisibilityField ? replayVisibilityField.closest('label') : null;
+        if (replayVisibilityLabel) replayVisibilityLabel.remove();
+
+        document.querySelectorAll('div.rounded-3xl.bg-white, div.rounded-3xl.bg-surface-container-lowest, div.rounded-3xl.bg-surface-container-low').forEach((node) => {
+            if (typeof node.textContent === 'string' && node.textContent.toLowerCase().includes('replay')) {
+                const paragraph = node.querySelector('p.mt-2.text-sm.text-on-surface-variant, p.mt-2.text-sm.text-slate-500');
+                if (paragraph && paragraph.textContent.toLowerCase().includes('replay')) {
+                    paragraph.textContent = 'Use {nome}, {valor} ou {tier} dentro do texto para personalizar o alerta. Cada live pode ficar no ar pelo limite definido no painel do admin.';
+                }
+            }
+        });
     })();
 </script>
 </body>

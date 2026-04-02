@@ -15,8 +15,6 @@
     const heartbeatUrl = root.dataset.heartbeatUrl || '/live/rtc/heartbeat'
     const leaveUrl = root.dataset.leaveUrl || '/live/rtc/leave'
     const hlsUrl = root.dataset.hlsUrl || ''
-    const replayUrl = root.dataset.replayUrl || ''
-    const replayEnabled = root.dataset.replayEnabled === '1' || replayUrl !== ''
     const bitrateKbps = Math.max(300, Number(root.dataset.maxBitrateKbps || 800))
     const videoWidth = Math.max(320, Number(root.dataset.videoWidth || 854))
     const videoHeight = Math.max(240, Number(root.dataset.videoHeight || 480))
@@ -49,6 +47,8 @@
         supportersEmpty: document.querySelector('[data-live-top-supporters-empty]'),
         chatForm: document.querySelector('[data-live-chat-form]'),
         tipForm: document.querySelector('[data-live-tip-form]'),
+        tipAmountLabel: document.querySelector('[data-live-tip-amount-label]'),
+        tipTotal: document.querySelector('[data-live-tip-total]'),
         liveStartedAt: document.querySelector('[data-live-started-at]'),
         liveElapsed: document.querySelector('[data-live-elapsed]'),
     }
@@ -77,6 +77,7 @@
     const video = () => mode === 'creator' ? el.previewVideo : el.remoteVideo
     const esc = (v) => String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;')
     const setText = (node, value) => { if (node) node.textContent = String(value ?? '') }
+    const luacoinHtml = (value, size = 'h-4 w-4') => `<span class="inline-flex items-center gap-1.5 whitespace-nowrap"><span>${Math.max(0, Number(value || 0))}</span><img alt="LuaCoin" class="${size} shrink-0" src="/assets/img/luacoin.png"><span class="sr-only">LuaCoins</span></span>`
     const setCount = (value) => el.viewerCounts.forEach((node) => { node.textContent = String(Math.max(0, Number(value || 0))) })
     const statusLabel = (status) => {
         if (status === 'live') return 'Ao vivo'
@@ -419,6 +420,33 @@
         state.priorityAlertTimer = window.setTimeout(() => { el.priorityAlert.classList.add('hidden') }, 8000)
     }
 
+    const tipAmountField = () => el.tipForm ? el.tipForm.querySelector('[name="amount"]') : null
+    const tipMessageField = () => el.tipForm ? el.tipForm.querySelector('[name="message"]') : null
+    const tipPresetButtons = () => el.tipForm ? Array.from(el.tipForm.querySelectorAll('[data-live-tip-preset]')) : []
+
+    const applyTipPreset = (value, message = '') => {
+        const normalized = Math.max(1, Number(value || 0))
+        const amountField = tipAmountField()
+        const messageField = tipMessageField()
+        if (amountField) amountField.value = String(normalized)
+        if (el.tipAmountLabel) el.tipAmountLabel.textContent = String(normalized)
+        if (messageField) {
+            const nextMessage = String(message || '').trim()
+            if (nextMessage !== '') {
+                messageField.value = nextMessage
+            }
+        }
+
+        tipPresetButtons().forEach((button) => {
+            const active = Number(button.dataset.liveTipPreset || 0) === normalized
+            button.classList.toggle('signature-glow', active)
+            button.classList.toggle('text-white', active)
+            button.classList.toggle('bg-[#f5f3f5]', !active)
+            button.classList.toggle('text-[#ab1155]', !active)
+            button.setAttribute('aria-pressed', active ? 'true' : 'false')
+        })
+    }
+
     const applyStatus = (stream = {}, live = {}) => {
         const status = String(stream.status || live.status || 'idle')
         state.broadcasting = status === 'live'
@@ -445,7 +473,7 @@
                 }
             } else if (status === 'ended') {
                 destroyPlayer()
-                setWaiting('Live encerrada. O replay automatico sera anexado aos seus conteudos.')
+                setWaiting('Live encerrada. O estúdio foi finalizado com sucesso.')
             } else {
                 destroyPlayer()
                 setWaiting('Assim que o MediaMTX detectar o sinal do OBS, o preview aparece aqui.')
@@ -465,14 +493,8 @@
             return
         }
 
-        if (status === 'ended' && replayEnabled && replayUrl) {
-            hideWaiting()
-            attachMedia(replayUrl, 'replay', false).catch(() => showError('Nao foi possivel carregar o replay.'))
-            return
-        }
-
         destroyPlayer()
-        setWaiting(accessMessage || 'Aguardando o criador iniciar a live.')
+        setWaiting(status === 'ended' ? 'A live foi encerrada. Obrigado por assistir.' : (accessMessage || 'Aguardando o criador iniciar a live.'))
     }
 
     const applyPayload = (payload) => {
@@ -485,6 +507,7 @@
         renderChat(payload.chat_messages || [])
         renderTips(payload.recent_tips || [])
         renderSupporters(payload.top_supporters || [])
+        if (el.tipTotal) el.tipTotal.innerHTML = luacoinHtml(payload.tip_total_amount || 0)
         showPriorityAlert(payload.priority_alert || null)
         applyStatus(payload.stream || {}, payload.live || {})
     }
@@ -543,9 +566,9 @@
         applyStatus(payload.stream || {}, payload.live || {})
         stopElapsed()
         destroyPlayer()
-        setWaiting('Live encerrada. O replay automatico sera processado em seguida.')
+        setWaiting('Live encerrada. A sala foi finalizada com sucesso.')
         const durationLabel = payload.duration_label || formElapsed(payload.duration_seconds || 0)
-        window.alert(`Live "${payload.title || 'Live'}" encerrada com sucesso, duracao ${durationLabel}. Para controlar o replay va em Meus Conteudos.`)
+        window.alert(`Live "${payload.title || 'Live'}" encerrada com sucesso, duracao ${durationLabel}.`)
         if (reason === 'limit') showError('A live foi encerrada automaticamente porque atingiu o limite maximo configurado.')
         window.setTimeout(() => { window.location.assign(creatorEndedUrl) }, 220)
     }
@@ -585,8 +608,8 @@
             showError(payload.message || 'Nao foi possivel enviar a mensagem.')
             return
         }
-        const textarea = el.chatForm.querySelector('textarea')
-        if (textarea) textarea.value = ''
+        const bodyField = el.chatForm.querySelector('[name="body"]')
+        if (bodyField) bodyField.value = ''
         showError('')
         poll().catch(() => {})
     }
@@ -594,7 +617,10 @@
     const sendTip = async (event) => {
         event.preventDefault()
         if (!el.tipForm) return
-        const payload = await postForm(el.tipForm.action, Object.fromEntries(new FormData(el.tipForm).entries()))
+        const formData = new FormData(el.tipForm)
+        const amount = Math.max(1, Number(formData.get('amount') || 0))
+        formData.set('amount', String(amount))
+        const payload = await postForm(el.tipForm.action, Object.fromEntries(formData.entries()))
         if (!payload.ok) {
             showError(payload.message || 'Nao foi possivel enviar a gorjeta.')
             return
@@ -607,6 +633,11 @@
     if (el.stopButton) el.stopButton.addEventListener('click', () => { stopCreatorBroadcast('manual').catch((error) => showError(error instanceof Error ? error.message : 'Nao foi possivel encerrar a live.')) })
     if (el.chatForm) el.chatForm.addEventListener('submit', sendChat)
     if (el.tipForm) el.tipForm.addEventListener('submit', sendTip)
+    tipPresetButtons().forEach((button) => {
+        button.addEventListener('click', () => {
+            applyTipPreset(button.dataset.liveTipPreset || '1', button.dataset.liveTipMessage || '')
+        })
+    })
     if (el.playbackButton) el.playbackButton.addEventListener('click', () => { const node = video(); if (node) tryPlay(node, false) })
 
     window.addEventListener('beforeunload', () => {
@@ -618,6 +649,10 @@
     })
 
     const boot = async () => {
+        if (el.tipForm) {
+            const amountField = tipAmountField()
+            applyTipPreset(amountField ? amountField.value : '1')
+        }
         if (mode === 'viewer' && !canWatch) {
             setWaiting(accessMessage || 'Entre para assistir esta live.')
             return
