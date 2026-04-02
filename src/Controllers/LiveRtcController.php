@@ -37,11 +37,11 @@ final class LiveRtcController extends Controller
             (string) $request->input('peer_id', ''),
             session_id(),
             [
-                'segment_duration_seconds' => (int) $request->input('segment_duration_seconds', 5),
-                'max_bitrate_kbps' => (int) $request->input('max_bitrate_kbps', 1200),
-                'video_width' => (int) $request->input('video_width', 960),
-                'video_height' => (int) $request->input('video_height', 540),
-                'video_fps' => (int) $request->input('video_fps', 24),
+                'segment_duration_seconds' => (int) $request->input('segment_duration_seconds', 10),
+                'max_bitrate_kbps' => (int) $request->input('max_bitrate_kbps', 800),
+                'video_width' => (int) $request->input('video_width', 854),
+                'video_height' => (int) $request->input('video_height', 480),
+                'video_fps' => (int) $request->input('video_fps', 30),
             ]
         );
 

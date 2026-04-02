@@ -17,3 +17,8 @@ storage/data/*.json
 !storage/data/.gitkeep
 public/uploads/*
 !public/uploads/.gitkeep
+storage/tools/mediamtx/logs/
+storage/tools/mediamtx/mediamtx.exe
+storage/tools/mediamtx/mediamtx.yml
+storage/tools/mediamtx/LICENSE
+!storage/tools/mediamtx/sexylua-mediamtx.yml

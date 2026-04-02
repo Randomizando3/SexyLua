@@ -106,6 +106,7 @@ if ($canWatch && $hasReplay && $liveStatus !== 'live') {
                 data-poll-url="/live/rtc/poll"
                 data-heartbeat-url="/live/rtc/heartbeat"
                 data-leave-url="/live/rtc/leave"
+                data-hls-url="<?= e((string) ($stream['hls_url'] ?? '')) ?>"
                 data-replay-url="<?= e($replayUrl) ?>"
                 data-replay-enabled="<?= $hasReplay ? '1' : '0' ?>"
                 data-ice-servers="<?= e($iceServers) ?>"
@@ -113,8 +114,7 @@ if ($canWatch && $hasReplay && $liveStatus !== 'live') {
                 data-segment-duration-ms="<?= e((string) ($segmentDurationSeconds * 1000)) ?>"
             >
                 <div class="relative aspect-video bg-slate-950">
-                    <video class="absolute inset-0 z-[1] h-full w-full bg-slate-950 object-cover transition-opacity duration-500 opacity-100" controls data-live-remote-video data-live-remote-slot="0" playsinline></video>
-                    <video class="pointer-events-none absolute inset-0 z-[2] h-full w-full bg-slate-950 object-cover transition-opacity duration-500 opacity-0" controls data-live-remote-video data-live-remote-slot="1" playsinline></video>
+                    <video class="absolute inset-0 z-[1] h-full w-full bg-slate-950 object-cover transition-opacity duration-500 opacity-100" controls data-live-remote-video playsinline></video>
                     <?php if ($cover !== ''): ?><img alt="Capa da live" class="absolute inset-0 h-full w-full object-cover opacity-25" src="<?= e($cover) ?>"><?php endif; ?>
                     <div class="<?= $liveStatus === 'ended' ? '' : 'hidden ' ?>absolute left-1/2 top-24 z-[4] w-[min(92%,36rem)] -translate-x-1/2 rounded-3xl border border-white/20 bg-[#D81B60]/90 px-6 py-4 text-center text-white shadow-xl backdrop-blur-md" data-live-ended-banner>
                         <p class="headline text-lg font-extrabold">Encerramos por aqui. Obrigado por assistir, até a próxima!</p>
@@ -331,6 +331,7 @@ if ($canWatch && $hasReplay && $liveStatus !== 'live') {
     </div>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <script src="<?= e(asset('js/live-segment.js')) ?>"></script>
 </body>
 </html>

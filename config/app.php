@@ -49,6 +49,11 @@ return [
     'demo_port' => (int) (getenv('SEXYLUA_PORT') ?: 8088),
     'storage_driver' => getenv('SEXYLUA_STORAGE_DRIVER') ?: 'json',
     'supports_postgresql' => true,
+    'live_driver' => getenv('SEXYLUA_LIVE_DRIVER') ?: 'mediamtx',
+    'mediamtx_api_url' => rtrim((string) (getenv('SEXYLUA_MEDIAMTX_API_URL') ?: 'http://127.0.0.1:9997'), '/'),
+    'mediamtx_rtmp_url' => rtrim((string) (getenv('SEXYLUA_MEDIAMTX_RTMP_URL') ?: 'rtmp://127.0.0.1:1935/live'), '/'),
+    'mediamtx_hls_url' => rtrim((string) (getenv('SEXYLUA_MEDIAMTX_HLS_URL') ?: 'http://127.0.0.1:8888'), '/'),
+    'mediamtx_recordings_public_base' => rtrim((string) (getenv('SEXYLUA_MEDIAMTX_RECORDINGS_PUBLIC_BASE') ?: '/uploads/live/recordings'), '/'),
     'rtc_ice_servers' => $iceServers,
     'rtc_ice_transport_policy' => in_array($iceTransportPolicy, ['all', 'relay'], true) ? $iceTransportPolicy : 'all',
 ];

@@ -13,7 +13,13 @@ final class PlatformRepository
     private const LIVE_SIGNAL_TIMEOUT_SECONDS = 180;
     private const LIVE_DEFAULT_SEGMENT_DURATION_SECONDS = 10;
     private const LIVE_SEGMENT_RETENTION_COUNT = 30;
-    private const LIVE_DEFAULT_BITRATE_KBPS = 1200;
+    private const LIVE_DEFAULT_BITRATE_KBPS = 800;
+    private const LIVE_DEFAULT_WIDTH = 854;
+    private const LIVE_DEFAULT_HEIGHT = 480;
+    private const LIVE_DEFAULT_FPS = 30;
+    private const LIVE_DEFAULT_GOP_SECONDS = 2;
+    private const LIVE_DEFAULT_AUDIO_BITRATE_KBPS = 96;
+    private const LIVE_DEFAULT_AUDIO_SAMPLE_RATE = 48000;
     private const CREATOR_CONTENT_STORAGE_LIMIT_BYTES = 524288000;
     private const SEEDED_COLLECTIONS = [
         'users',
@@ -2088,16 +2094,21 @@ final class PlatformRepository
             'goal_tokens' => max(0, (int) ($data['goal_luacoins'] ?? $data['goal_tokens'] ?? 0)),
             'cover_url' => trim((string) ($data['cover_url'] ?? '')),
             'pinned_notice' => trim((string) ($data['pinned_notice'] ?? '')),
-            'recording_enabled' => ($data['recording_enabled'] ?? '0') === '1',
+            'recording_enabled' => ($data['recording_enabled'] ?? '1') === '1',
             'replay_visibility' => $replayVisibility,
             'replay_expiration_days' => max(1, (int) ($defaultSettings['live_replay_expiration_days'] ?? 7)),
             'max_live_duration_minutes' => max(5, (int) ($defaultSettings['live_max_duration_minutes'] ?? 30)),
-            'stream_mode' => 'segment_queue',
+            'stream_mode' => $this->liveDriver() === 'mediamtx' ? 'mediamtx' : 'segment_queue',
             'segment_duration_seconds' => self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS,
             'max_bitrate_kbps' => max(300, min(2500, (int) ($data['max_bitrate_kbps'] ?? self::LIVE_DEFAULT_BITRATE_KBPS))),
-            'video_width' => max(320, min(1920, (int) ($data['video_width'] ?? 960))),
-            'video_height' => max(240, min(1080, (int) ($data['video_height'] ?? 540))),
-            'video_fps' => max(12, min(30, (int) ($data['video_fps'] ?? 24))),
+            'video_width' => max(320, min(1920, (int) ($data['video_width'] ?? self::LIVE_DEFAULT_WIDTH))),
+            'video_height' => max(240, min(1080, (int) ($data['video_height'] ?? self::LIVE_DEFAULT_HEIGHT))),
+            'video_fps' => max(12, min(30, (int) ($data['video_fps'] ?? self::LIVE_DEFAULT_FPS))),
+            'video_gop_seconds' => max(1, min(4, (int) ($data['video_gop_seconds'] ?? self::LIVE_DEFAULT_GOP_SECONDS))),
+            'audio_bitrate_kbps' => max(48, min(320, (int) ($data['audio_bitrate_kbps'] ?? self::LIVE_DEFAULT_AUDIO_BITRATE_KBPS))),
+            'audio_sample_rate' => in_array((int) ($data['audio_sample_rate'] ?? self::LIVE_DEFAULT_AUDIO_SAMPLE_RATE), [44100, 48000], true)
+                ? (int) ($data['audio_sample_rate'] ?? self::LIVE_DEFAULT_AUDIO_SAMPLE_RATE)
+                : self::LIVE_DEFAULT_AUDIO_SAMPLE_RATE,
         ];
 
         if ($liveId > 0) {
@@ -2105,6 +2116,12 @@ final class PlatformRepository
                 if ((int) $live['id'] === $liveId && (int) $live['creator_id'] === $creatorId) {
                     if ((int) ($payload['viewer_count'] ?? 0) === 0) {
                         $payload['viewer_count'] = (int) ($live['viewer_count'] ?? 0);
+                    }
+                    if (trim((string) ($live['stream_key'] ?? '')) === '') {
+                        $live['stream_key'] = $this->generateLiveStreamKey();
+                    }
+                    if (trim((string) ($live['stream_path'] ?? '')) === '') {
+                        $live['stream_path'] = $this->buildMediaMtxPath((int) ($live['id'] ?? $liveId), (string) ($live['stream_key'] ?? ''));
                     }
                     $live = array_merge($live, array_filter($payload, static fn (mixed $value): bool => $value !== ''));
                     $this->syncReplayContentWithLive($live);
@@ -2116,7 +2133,13 @@ final class PlatformRepository
             unset($live);
         }
 
-        $live = ['id' => $this->store->nextId($lives)] + $payload;
+        $newLiveId = $this->store->nextId($lives);
+        $streamKey = $this->generateLiveStreamKey();
+        $live = [
+            'id' => $newLiveId,
+            'stream_key' => $streamKey,
+            'stream_path' => $this->buildMediaMtxPath($newLiveId, $streamKey),
+        ] + $payload;
         $lives[] = $live;
         $this->save('live_sessions', $lives);
 
@@ -2283,15 +2306,22 @@ final class PlatformRepository
         }
 
         $this->clearLiveSignals($liveId);
-        $this->clearLiveSegmentFiles($liveId);
+        if ($this->liveDriver() !== 'mediamtx') {
+            $this->clearLiveSegmentFiles($liveId);
+        }
         $streams = $this->liveStreams();
         $updated = false;
         $now = date('Y-m-d H:i:s');
         $segmentDurationSeconds = max(2, min(15, (int) ($settings['segment_duration_seconds'] ?? $live['segment_duration_seconds'] ?? self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS)));
         $maxBitrate = max(300, min(2500, (int) ($settings['max_bitrate_kbps'] ?? $live['max_bitrate_kbps'] ?? self::LIVE_DEFAULT_BITRATE_KBPS)));
-        $videoWidth = max(320, min(1920, (int) ($settings['video_width'] ?? $live['video_width'] ?? 960)));
-        $videoHeight = max(240, min(1080, (int) ($settings['video_height'] ?? $live['video_height'] ?? 540)));
-        $videoFps = max(12, min(30, (int) ($settings['video_fps'] ?? $live['video_fps'] ?? 24)));
+        $videoWidth = max(320, min(1920, (int) ($settings['video_width'] ?? $live['video_width'] ?? self::LIVE_DEFAULT_WIDTH)));
+        $videoHeight = max(240, min(1080, (int) ($settings['video_height'] ?? $live['video_height'] ?? self::LIVE_DEFAULT_HEIGHT)));
+        $videoFps = max(12, min(30, (int) ($settings['video_fps'] ?? $live['video_fps'] ?? self::LIVE_DEFAULT_FPS)));
+        $streamMode = $this->liveDriver() === 'mediamtx' ? 'mediamtx' : 'segment_queue';
+        $streamPath = trim((string) ($live['stream_path'] ?? ''));
+        if ($streamPath === '') {
+            $streamPath = $this->buildMediaMtxPath($liveId, trim((string) ($live['stream_key'] ?? $this->generateLiveStreamKey())));
+        }
 
         foreach ($streams as &$stream) {
             if ((int) ($stream['live_id'] ?? 0) !== $liveId) {
@@ -2302,14 +2332,17 @@ final class PlatformRepository
             $stream['broadcaster_peer_id'] = $peerId;
             $stream['updated_at'] = $now;
             $stream['started_at'] = (string) ($stream['started_at'] ?? $now);
-            $stream['stream_mode'] = 'segment_queue';
+            $stream['stream_mode'] = $streamMode;
             $stream['segment_duration_seconds'] = $segmentDurationSeconds;
             $stream['max_bitrate_kbps'] = $maxBitrate;
             $stream['video_width'] = $videoWidth;
             $stream['video_height'] = $videoHeight;
             $stream['video_fps'] = $videoFps;
+            $stream['stream_path'] = $streamPath;
             $stream['latest_sequence'] = 0;
-            $stream['segments'] = [];
+            if ($streamMode !== 'mediamtx') {
+                $stream['segments'] = [];
+            }
             $updated = true;
             break;
         }
@@ -2324,21 +2357,22 @@ final class PlatformRepository
                 'broadcaster_peer_id' => $peerId,
                 'started_at' => $now,
                 'updated_at' => $now,
-                'stream_mode' => 'segment_queue',
-                'segment_duration_seconds' => $segmentDurationSeconds,
-                'max_bitrate_kbps' => $maxBitrate,
-                'video_width' => $videoWidth,
-                'video_height' => $videoHeight,
-                'video_fps' => $videoFps,
-                'latest_sequence' => 0,
-                'segments' => [],
-            ];
-        }
+                  'stream_mode' => $streamMode,
+                  'segment_duration_seconds' => $segmentDurationSeconds,
+                  'max_bitrate_kbps' => $maxBitrate,
+                  'video_width' => $videoWidth,
+                  'video_height' => $videoHeight,
+                  'video_fps' => $videoFps,
+                  'stream_path' => $streamPath,
+                  'latest_sequence' => 0,
+                  'segments' => [],
+              ];
+          }
 
         $this->save('live_streams', $streams);
         $this->updateLiveRuntimeFields($liveId, [
             'status' => 'live',
-            'stream_mode' => 'segment_queue',
+            'stream_mode' => $streamMode,
             'segment_duration_seconds' => $segmentDurationSeconds,
             'max_bitrate_kbps' => $maxBitrate,
             'video_width' => $videoWidth,
@@ -2407,6 +2441,10 @@ final class PlatformRepository
             'duration_seconds' => $durationSeconds,
             'recording_status' => 'processing',
         ]);
+
+        if ($this->liveDriver() === 'mediamtx') {
+            $this->attachLatestMediaMtxRecordingToLive($creatorId, $liveId, $durationSeconds);
+        }
 
         return [
             'ok' => true,
@@ -5960,11 +5998,19 @@ final class PlatformRepository
             'broadcaster_online' => (bool) ($state['broadcaster_online'] ?? false),
             'stream_mode' => (string) ($state['stream_mode'] ?? ($live['stream_mode'] ?? 'p2p_mesh')),
             'max_bitrate_kbps' => (int) ($state['max_bitrate_kbps'] ?? ($live['max_bitrate_kbps'] ?? 1500)),
-            'video_width' => (int) ($state['video_width'] ?? ($live['video_width'] ?? 960)),
-            'video_height' => (int) ($state['video_height'] ?? ($live['video_height'] ?? 540)),
-            'video_fps' => (int) ($state['video_fps'] ?? ($live['video_fps'] ?? 24)),
+            'video_width' => (int) ($state['video_width'] ?? ($live['video_width'] ?? self::LIVE_DEFAULT_WIDTH)),
+            'video_height' => (int) ($state['video_height'] ?? ($live['video_height'] ?? self::LIVE_DEFAULT_HEIGHT)),
+            'video_fps' => (int) ($state['video_fps'] ?? ($live['video_fps'] ?? self::LIVE_DEFAULT_FPS)),
             'segment_duration_seconds' => (int) ($state['segment_duration_seconds'] ?? ($live['segment_duration_seconds'] ?? self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS)),
             'latest_sequence' => (int) ($state['latest_sequence'] ?? 0),
+            'stream_path' => (string) ($state['path_name'] ?? ($live['stream_path'] ?? '')),
+            'stream_key' => (string) ($live['stream_key'] ?? ''),
+            'ingest_url' => (string) ($state['ingest_url'] ?? ''),
+            'hls_url' => (string) ($state['hls_url'] ?? ''),
+            'stream_ready' => (bool) ($state['ready'] ?? false),
+            'video_gop_seconds' => (int) ($live['video_gop_seconds'] ?? self::LIVE_DEFAULT_GOP_SECONDS),
+            'audio_bitrate_kbps' => (int) ($live['audio_bitrate_kbps'] ?? self::LIVE_DEFAULT_AUDIO_BITRATE_KBPS),
+            'audio_sample_rate' => (int) ($live['audio_sample_rate'] ?? self::LIVE_DEFAULT_AUDIO_SAMPLE_RATE),
         ]);
     }
 
@@ -5972,33 +6018,56 @@ final class PlatformRepository
     {
         $live = $this->findLiveById($liveId) ?? [];
         $stream = $this->findLiveStreamRecord($liveId);
-        $broadcaster = $this->activeCreatorPresenceForLive($liveId);
         $viewerCount = $this->activeViewerCountForLive($liveId);
+        $driver = $this->liveDriver();
+        $mediamtxState = $driver === 'mediamtx' ? $this->mediaMtxPathState($live) : [];
+        $broadcaster = $driver === 'mediamtx' ? null : $this->activeCreatorPresenceForLive($liveId);
         $status = (string) ($stream['status'] ?? ((string) ($live['status'] ?? '') === 'ended' ? 'ended' : 'idle'));
 
-        if ($status === 'live' && $broadcaster === null) {
+        if ($driver === 'mediamtx') {
+            if ((bool) ($mediamtxState['ready'] ?? false)) {
+                $status = 'live';
+            } elseif ((string) ($live['status'] ?? '') === 'ended' || (string) ($stream['status'] ?? '') === 'ended') {
+                $status = 'ended';
+            } else {
+                $status = 'idle';
+            }
+        } elseif ($status === 'live' && $broadcaster === null) {
             $status = 'idle';
         }
 
-        $broadcasterPeerId = $status === 'live' && $broadcaster !== null
-            ? (string) ($broadcaster['peer_id'] ?? $stream['broadcaster_peer_id'] ?? '')
-            : '';
+        $broadcasterPeerId = $driver === 'mediamtx'
+            ? ''
+            : ($status === 'live' && $broadcaster !== null
+                ? (string) ($broadcaster['peer_id'] ?? $stream['broadcaster_peer_id'] ?? '')
+                : '');
+        $pathName = trim((string) ($stream['stream_path'] ?? $live['stream_path'] ?? ''));
+        $publishedPath = $driver === 'mediamtx'
+            ? trim((string) ($mediamtxState['path_name'] ?? $this->mediaMtxPublishedPath($pathName)))
+            : $pathName;
 
         return [
             'status' => $status,
             'broadcaster_peer_id' => $broadcasterPeerId,
-            'broadcaster_online' => $status === 'live' && $broadcaster !== null,
+            'broadcaster_online' => $driver === 'mediamtx' ? (bool) ($mediamtxState['ready'] ?? false) : ($status === 'live' && $broadcaster !== null),
             'viewer_count' => $viewerCount,
             'started_at' => (string) ($stream['started_at'] ?? $live['started_at'] ?? ''),
             'stopped_at' => (string) ($stream['stopped_at'] ?? $live['ended_at'] ?? ''),
-            'stream_mode' => (string) ($stream['stream_mode'] ?? $live['stream_mode'] ?? 'segment_queue'),
+            'stream_mode' => (string) ($stream['stream_mode'] ?? $live['stream_mode'] ?? $driver),
             'max_bitrate_kbps' => (int) ($stream['max_bitrate_kbps'] ?? $live['max_bitrate_kbps'] ?? self::LIVE_DEFAULT_BITRATE_KBPS),
-            'video_width' => (int) ($stream['video_width'] ?? $live['video_width'] ?? 960),
-            'video_height' => (int) ($stream['video_height'] ?? $live['video_height'] ?? 540),
-            'video_fps' => (int) ($stream['video_fps'] ?? $live['video_fps'] ?? 24),
+            'video_width' => (int) ($stream['video_width'] ?? $live['video_width'] ?? self::LIVE_DEFAULT_WIDTH),
+            'video_height' => (int) ($stream['video_height'] ?? $live['video_height'] ?? self::LIVE_DEFAULT_HEIGHT),
+            'video_fps' => (int) ($stream['video_fps'] ?? $live['video_fps'] ?? self::LIVE_DEFAULT_FPS),
             'segment_duration_seconds' => (int) ($stream['segment_duration_seconds'] ?? $live['segment_duration_seconds'] ?? self::LIVE_DEFAULT_SEGMENT_DURATION_SECONDS),
             'latest_sequence' => (int) ($stream['latest_sequence'] ?? 0),
-            'segments' => $this->normalizeLiveSegments((array) ($stream['segments'] ?? [])),
+            'segments' => $driver === 'mediamtx' ? [] : $this->normalizeLiveSegments((array) ($stream['segments'] ?? [])),
+            'path_name' => $publishedPath,
+            'ingest_url' => $pathName !== '' ? $this->mediaMtxIngestUrl($pathName) : '',
+            'hls_url' => $pathName !== '' ? $this->mediaMtxHlsUrl($pathName) : '',
+            'ready' => (bool) ($mediamtxState['ready'] ?? false),
+            'bytes_received' => (int) ($mediamtxState['bytes_received'] ?? 0),
+            'source_type' => (string) ($mediamtxState['source_type'] ?? ''),
+            'source_id' => (string) ($mediamtxState['source_id'] ?? ''),
         ];
     }
 
@@ -6220,6 +6289,200 @@ final class PlatformRepository
         }
     }
 
+    private function liveDriver(): string
+    {
+        $driver = strtolower(trim((string) ($this->config['app']['live_driver'] ?? 'segment_queue')));
+
+        return $driver === 'mediamtx' ? 'mediamtx' : 'segment_queue';
+    }
+
+    private function generateLiveStreamKey(): string
+    {
+        return bin2hex(random_bytes(12));
+    }
+
+    private function buildMediaMtxPath(int $liveId, string $streamKey): string
+    {
+        $streamKey = trim($streamKey) !== '' ? trim($streamKey) : $this->generateLiveStreamKey();
+
+        return 'live-' . $liveId . '-' . strtolower($streamKey);
+    }
+
+    private function mediaMtxApiUrl(string $path = ''): string
+    {
+        $base = rtrim((string) ($this->config['app']['mediamtx_api_url'] ?? 'http://127.0.0.1:9997'), '/');
+
+        return $base . ($path !== '' ? '/' . ltrim($path, '/') : '');
+    }
+
+    private function mediaMtxIngestUrl(string $pathName): string
+    {
+        $base = rtrim((string) ($this->config['app']['mediamtx_rtmp_url'] ?? 'rtmp://127.0.0.1:1935/live'), '/');
+
+        return $base . '/' . ltrim($pathName, '/');
+    }
+
+    private function mediaMtxHlsUrl(string $pathName): string
+    {
+        $base = rtrim((string) ($this->config['app']['mediamtx_hls_url'] ?? 'http://127.0.0.1:8888'), '/');
+
+        return $base . '/' . ltrim($this->mediaMtxPublishedPath($pathName), '/') . '/index.m3u8';
+    }
+
+    private function mediaMtxPathState(array $live): array
+    {
+        $pathName = trim((string) ($live['stream_path'] ?? ''));
+        if ($pathName === '') {
+            return [];
+        }
+
+        $publishedPath = $this->mediaMtxPublishedPath($pathName);
+        $payload = $this->mediaMtxApiRequest('v3/paths/list');
+        $items = is_array($payload['items'] ?? null) ? $payload['items'] : [];
+
+        foreach ($items as $item) {
+            $itemName = trim((string) ($item['name'] ?? ''));
+            if (! is_array($item) || ! in_array($itemName, [$pathName, $publishedPath], true)) {
+                continue;
+            }
+
+            $source = is_array($item['source'] ?? null) ? $item['source'] : [];
+
+            return [
+                'path_name' => $itemName,
+                'ready' => (bool) ($item['ready'] ?? false),
+                'bytes_received' => (int) ($item['bytesReceived'] ?? 0),
+                'source_type' => (string) ($source['type'] ?? ($item['sourceType'] ?? '')),
+                'source_id' => (string) ($source['id'] ?? ($item['sourceId'] ?? '')),
+            ];
+        }
+
+        return [];
+    }
+
+    private function mediaMtxApiRequest(string $path): array
+    {
+        $url = $this->mediaMtxApiUrl($path);
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            if ($ch === false) {
+                return [];
+            }
+
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 2,
+                CURLOPT_TIMEOUT => 4,
+                CURLOPT_HTTPHEADER => ['Accept: application/json'],
+            ]);
+
+            $response = curl_exec($ch);
+            $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            curl_close($ch);
+
+            if (! is_string($response) || $status < 200 || $status >= 300) {
+                return [];
+            }
+
+            $decoded = json_decode($response, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'timeout' => 4,
+                'header' => "Accept: application/json\r\n",
+            ],
+        ]);
+        $response = @file_get_contents($url, false, $context);
+        if (! is_string($response) || trim($response) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($response, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function attachLatestMediaMtxRecordingToLive(int $creatorId, int $liveId, int $durationSeconds): void
+    {
+        $live = $this->findLiveById($liveId);
+        if (! $live || (int) ($live['creator_id'] ?? 0) !== $creatorId || ! (bool) ($live['recording_enabled'] ?? false)) {
+            return;
+        }
+
+        $pathName = trim((string) ($live['stream_path'] ?? ''));
+        if ($pathName === '') {
+            return;
+        }
+
+        $recordingDir = public_path('uploads/live/recordings/' . $this->mediaMtxPublishedPath($pathName));
+        if (! is_dir($recordingDir)) {
+            return;
+        }
+
+        $candidates = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($recordingDir, \FilesystemIterator::SKIP_DOTS)
+        );
+
+        foreach ($iterator as $file) {
+            if (! $file instanceof \SplFileInfo || ! $file->isFile()) {
+                continue;
+            }
+
+            $extension = strtolower($file->getExtension());
+            if (! in_array($extension, ['mp4', 'm4s', 'ts', 'webm', 'mov', 'mkv'], true)) {
+                continue;
+            }
+
+            $candidates[] = $file->getPathname();
+        }
+
+        if ($candidates === []) {
+            return;
+        }
+
+        usort($candidates, static fn (string $left, string $right): int => (@filemtime($right) ?: 0) <=> (@filemtime($left) ?: 0));
+        $recordingPath = $candidates[0] ?? '';
+        if ($recordingPath === '' || ! is_file($recordingPath)) {
+            return;
+        }
+
+        $publicRoot = public_path();
+        $relative = str_replace('\\', '/', ltrim(str_replace($publicRoot, '', $recordingPath), '/'));
+        if ($relative === '') {
+            return;
+        }
+
+        $recordingUrl = '/' . $relative;
+        $mimeType = detect_uploaded_mime_type($recordingPath, 'video/mp4');
+
+        $lives = $this->liveSessions();
+        foreach ($lives as &$row) {
+            if ((int) ($row['id'] ?? 0) !== $liveId || (int) ($row['creator_id'] ?? 0) !== $creatorId) {
+                continue;
+            }
+
+            $row['recording_enabled'] = true;
+            $row['recording_url'] = $recordingUrl;
+            $row['recording_status'] = 'ready';
+            $row['recording_mime_type'] = $mimeType;
+            $row['recording_bytes'] = public_media_file_bytes($recordingUrl);
+            $row['recording_duration_seconds'] = max(0, $durationSeconds);
+            $row['recording_label'] = 'Replay automatico';
+            $row['recorded_at'] = date('Y-m-d H:i:s');
+            $this->upsertReplayContentFromLive($row);
+            break;
+        }
+        unset($row);
+
+        $this->save('live_sessions', $lives);
+    }
+
     private function generateLivePeerId(string $role): string
     {
         return $role . '-' . bin2hex(random_bytes(8));
@@ -6261,6 +6524,25 @@ final class PlatformRepository
         }
 
         return $slug;
+    }
+
+    private function mediaMtxPublishedPath(string $pathName): string
+    {
+        $pathName = trim($pathName, " \t\n\r\0\x0B/");
+        if ($pathName === '') {
+            return '';
+        }
+
+        $basePath = trim((string) parse_url((string) ($this->config['app']['mediamtx_rtmp_url'] ?? ''), PHP_URL_PATH), '/');
+        if ($basePath === '') {
+            return $pathName;
+        }
+
+        if ($pathName === $basePath || str_starts_with($pathName, $basePath . '/')) {
+            return $pathName;
+        }
+
+        return $basePath . '/' . $pathName;
     }
 
     private function sortByDate(array $rows, string $field): array

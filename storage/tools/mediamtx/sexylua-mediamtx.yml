@@ -1,0 +1,23 @@
+logLevel: info
+api: yes
+apiAddress: 127.0.0.1:9997
+rtmp: yes
+rtmpAddress: :1935
+hls: yes
+hlsAddress: 127.0.0.1:8888
+hlsAllowOrigins: ['*']
+hlsAlwaysRemux: true
+hlsVariant: mpegts
+hlsSegmentCount: 7
+hlsSegmentDuration: 2s
+pathDefaults:
+  source: publisher
+  overridePublisher: true
+  record: true
+  recordPath: D:/PROJETOS/002 - PROJETOS WORKANA/008 - SexyLua/public/uploads/live/recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: fmp4
+  recordPartDuration: 1s
+  recordSegmentDuration: 1h
+  recordDeleteAfter: 7d
+paths:
+  all_others: {}

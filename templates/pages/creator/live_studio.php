@@ -23,6 +23,7 @@ $selectedLiveDuration = (int) ($selected['duration_seconds'] ?? 0);
 $selectedDurationLabel = $selectedLiveDuration > 0 ? gmdate($selectedLiveDuration >= 3600 ? 'H:i:s' : 'i:s', $selectedLiveDuration) : '00:00';
 $selectedRoomUrl = $selectedLiveId > 0 ? path_with_query('/live', ['id' => $selectedLiveId]) : '';
 $selectedCover = media_url((string) ($selected['cover_url'] ?? ''));
+$selectedReplayUrl = media_url((string) ($selected['recording_url'] ?? ''));
 $viewerCount = (int) ($selected['viewer_count'] ?? 0);
 $priorityTiers = is_array($selected['priority_tip_tiers'] ?? null) ? array_values($selected['priority_tip_tiers']) : [1, 10, 25, 50, 100, 150];
 $selectedChatAudience = (string) ($selected['chat_audience'] ?? 'all');
@@ -33,7 +34,11 @@ $backUrl = path_with_query('/creator/live', ['status' => $selectedStatusBucket, 
 $editLiveUrl = $selectedLiveId > 0
     ? path_with_query('/creator/live', ['status' => $selectedStatusBucket, 'live' => $selectedLiveId, 'open_form' => 1, 'form_mode' => 'edit'])
     : '/creator/live';
-$canBroadcast = $selected !== null && !in_array($selectedStatus, ['ended', 'expired'], true);
+$canBroadcast = $selected !== null && ! in_array($selectedStatus, ['ended', 'expired'], true);
+$ingestUrl = (string) ($selected['ingest_url'] ?? '');
+$hlsUrl = (string) ($selected['hls_url'] ?? '');
+$streamKey = (string) ($selected['stream_path'] ?? '');
+$audioSampleRate = (int) ($selected['audio_sample_rate'] ?? 48000);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -91,30 +96,31 @@ include base_path('templates/partials/creator_topbar.php');
             data-poll-url="/live/rtc/poll"
             data-heartbeat-url="/live/rtc/heartbeat"
             data-leave-url="/live/rtc/leave"
-            data-chunk-upload-url="/live/rtc/chunk"
-            data-recording-url="/live/rtc/recording"
-            data-max-bitrate-kbps="<?= e((string) ((int) ($selected['max_bitrate_kbps'] ?? 1200))) ?>"
-            data-video-width="<?= e((string) ((int) ($selected['video_width'] ?? 960))) ?>"
-            data-video-height="<?= e((string) ((int) ($selected['video_height'] ?? 540))) ?>"
-            data-video-fps="<?= e((string) ((int) ($selected['video_fps'] ?? 24))) ?>"
+            data-hls-url="<?= e($hlsUrl) ?>"
+            data-replay-url="<?= e($selectedReplayUrl) ?>"
+            data-replay-enabled="<?= $selectedReplayUrl !== '' ? '1' : '0' ?>"
+            data-max-bitrate-kbps="<?= e((string) ((int) ($selected['max_bitrate_kbps'] ?? 800))) ?>"
+            data-video-width="<?= e((string) ((int) ($selected['video_width'] ?? 854))) ?>"
+            data-video-height="<?= e((string) ((int) ($selected['video_height'] ?? 480))) ?>"
+            data-video-fps="<?= e((string) ((int) ($selected['video_fps'] ?? 30))) ?>"
             data-segment-duration-ms="<?= e((string) (((int) ($selected['segment_duration_seconds'] ?? 10)) * 1000)) ?>"
             data-max-duration-seconds="<?= e((string) ($selectedMaxDurationMinutes * 60)) ?>"
         >
-            <section class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-                <div class="rounded-3xl bg-white p-5 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:p-6">
+            <section class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+                <div class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
                     <a class="inline-flex items-center gap-2 text-sm font-bold text-[#D81B60]" href="<?= e($backUrl) ?>">
                         <span class="material-symbols-outlined text-base">arrow_back</span>
                         Voltar para agenda
                     </a>
                     <p class="mt-4 text-xs font-bold uppercase tracking-[0.3em] text-[#D81B60]">Estúdio da live</p>
                     <h1 class="headline mt-2 text-3xl font-extrabold"><?= e((string) ($selected['title'] ?? 'Estúdio')) ?></h1>
-                    <p class="mt-3 max-w-3xl text-sm text-slate-500">Prepare câmera, microfone, sala e chat em uma tela separada, sem misturar com a agenda de lives.</p>
+                    <p class="mt-3 max-w-3xl text-sm text-slate-500">Agora a transmissão entra por RTMP no MediaMTX e o público assiste por HLS, o que deixa a reprodução bem mais estável no celular e em tela cheia.</p>
                 </div>
 
-                <div class="rounded-3xl bg-white p-5 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:p-6">
+                <div class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
                     <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Sala pública</p>
                     <a class="mt-3 block break-all text-sm font-bold text-[#D81B60] underline" data-live-room-link href="<?= e($selectedRoomUrl) ?>" target="_blank"><?= e($selectedRoomUrl) ?></a>
-                    <p class="mt-3 text-sm text-slate-500">Ao começar a live, esta será a sala que o público e os assinantes vão assistir.</p>
+                    <p class="mt-3 text-sm text-slate-500">O chat, as gorjetas e as métricas continuam no SexyLua. O vídeo passa a vir do MediaMTX.</p>
                     <div class="mt-6 flex flex-wrap gap-3">
                         <a class="rounded-full bg-[#f7f4f7] px-5 py-3 text-sm font-bold text-slate-600" href="<?= e($editLiveUrl) ?>">Editar dados</a>
                         <a class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" href="<?= e($selectedRoomUrl) ?>" target="_blank">Abrir sala pública</a>
@@ -126,14 +132,14 @@ include base_path('templates/partials/creator_topbar.php');
                 <section class="overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
                     <div class="hidden border-b border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-800" data-live-error></div>
                     <div class="relative h-[340px] bg-slate-950 md:h-[420px] xl:h-[480px]">
-                        <video autoplay class="h-full w-full object-cover" data-live-local-video muted playsinline></video>
+                        <video class="h-full w-full object-cover" controls data-live-local-video muted playsinline></video>
                         <?php if ($selectedCover !== ''): ?><img alt="Capa da live" class="absolute inset-0 h-full w-full object-cover opacity-20" src="<?= e($selectedCover) ?>"><?php endif; ?>
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/35"></div>
                         <div class="absolute inset-x-0 top-0 flex items-start justify-between gap-4 p-6 text-white">
                             <div>
                                 <div class="flex flex-wrap items-center gap-3">
                                     <span class="<?= $selectedStatus === 'live' ? 'bg-emerald-500' : 'bg-[#D81B60]' ?> rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-status-text><?= e($selectedStatus === 'live' ? 'ao vivo' : 'agendada') ?></span>
-                                    <span class="rounded-full bg-white/15 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]"><?= e($selectedStatusLabel) ?></span>
+                                    <span class="rounded-full bg-white/15 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-stream-state><?= e($selectedStatusLabel) ?></span>
                                 </div>
                                 <p class="headline mt-5 text-3xl font-extrabold"><?= e((string) ($selected['title'] ?? 'Live')) ?></p>
                                 <p class="mt-2 max-w-2xl text-sm text-white/80"><?= e((string) ($selected['description'] ?? '')) ?></p>
@@ -141,43 +147,21 @@ include base_path('templates/partials/creator_topbar.php');
                             <span class="rounded-full bg-white/15 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]"><span data-live-viewer-count><?= e((string) $viewerCount) ?></span> viewers</span>
                         </div>
                         <div class="absolute inset-0 flex items-center justify-center bg-black/45 px-6 text-center text-white" data-live-waiting>
-                            <div class="max-w-md">
-                                <p class="headline text-3xl font-extrabold">Mini estúdio</p>
-                                <p class="mt-3 text-sm text-white/75" data-live-waiting-text>Carregando câmera e microfone para esta live.</p>
+                            <div class="max-w-xl">
+                                <p class="headline text-3xl font-extrabold">Aguardando ingest</p>
+                                <p class="mt-3 text-sm text-white/75" data-live-waiting-text>Inicie sua transmissão no OBS usando o servidor RTMP e a chave abaixo. Assim que o MediaMTX detectar o sinal, o preview aparece aqui.</p>
                             </div>
                         </div>
-                        <div class="absolute inset-x-0 bottom-0 flex flex-col gap-4 p-5">
-                            <div class="flex flex-wrap items-center justify-center gap-3 rounded-full bg-black/45 px-4 py-3 backdrop-blur-md">
-                                <button class="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25" data-live-preview-audio data-prototype-skip="1" title="Ouvir preview" type="button">
-                                    <span class="material-symbols-outlined text-[22px]" data-live-control-icon>volume_up</span>
-                                    <span class="sr-only" data-live-control-label>Ouvir preview</span>
-                                </button>
-                                <button class="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25" data-live-preview-mirror data-prototype-skip="1" title="Desespelhar câmera" type="button">
-                                    <span class="material-symbols-outlined text-[22px]" data-live-control-icon>flip_camera_android</span>
-                                    <span class="sr-only" data-live-control-label>Desespelhar câmera</span>
-                                </button>
-                                <button class="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25" data-live-toggle-audio data-prototype-skip="1" title="Mutar microfone" type="button">
-                                    <span class="material-symbols-outlined text-[22px]" data-live-control-icon>mic</span>
-                                    <span class="sr-only" data-live-control-label>Mutar microfone</span>
-                                </button>
-                                <button class="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25" data-live-toggle-video data-prototype-skip="1" title="Desligar câmera" type="button">
-                                    <span class="material-symbols-outlined text-[22px]" data-live-control-icon>videocam</span>
-                                    <span class="sr-only" data-live-control-label>Desligar câmera</span>
-                                </button>
+                        <div class="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-3 p-5">
+                            <div class="flex flex-wrap items-center gap-3 rounded-full bg-black/45 px-4 py-3 text-white backdrop-blur-md">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em]">RTMP estável</span>
+                                <span class="rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em]">854x480</span>
+                                <span class="rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em]">800 kbps</span>
+                                <span class="rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em]">30 fps</span>
+                            </div>
+                            <div class="flex flex-wrap gap-3">
                                 <button class="<?= $selectedStatus === 'live' ? 'hidden ' : '' ?>signature-glow inline-flex h-12 items-center justify-center rounded-full px-5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" data-live-start data-prototype-skip="1" type="button">Começar live</button>
                                 <button class="<?= $selectedStatus === 'live' ? '' : 'hidden ' ?>inline-flex h-12 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" data-live-stop data-prototype-skip="1" type="button">Encerrar live</button>
-                            </div>
-                            <div class="grid w-full max-w-2xl gap-3 self-end md:grid-cols-2">
-                                <div class="rounded-2xl bg-black/45 p-2 backdrop-blur-md">
-                                    <select class="w-full rounded-xl border-none bg-white/90 px-4 py-3 text-sm font-semibold text-slate-700" data-live-video-device>
-                                        <option value="">Selecionando câmera...</option>
-                                    </select>
-                                </div>
-                                <div class="rounded-2xl bg-black/45 p-2 backdrop-blur-md">
-                                    <select class="w-full rounded-xl border-none bg-white/90 px-4 py-3 text-sm font-semibold text-slate-700" data-live-audio-device>
-                                        <option value="">Selecionando microfone...</option>
-                                    </select>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -250,113 +234,103 @@ include base_path('templates/partials/creator_topbar.php');
                 </div>
             </section>
 
-            <section class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:p-8">
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                        <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Detalhes da live</p>
-                        <h2 class="headline mt-2 text-2xl font-extrabold"><?= e((string) ($selected['title'] ?? 'Live')) ?></h2>
-                    </div>
-                    <span class="<?= $selectedStatus === 'live' ? 'bg-emerald-500 text-white' : 'bg-[#f7f4f7] text-slate-600' ?> rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]"><?= e($selectedStatusLabel) ?></span>
-                </div>
-
-                <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    <div class="rounded-2xl bg-[#f5f3f5] p-3.5">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Agendada</p>
-                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedScheduleLabel !== '' ? $selectedScheduleLabel : 'Sem agenda') ?></p>
-                    </div>
-                    <div class="rounded-2xl bg-[#f5f3f5] p-3.5">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Iniciada em</p>
-                        <p class="mt-2 text-sm font-bold text-slate-700" data-live-started-at><?= e($selectedStartedAt !== '' ? $selectedStartedAt : 'Ainda não iniciou') ?></p>
-                    </div>
-                    <div class="rounded-2xl bg-[#f5f3f5] p-3.5">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Duração</p>
-                        <p class="mt-2 text-sm font-bold text-slate-700" data-live-elapsed><?= e($selectedDurationLabel) ?></p>
-                    </div>
-                    <div class="rounded-2xl bg-[#f5f3f5] p-3.5">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Último encerramento</p>
-                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedEndedAt !== '' ? $selectedEndedAt : 'Sem histórico') ?></p>
-                    </div>
-                    <div class="rounded-2xl bg-[#f5f3f5] p-3.5">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Duração máxima</p>
-                        <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) $selectedMaxDurationMinutes) ?> min</p>
-                    </div>
-                </div>
-
-                <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
-                    <div class="space-y-4">
-                        <div class="rounded-2xl bg-[#f5f3f5] p-5">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Descrição</p>
-                            <p class="mt-3 text-sm text-slate-700"><?= e((string) ($selected['description'] ?? '')) ?></p>
+            <section class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+                <section class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
+                    <div class="flex items-center justify-between gap-4">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Configurações da sala</p>
+                            <h2 class="headline mt-2 text-2xl font-extrabold"><?= e((string) ($selected['title'] ?? 'Live')) ?></h2>
                         </div>
-
-                        <form action="/creator/live/studio" class="space-y-4" method="post">
-                            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                            <input name="live_id" type="hidden" value="<?= e((string) $selectedLiveId) ?>">
-
-                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <label class="block space-y-2">
-                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Acesso da sala</span>
-                                    <select class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" name="access_mode">
-                                        <option value="public" <?= (string) ($selected['access_mode'] ?? 'public') === 'public' ? 'selected' : '' ?>>Público</option>
-                                        <option value="subscriber" <?= (string) ($selected['access_mode'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Assinantes</option>
-                                    </select>
-                                </label>
-                                <label class="block space-y-2">
-                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Quem pode falar</span>
-                                    <select class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" name="chat_audience">
-                                        <option value="all" <?= $selectedChatAudience === 'all' ? 'selected' : '' ?>>Assinantes e não assinantes</option>
-                                        <option value="subscriber" <?= $selectedChatAudience === 'subscriber' ? 'selected' : '' ?>>Só assinantes</option>
-                                        <option value="off" <?= $selectedChatAudience === 'off' ? 'selected' : '' ?>>Chat desabilitado</option>
-                                    </select>
-                                </label>
-                                <label class="block space-y-2">
-                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Replay após encerrar</span>
-                                    <select class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" name="replay_visibility">
-                                        <option value="subscriber" <?= $selectedReplayVisibility === 'subscriber' ? 'selected' : '' ?>>Só assinantes</option>
-                                        <option value="public" <?= $selectedReplayVisibility === 'public' ? 'selected' : '' ?>>Público</option>
-                                    </select>
-                                </label>
-                                <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-sm text-slate-500">Replay e chat acompanham estas escolhas em tempo real.</div>
-                            </div>
-
-                            <div class="flex flex-wrap gap-3">
-                                <button class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Salvar sala</button>
-                            </div>
-                        </form>
+                        <span class="<?= $selectedStatus === 'live' ? 'bg-emerald-500 text-white' : 'bg-[#f7f4f7] text-slate-600' ?> rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]"><?= e($selectedStatusLabel) ?></span>
                     </div>
 
-                    <div class="space-y-4">
-                        <div class="rounded-2xl bg-[#f5f3f5] p-5">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Mensagens prioritárias</p>
-                            <h3 class="headline mt-2 text-xl font-extrabold">Destaques por gorjeta</h3>
-                            <p class="mt-2 text-sm text-slate-500">Os valores abaixo ganham destaque especial no chat em tempo real.</p>
-                            <div class="mt-5 flex flex-wrap gap-3">
-                                <?php foreach ($priorityTiers as $tier): ?>
-                                    <span class="rounded-full bg-[#fff6cf] px-4 py-2 text-sm font-bold text-amber-700"><?= luacoin_amount_html((int) $tier, 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></span>
-                                <?php endforeach; ?>
-                            </div>
-                            <a class="mt-5 inline-block text-sm font-bold text-[#D81B60] underline" href="/creator/settings">Ajustar valores no painel do criador</a>
+                    <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Agendada</p>
+                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedScheduleLabel !== '' ? $selectedScheduleLabel : 'Sem agenda') ?></p>
                         </div>
-
-                        <?php if (trim((string) ($selected['pinned_notice'] ?? '')) !== ''): ?>
-                            <div class="rounded-2xl bg-[#f5f3f5] p-5">
-                                <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Aviso fixado</p>
-                                <p class="mt-3 text-sm text-slate-700"><?= e((string) ($selected['pinned_notice'] ?? '')) ?></p>
-                            </div>
-                        <?php endif; ?>
-
-                        <div class="rounded-2xl bg-[#f5f3f5] p-5">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Replay após a live</p>
-                            <p class="mt-3 text-sm text-slate-700">Ao encerrar, o replay vai para Meus Conteúdos e segue a visibilidade definida acima.</p>
-                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedReplayVisibility === 'public' ? 'Replay público' : 'Replay só para assinantes') ?></p>
+                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Iniciada em</p>
+                            <p class="mt-2 text-sm font-bold text-slate-700" data-live-started-at><?= e($selectedStartedAt !== '' ? $selectedStartedAt : 'Ainda não iniciou') ?></p>
+                        </div>
+                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Duração</p>
+                            <p class="mt-2 text-sm font-bold text-slate-700" data-live-elapsed><?= e($selectedDurationLabel) ?></p>
+                        </div>
+                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Último encerramento</p>
+                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e($selectedEndedAt !== '' ? $selectedEndedAt : 'Sem histórico') ?></p>
                         </div>
                     </div>
-                </div>
+
+                    <form action="/creator/live/studio" class="mt-6 space-y-4" method="post">
+                        <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                        <input name="live_id" type="hidden" value="<?= e((string) $selectedLiveId) ?>">
+
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Acesso da sala</span>
+                                <select class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" name="access_mode">
+                                    <option value="public" <?= (string) ($selected['access_mode'] ?? 'public') === 'public' ? 'selected' : '' ?>>Público</option>
+                                    <option value="subscriber" <?= (string) ($selected['access_mode'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Assinantes</option>
+                                </select>
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Quem pode falar</span>
+                                <select class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" name="chat_audience">
+                                    <option value="all" <?= $selectedChatAudience === 'all' ? 'selected' : '' ?>>Assinantes e não assinantes</option>
+                                    <option value="subscriber" <?= $selectedChatAudience === 'subscriber' ? 'selected' : '' ?>>Só assinantes</option>
+                                    <option value="off" <?= $selectedChatAudience === 'off' ? 'selected' : '' ?>>Chat desabilitado</option>
+                                </select>
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Replay após encerrar</span>
+                                <select class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" name="replay_visibility">
+                                    <option value="subscriber" <?= $selectedReplayVisibility === 'subscriber' ? 'selected' : '' ?>>Só assinantes</option>
+                                    <option value="public" <?= $selectedReplayVisibility === 'public' ? 'selected' : '' ?>>Público</option>
+                                </select>
+                            </label>
+                            <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-sm text-slate-500">As métricas, gorjetas e o chat permanecem ao vivo mesmo com o vídeo entrando pelo MediaMTX.</div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-3">
+                            <button class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Salvar sala</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
+                    <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Ingest do MediaMTX</p>
+                    <h3 class="headline mt-2 text-2xl font-extrabold">Servidor RTMP e chave</h3>
+                    <p class="mt-3 text-sm text-slate-500">Use estes dados no OBS ou no seu encoder. O público assiste por HLS, mas a entrada é RTMP.</p>
+
+                    <div class="mt-6 space-y-4">
+                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Servidor</p>
+                            <p class="mt-2 break-all text-sm font-bold text-slate-700"><?= e($ingestUrl !== '' ? dirname($ingestUrl) : '') ?></p>
+                        </div>
+                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Chave de stream</p>
+                            <p class="mt-2 break-all text-sm font-bold text-slate-700"><?= e($streamKey) ?></p>
+                        </div>
+                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Padrão recomendado</p>
+                            <ul class="mt-3 space-y-2 text-sm text-slate-700">
+                                <li>Resolução: <?= e((string) ((int) ($selected['video_width'] ?? 854))) ?>x<?= e((string) ((int) ($selected['video_height'] ?? 480))) ?></li>
+                                <li>Vídeo: <?= e((string) ((int) ($selected['max_bitrate_kbps'] ?? 800))) ?> kbps</li>
+                                <li>FPS: <?= e((string) ((int) ($selected['video_fps'] ?? 30))) ?></li>
+                                <li>Keyframe / GOP: <?= e((string) ((int) ($selected['video_gop_seconds'] ?? 2))) ?>s</li>
+                                <li>Áudio AAC: <?= e((string) ((int) ($selected['audio_bitrate_kbps'] ?? 96))) ?> kbps, <?= e($audioSampleRate === 44100 ? '44.1' : '48') ?> kHz</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
             </section>
         </div>
     <?php endif; ?>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <script src="<?= e(asset('js/live-segment.js')) ?>"></script>
 </body>
 </html>
