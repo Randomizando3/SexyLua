@@ -5314,23 +5314,23 @@ final class PlatformRepository
     {
         $attachment = $this->normalizeAnnouncementAttachment(is_array($announcement['attachment'] ?? null) ? $announcement['attachment'] : null);
 
-        return $announcement + [
+        return array_merge($announcement, [
             'href' => $baseHref !== '' ? path_with_query($baseHref, ['announcement' => (int) ($announcement['id'] ?? 0)]) : (string) ($announcement['href'] ?? ''),
-            'attachment' => $attachment !== null ? $attachment + [
+            'attachment' => $attachment !== null ? array_merge($attachment, [
                 'href' => path_with_query('/messages/asset', ['scope' => 'announcement', 'id' => (int) ($announcement['id'] ?? 0)]),
-            ] : null,
-        ];
+            ]) : null,
+        ]);
     }
 
     private function decorateAnnouncementForAdmin(array $announcement): array
     {
         $attachment = $this->normalizeAnnouncementAttachment(is_array($announcement['attachment'] ?? null) ? $announcement['attachment'] : null);
 
-        return $announcement + [
-            'attachment' => $attachment !== null ? $attachment + [
+        return array_merge($announcement, [
+            'attachment' => $attachment !== null ? array_merge($attachment, [
                 'href' => path_with_query('/messages/asset', ['scope' => 'announcement', 'id' => (int) ($announcement['id'] ?? 0)]),
-            ] : null,
-        ];
+            ]) : null,
+        ]);
     }
 
     private function decorateConversationMessage(array $message, array $conversation, int $viewerId): array
@@ -5344,10 +5344,10 @@ final class PlatformRepository
         $isUnlocked = $viewerId > 0 && $this->hasConversationMessageUnlock((int) ($message['id'] ?? 0), $viewerId);
         $hasAccess = $this->viewerCanAccessConversationMessage($message, $conversation, $viewerId, $viewerRole);
 
-        return $message + [
-            'attachment' => $attachment !== null ? $attachment + [
+        return array_merge($message, [
+            'attachment' => $attachment !== null ? array_merge($attachment, [
                 'href' => $hasAccess ? path_with_query('/messages/asset', ['scope' => 'message', 'id' => (int) ($message['id'] ?? 0)]) : null,
-            ] : null,
+            ]) : null,
             'required_plan' => $requiredPlan,
             'required_plan_name' => (string) ($requiredPlan['name'] ?? ''),
             'unlock_price' => $unlockPrice,
@@ -5357,7 +5357,7 @@ final class PlatformRepository
             'lock_reason' => $unlockPrice > 0
                 ? 'Desbloqueie este conteudo com LuaCoins para visualizar.'
                 : ($requiredPlan !== null ? 'Conteudo liberado apenas para o plano ' . (string) ($requiredPlan['name'] ?? 'selecionado') . '.' : 'Conteudo exclusivo.'),
-        ];
+        ]);
     }
 
     private function viewerCanAccessConversationMessage(array $message, array $conversation, int $viewerId, string $viewerRole = ''): bool
