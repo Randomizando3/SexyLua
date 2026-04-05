@@ -36,7 +36,11 @@ $chatAudienceLabels = [
 ];
 $selectedChatAudience = (string) ($selected['chat_audience'] ?? 'all');
 $selectedAccessMode = (string) ($selected['access_mode'] ?? 'public');
-$selectedAccessLabel = $selectedAccessMode === 'subscriber' ? 'Assinantes' : 'Público';
+$selectedAccessLabel = match ($selectedAccessMode) {
+    'subscriber' => 'Assinantes',
+    'vip' => 'Live VIP',
+    default => 'Público',
+};
 $selectedMaxDurationMinutes = max(5, (int) ($selected['max_live_duration_minutes'] ?? 30));
 $categories = audience_category_options();
 $statusTabIcons = [
@@ -419,6 +423,7 @@ include base_path('templates/partials/creator_topbar.php');
                 <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="access_mode">
                     <option value="public" <?= (string) ($formLive['access_mode'] ?? 'public') === 'public' ? 'selected' : '' ?>>Público</option>
                     <option value="subscriber" <?= (string) ($formLive['access_mode'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Assinantes</option>
+                    <option value="vip" <?= (string) ($formLive['access_mode'] ?? '') === 'vip' ? 'selected' : '' ?>>Live VIP</option>
                 </select>
                 <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="chat_audience">
                     <option value="all" <?= (string) ($formLive['chat_audience'] ?? 'all') === 'all' ? 'selected' : '' ?>>Chat para assinantes e não assinantes</option>

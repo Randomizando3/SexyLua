@@ -552,7 +552,11 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                 </div>
                             </td>
                             <td class="px-6 py-5"><span class="inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] <?= e($statusClass) ?>"><?= e($status) ?></span></td>
-                            <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e((string) ($live['access_mode'] ?? 'public')) ?></td>
+                            <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e(match ((string) ($live['access_mode'] ?? 'public')) {
+                                'subscriber' => 'Assinantes',
+                                'vip' => 'Live VIP',
+                                default => 'Pública',
+                            }) ?></td>
                             <td class="px-6 py-5 text-sm font-semibold text-on-surface"><?= e(format_datetime((string) ($live['scheduled_for'] ?? ''), 'd/m/Y H:i')) ?></td>
                             <td class="px-6 py-5 text-sm font-extrabold text-primary"><?= luacoin_amount_html((int) ($live['goal_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></td>
                             <td class="px-6 py-5">
@@ -583,6 +587,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                             <select class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="access_mode">
                                                 <option value="public" <?= (string) ($live['access_mode'] ?? '') === 'public' ? 'selected' : '' ?>>Publica</option>
                                                 <option value="subscriber" <?= (string) ($live['access_mode'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Assinantes</option>
+                                                <option value="vip" <?= (string) ($live['access_mode'] ?? '') === 'vip' ? 'selected' : '' ?>>Live VIP</option>
                                             </select>
                                             <select class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="category">
                                                 <?php foreach (audience_category_options() as $value => $label): ?>

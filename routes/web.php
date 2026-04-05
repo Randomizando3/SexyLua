@@ -21,6 +21,7 @@ $router->get('/privacy', [PublicController::class, 'privacy']);
 $router->post('/audience-gate', [PublicController::class, 'storeAudienceGate']);
 $router->post('/live/chat', [PublicController::class, 'postLiveMessage']);
 $router->post('/messages/unlock', [PublicController::class, 'unlockMessage']);
+$router->post('/live/unlock', [PublicController::class, 'unlockLive']);
 $router->get('/live/rtc/poll', [LiveRtcController::class, 'poll']);
 $router->post('/live/rtc/join', [LiveRtcController::class, 'join']);
 $router->post('/live/rtc/start', [LiveRtcController::class, 'start']);

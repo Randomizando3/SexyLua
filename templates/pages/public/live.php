@@ -16,8 +16,14 @@ $viewerCount = (int) ($stream['viewer_count'] ?? $live['viewer_count'] ?? 0);
 $canWatch = (bool) ($data['can_watch'] ?? false);
 $requiresLogin = (bool) ($data['requires_login'] ?? false);
 $requiresSubscription = (bool) ($data['requires_subscription'] ?? false);
+$requiresVipUnlock = (bool) ($data['requires_vip_unlock'] ?? false);
+$vipUnlocked = (bool) ($data['vip_unlocked'] ?? false);
+$vipUnlockPrice = (int) ($data['vip_unlock_price'] ?? $live['price_tokens'] ?? 0);
 $canChat = (bool) ($data['can_chat'] ?? false);
 $canTip = (bool) ($data['can_tip'] ?? false);
+$visibleMessages = ($requiresVipUnlock && ! $canWatch) ? [] : $messages;
+$visibleRecentTips = ($requiresVipUnlock && ! $canWatch) ? [] : $recentTips;
+$visibleTopSupporters = ($requiresVipUnlock && ! $canWatch) ? [] : $topSupporters;
 $cover = media_url((string) ($live['cover_url'] ?? ''));
 $segmentDurationSeconds = (int) ($live['segment_duration_seconds'] ?? $stream['segment_duration_seconds'] ?? 10);
 $iceServers = base64_encode((string) json_encode($app->config['app']['rtc_ice_servers'] ?? [], JSON_UNESCAPED_SLASHES));
@@ -72,13 +78,21 @@ $liveStatusLabel = $liveStatus === 'live' ? 'Ao vivo' : ($liveStatus === 'ended'
 $defaultTipAmount = max(1, (int) ($priorityTipTiers[0] ?? 10));
 $defaultTipMessage = trim((string) ($priorityTipMessages[(string) $defaultTipAmount] ?? ''));
 $tipTotalAmount = (int) ($data['tip_total_amount'] ?? 0);
-$accessModeLabel = (string) ($live['access_mode'] ?? 'public') === 'subscriber' ? 'Assinantes' : 'Publico';
+$accessModeLabel = match ((string) ($live['access_mode'] ?? 'public')) {
+    'subscriber' => 'Assinantes',
+    'vip' => 'Live VIP',
+    default => 'Publico',
+};
 
 $accessMessage = $canWatch
     ? 'Aguardando o criador iniciar a live.'
     : ($requiresLogin
         ? 'Entre para assistir esta live exclusiva.'
-        : ($requiresSubscription ? 'Esta live e exclusiva para assinantes ativos.' : 'A live ainda nao esta disponivel.'));
+        : ($requiresSubscription
+            ? 'Esta live e exclusiva para assinantes ativos.'
+            : ($requiresVipUnlock
+                ? 'Desbloqueie esta Live VIP para assistir agora.'
+                : 'A live ainda nao esta disponivel.')));
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -151,6 +165,22 @@ $accessMessage = $canWatch
                         <div class="max-w-md">
                             <p class="headline text-4xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
                             <p class="mt-3 text-sm text-white/75" data-live-waiting-text><?= e($accessMessage) ?></p>
+                            <?php if ($requiresLogin): ?>
+                                <a class="signature-glow mt-5 inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-bold text-white shadow-lg" href="/login">Entrar para assistir</a>
+                            <?php elseif ($requiresVipUnlock): ?>
+                                <div class="mt-5 rounded-3xl bg-white/10 p-4 backdrop-blur-md">
+                                    <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-white/70">Live VIP</p>
+                                    <p class="mt-2 text-sm text-white/80">Desbloqueie esta sala por <?= luacoin_amount_html($vipUnlockPrice, 'inline-flex items-center gap-1.5 whitespace-nowrap', 'text-white', 'h-4 w-4 shrink-0') ?> e assista normalmente daqui em diante.</p>
+                                    <form action="/live/unlock" class="mt-4" method="post">
+                                        <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                        <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
+                                        <input name="redirect" type="hidden" value="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
+                                        <button class="signature-glow inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-bold text-white shadow-lg" data-prototype-skip="1" type="submit">Desbloquear live VIP</button>
+                                    </form>
+                                </div>
+                            <?php elseif ($requiresSubscription): ?>
+                                <a class="signature-glow mt-5 inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-bold text-white shadow-lg" href="<?= e($profileUrl) ?>">Assinar para liberar</a>
+                            <?php endif; ?>
                             <button class="mt-5 hidden rounded-full bg-white px-6 py-3 text-sm font-bold uppercase tracking-widest text-[#ab1155]" data-live-playback data-prototype-skip="1" type="button">Continuar assistindo</button>
                         </div>
                     </div>
@@ -214,6 +244,17 @@ $accessMessage = $canWatch
                                         <a class="signature-glow rounded-full px-8 py-3 text-center text-sm font-bold text-white shadow-lg" href="/login">Entrar para assistir</a>
                                     <?php elseif ($requiresSubscription): ?>
                                         <a class="signature-glow rounded-full px-8 py-3 text-center text-sm font-bold text-white shadow-lg" href="<?= e($profileUrl) ?>">Assinar para liberar</a>
+                                    <?php elseif ($requiresVipUnlock): ?>
+                                        <form action="/live/unlock" class="flex flex-col gap-3" method="post">
+                                            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                            <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
+                                            <input name="redirect" type="hidden" value="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
+                                            <div class="rounded-3xl bg-white p-3 shadow-sm">
+                                                <label class="block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Live VIP</label>
+                                                <p class="mt-2 text-sm font-semibold text-slate-700">Desbloqueie por <?= luacoin_amount_html($vipUnlockPrice, 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?> e entre nesta transmissão.</p>
+                                            </div>
+                                            <button class="signature-glow rounded-full px-8 py-3 text-sm font-bold text-white shadow-lg" data-prototype-skip="1" type="submit">Desbloquear live VIP</button>
+                                        </form>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -270,7 +311,7 @@ $accessMessage = $canWatch
                     <div>
                         <h4 class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Top supporters</h4>
                         <div class="mt-3 flex gap-4" data-live-top-supporters data-live-supporters-variant="viewer">
-                            <?php foreach (array_slice($topSupporters, 0, 3) as $supporter): ?>
+                            <?php foreach (array_slice($visibleTopSupporters, 0, 3) as $supporter): ?>
                                 <div class="flex flex-col items-center">
                                     <div class="signature-glow flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white"><?= e(avatar_initials((string) ($supporter['user']['name'] ?? 'Fan'))) ?></div>
                                     <span class="mt-2 text-[10px] font-bold text-[#ab1155]"><?= e((string) ($supporter['user']['name'] ?? 'Fan')) ?></span>
@@ -278,26 +319,26 @@ $accessMessage = $canWatch
                                 </div>
                             <?php endforeach; ?>
                         </div>
-                        <p class="<?= $topSupporters === [] ? '' : 'hidden ' ?>mt-3 text-sm text-slate-500" data-live-top-supporters-empty>Sem ranking ainda.</p>
+                        <p class="<?= $visibleTopSupporters === [] ? '' : 'hidden ' ?>mt-3 text-sm text-slate-500" data-live-top-supporters-empty>Sem ranking ainda.</p>
                     </div>
 
                     <div>
                         <h4 class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Doacoes recentes</h4>
                         <div class="mt-3 space-y-2" data-live-recent-tips data-live-tips-variant="viewer">
-                            <?php foreach (array_slice($recentTips, 0, 4) as $tip): ?>
+                            <?php foreach (array_slice($visibleRecentTips, 0, 4) as $tip): ?>
                                 <div class="flex items-center justify-between rounded-full bg-white px-4 py-2 text-xs">
                                     <span class="font-bold text-slate-800"><?= e((string) ($tip['sender']['name'] ?? 'Fan')) ?></span>
                                     <span class="font-black text-[#ab1155]"><?= luacoin_amount_html((int) ($tip['amount'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3.5 w-3.5 shrink-0') ?></span>
                                 </div>
                             <?php endforeach; ?>
                         </div>
-                        <p class="<?= $recentTips === [] ? '' : 'hidden ' ?>mt-3 text-sm text-slate-500" data-live-recent-tips-empty>Sem gorjetas recentes.</p>
+                        <p class="<?= $visibleRecentTips === [] ? '' : 'hidden ' ?>mt-3 text-sm text-slate-500" data-live-recent-tips-empty>Sem gorjetas recentes.</p>
                     </div>
                 </div>
             </details>
 
             <div class="custom-scrollbar flex-1 space-y-4 overflow-y-auto px-5 py-5" data-live-chat-stream data-live-chat-variant="viewer">
-                <?php foreach ($messages as $message): ?>
+                <?php foreach ($visibleMessages as $message): ?>
                     <?php
                     $theme = $message['highlight_theme'] ?? [];
                     $isHighlighted = (bool) ($message['is_highlighted'] ?? false);
@@ -313,7 +354,7 @@ $accessMessage = $canWatch
                     </div>
                 <?php endforeach; ?>
             </div>
-            <p class="<?= $messages === [] ? '' : 'hidden ' ?>px-5 pb-4 text-sm text-slate-500" data-live-chat-empty>Ainda nao ha mensagens nesta live.</p>
+            <p class="<?= $visibleMessages === [] ? '' : 'hidden ' ?>px-5 pb-4 text-sm text-slate-500" data-live-chat-empty>Ainda nao ha mensagens nesta live.</p>
 
             <div class="border-t border-slate-200/70 bg-white p-4">
                 <?php if ($canChat): ?>
@@ -329,6 +370,13 @@ $accessMessage = $canWatch
                     <a class="signature-glow block w-full rounded-full px-5 py-4 text-center text-sm font-bold text-white" href="/login">Entrar para falar no chat</a>
                 <?php elseif ($requiresSubscription): ?>
                     <a class="signature-glow block w-full rounded-full px-5 py-4 text-center text-sm font-bold text-white" href="<?= e($profileUrl) ?>">Assinar para falar no chat</a>
+                <?php elseif ($requiresVipUnlock): ?>
+                    <form action="/live/unlock" class="flex flex-col gap-3" method="post">
+                        <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                        <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
+                        <input name="redirect" type="hidden" value="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
+                        <button class="signature-glow block w-full rounded-full px-5 py-4 text-center text-sm font-bold text-white" data-prototype-skip="1" type="submit">Desbloquear chat da Live VIP</button>
+                    </form>
                 <?php else: ?>
                     <p class="text-sm text-slate-500">O chat esta fechado nesta live.</p>
                 <?php endif; ?>

@@ -20,6 +20,7 @@ final class SeedFactory
             'conversations' => [],
             'messages' => [],
             'message_unlocks' => [],
+            'live_unlocks' => [],
             'notifications' => [],
             'announcements' => [],
             'live_messages' => [],

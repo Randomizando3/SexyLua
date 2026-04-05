@@ -220,7 +220,11 @@ if ($requestedContentId > 0) {
                                         <p class="text-sm text-slate-500"><?= e(excerpt((string) ($live['description'] ?? ''), 90)) ?></p>
                                         <div class="flex items-center justify-between gap-3 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
                                             <span><?= e((string) ($live['category_label'] ?? 'Todos')) ?></span>
-                                            <span><?= e((string) (($live['access_mode'] ?? 'public') === 'subscriber' ? 'Assinantes' : 'Público')) ?></span>
+                                            <span><?= e(match ((string) ($live['access_mode'] ?? 'public')) {
+                                                'subscriber' => 'Assinantes',
+                                                'vip' => 'Live VIP',
+                                                default => 'Público',
+                                            }) ?></span>
                                         </div>
                                     </div>
                                 </a>

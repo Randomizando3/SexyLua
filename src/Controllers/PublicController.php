@@ -260,6 +260,29 @@ final class PublicController extends Controller
         $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel desbloquear este conteudo.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
     }
 
+    public function unlockLive(Request $request): void
+    {
+        if ($this->app->auth->guest()) {
+            $this->redirect('/login', 'Entre para desbloquear esta live VIP.', 'error');
+        }
+
+        $redirect = (string) $request->input('redirect', path_with_query('/live', ['id' => (int) $request->input('live_id', 0)]));
+        $this->validateCsrf($request, $redirect);
+        $result = $this->app->repository->unlockLiveAccess((int) $request->input('live_id', 0), (int) ($this->user()['id'] ?? 0));
+
+        if (! (bool) ($result['ok'] ?? false) && str_contains(mb_strtolower((string) ($result['message'] ?? '')), 'saldo insuficiente')) {
+            $role = (string) ($this->user()['role'] ?? 'subscriber');
+            $walletUrl = match ($role) {
+                'creator' => '/creator/wallet',
+                'admin' => '/admin/finance',
+                default => '/subscriber/wallet',
+            };
+            $this->redirect($walletUrl, 'Voce nao tem LuaCoins suficientes para desbloquear esta live VIP. Recarregue sua carteira para continuar.', 'error');
+        }
+
+        $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel desbloquear esta live VIP.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
+    }
+
     public function postTip(Request $request): void
     {
         $expectsJson = $this->expectsJson($request);

@@ -278,7 +278,12 @@ include base_path('templates/partials/creator_topbar.php');
                                 <select class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" name="access_mode">
                                     <option value="public" <?= (string) ($selected['access_mode'] ?? 'public') === 'public' ? 'selected' : '' ?>>Público</option>
                                     <option value="subscriber" <?= (string) ($selected['access_mode'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Assinantes</option>
+                                    <option value="vip" <?= (string) ($selected['access_mode'] ?? '') === 'vip' ? 'selected' : '' ?>>Live VIP</option>
                                 </select>
+                            </label>
+                            <label class="block space-y-2">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Valor da Live VIP</span>
+                                <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" min="0" name="price_luacoins" placeholder="Ex.: 25" type="number" value="<?= e((string) ((int) ($selected['price_tokens'] ?? 0) > 0 ? (int) ($selected['price_tokens'] ?? 0) : '')) ?>">
                             </label>
                             <label class="block space-y-2">
                                 <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Quem pode falar</span>

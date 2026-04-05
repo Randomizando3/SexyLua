@@ -33,6 +33,7 @@ final class PlatformRepository
         'conversations',
         'messages',
         'message_unlocks',
+        'live_unlocks',
         'notifications',
         'announcements',
         'live_messages',
@@ -426,6 +427,12 @@ final class PlatformRepository
         $messages = $this->liveChatMessagesFor($liveId, 20);
         $related = array_values(array_filter($this->livesWithCreators(), static fn (array $item): bool => (int) ($item['id'] ?? 0) !== $liveId));
         $engagement = $this->liveEngagementData($decoratedLive);
+        $stream = $this->publicLiveStreamState($liveId);
+
+        if (! (bool) ($access['granted'] ?? false)) {
+            $stream['hls_url'] = '';
+            $stream['ready'] = false;
+        }
 
         return [
             'live' => $decoratedLive,
@@ -437,9 +444,12 @@ final class PlatformRepository
             'can_watch' => (bool) ($access['granted'] ?? false),
             'requires_login' => (bool) ($access['requires_login'] ?? false),
             'requires_subscription' => (bool) ($access['requires_subscription'] ?? false),
+            'requires_vip_unlock' => (bool) ($access['requires_vip_unlock'] ?? false),
+            'vip_unlocked' => (bool) ($access['vip_unlocked'] ?? false),
+            'vip_unlock_price' => (int) ($access['vip_price_tokens'] ?? (int) ($decoratedLive['price_tokens'] ?? 0)),
             'can_chat' => $this->canUserChatInLive($decoratedLive, $viewerId),
             'can_tip' => $viewerId !== null && (bool) ($access['granted'] ?? false),
-            'stream' => $this->publicLiveStreamState($liveId),
+            'stream' => $stream,
             'priority_tip_tiers' => $this->priorityTipTiersForLive($decoratedLive),
             'priority_tip_messages' => $this->priorityTipMessagesForLive($decoratedLive),
             'priority_alert' => $this->latestPriorityAlertForLive($liveId),
@@ -1657,6 +1667,66 @@ final class PlatformRepository
         return ['ok' => true, 'message' => 'Conteudo desbloqueado com sucesso.'];
     }
 
+    public function unlockLiveAccess(int $liveId, int $userId): array
+    {
+        $live = $this->findLiveById($liveId);
+
+        if ($live === null) {
+            return ['ok' => false, 'message' => 'Live nao encontrada.'];
+        }
+
+        if ((string) ($live['access_mode'] ?? 'public') !== 'vip') {
+            return ['ok' => false, 'message' => 'Esta live nao exige desbloqueio em LuaCoins.'];
+        }
+
+        $user = $this->findUserById($userId);
+        if ($user === null || (string) ($user['status'] ?? 'active') !== 'active') {
+            return ['ok' => false, 'message' => 'Sua conta nao pode desbloquear esta live agora.'];
+        }
+
+        if ((int) ($live['creator_id'] ?? 0) === $userId || (string) ($user['role'] ?? '') === 'admin') {
+            return ['ok' => true, 'message' => 'Acesso liberado para esta live.'];
+        }
+
+        $unlockPrice = max(1, (int) ($live['price_tokens'] ?? 0));
+        if ($this->hasLiveUnlock($liveId, $userId)) {
+            return ['ok' => true, 'message' => 'Live VIP ja desbloqueada.'];
+        }
+
+        if ($this->walletBalance($userId) < $unlockPrice) {
+            return ['ok' => false, 'message' => 'Saldo insuficiente para desbloquear esta live VIP.'];
+        }
+
+        $creatorId = (int) ($live['creator_id'] ?? 0);
+        $title = trim((string) ($live['title'] ?? 'Live VIP'));
+        $this->chargeSubscriberAndCreditCreator($userId, $creatorId, $unlockPrice, 'vip_live', 'Desbloqueio da live VIP ' . $title, $liveId);
+
+        $unlocks = $this->liveUnlocks();
+        $unlocks[] = [
+            'id' => $this->store->nextId($unlocks),
+            'live_id' => $liveId,
+            'user_id' => $userId,
+            'amount' => $unlockPrice,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        $this->save('live_unlocks', $unlocks);
+
+        $this->notifyUser(
+            $creatorId,
+            'sale',
+            'Live VIP desbloqueada',
+            (string) ($user['name'] ?? 'Usuario') . ' desbloqueou sua live VIP por ' . $unlockPrice . ' LuaCoins.',
+            path_with_query('/creator/live', ['live' => $liveId, 'status' => 'scheduled']),
+            [
+                'live_id' => $liveId,
+                'amount' => $unlockPrice,
+                'buyer_id' => $userId,
+            ]
+        );
+
+        return ['ok' => true, 'message' => 'Live VIP desbloqueada com sucesso.'];
+    }
+
     public function findSecureConversationMessageAttachment(int $messageId, int $viewerId): ?array
     {
         $user = $this->findUserById($viewerId);
@@ -2250,6 +2320,11 @@ final class PlatformRepository
         $rawStatus = (string) ($data['status'] ?? 'scheduled');
         $status = in_array($rawStatus, ['scheduled', 'live', 'ended'], true) ? $rawStatus : 'scheduled';
         $rawAccessMode = (string) ($data['access_mode'] ?? 'public');
+        $normalizedAccessMode = in_array($rawAccessMode, ['public', 'subscriber', 'vip'], true) ? $rawAccessMode : 'public';
+        $priceTokens = max(0, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? 0));
+        if ($normalizedAccessMode === 'vip') {
+            $priceTokens = max(1, $priceTokens);
+        }
         $scheduledFor = $this->normalizeLiveDateTime(
             (string) ($data['scheduled_for'] ?? ''),
             $liveType === 'instant' ? '+2 hours' : '+1 day'
@@ -2265,11 +2340,11 @@ final class PlatformRepository
             'status' => $status,
             'scheduled_for' => $scheduledFor,
             'viewer_count' => max(0, (int) ($data['viewer_count'] ?? 0)),
-            'price_tokens' => max(0, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? 0)),
+            'price_tokens' => $priceTokens,
             'chat_enabled' => $chatEnabled,
             'chat_audience' => $chatAudience,
             'category' => $this->normalizeAudienceCategory((string) ($data['category'] ?? 'todos')),
-            'access_mode' => in_array($rawAccessMode, ['public', 'subscriber'], true) ? $rawAccessMode : 'public',
+            'access_mode' => $normalizedAccessMode,
             'goal_tokens' => max(0, (int) ($data['goal_luacoins'] ?? $data['goal_tokens'] ?? 0)),
             'cover_url' => trim((string) ($data['cover_url'] ?? '')),
             'pinned_notice' => trim((string) ($data['pinned_notice'] ?? '')),
@@ -2362,9 +2437,13 @@ final class PlatformRepository
                 continue;
             }
 
-            $live['access_mode'] = in_array(($data['access_mode'] ?? $live['access_mode']), ['public', 'subscriber'], true)
+            $live['access_mode'] = in_array(($data['access_mode'] ?? $live['access_mode']), ['public', 'subscriber', 'vip'], true)
                 ? (string) ($data['access_mode'] ?? $live['access_mode'])
                 : (string) ($live['access_mode'] ?? 'public');
+            $live['price_tokens'] = max(
+                (string) ($live['access_mode'] ?? 'public') === 'vip' ? 1 : 0,
+                (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? $live['price_tokens'] ?? 0)
+            );
             $live['chat_audience'] = $this->sanitizeLiveChatAudience((string) ($data['chat_audience'] ?? ($live['chat_audience'] ?? 'all')));
             $live['chat_enabled'] = (string) $live['chat_audience'] !== 'off';
             $changed = true;
@@ -2415,9 +2494,14 @@ final class PlatformRepository
         } elseif (! (bool) ($access['granted'] ?? false)) {
             return [
                 'ok' => false,
-                'message' => (bool) ($access['requires_login'] ?? false) ? 'Entre para acessar esta live.' : 'Esta live exige assinatura ativa.',
+                'message' => (bool) ($access['requires_login'] ?? false)
+                    ? 'Entre para acessar esta live.'
+                    : ((bool) ($access['requires_vip_unlock'] ?? false)
+                        ? 'Desbloqueie esta Live VIP para assistir.'
+                        : 'Esta live exige assinatura ativa.'),
                 'requires_login' => (bool) ($access['requires_login'] ?? false),
                 'requires_subscription' => (bool) ($access['requires_subscription'] ?? false),
+                'requires_vip_unlock' => (bool) ($access['requires_vip_unlock'] ?? false),
             ];
         }
 
@@ -4526,8 +4610,8 @@ final class PlatformRepository
             $live['status'] = in_array(($data['status'] ?? $live['status']), ['scheduled', 'live', 'ended'], true) ? (string) ($data['status'] ?? $live['status']) : (string) $live['status'];
             $live['scheduled_for'] = trim((string) ($data['scheduled_for'] ?? $live['scheduled_for']));
             $live['category'] = $this->normalizeAudienceCategory((string) ($data['category'] ?? $live['category'] ?? 'todos'));
-            $live['access_mode'] = in_array(($data['access_mode'] ?? $live['access_mode']), ['public', 'subscriber'], true) ? (string) ($data['access_mode'] ?? $live['access_mode']) : (string) $live['access_mode'];
-            $live['price_tokens'] = max(0, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? $live['price_tokens'] ?? 0));
+            $live['access_mode'] = in_array(($data['access_mode'] ?? $live['access_mode']), ['public', 'subscriber', 'vip'], true) ? (string) ($data['access_mode'] ?? $live['access_mode']) : (string) $live['access_mode'];
+            $live['price_tokens'] = max((string) ($live['access_mode'] ?? 'public') === 'vip' ? 1 : 0, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? $live['price_tokens'] ?? 0));
             $live['goal_tokens'] = max(0, (int) ($data['goal_luacoins'] ?? $data['goal_tokens'] ?? $live['goal_tokens'] ?? 0));
             $live['viewer_count'] = max(0, (int) ($data['viewer_count'] ?? $live['viewer_count'] ?? 0));
             $live['chat_enabled'] = ($data['chat_enabled'] ?? ($live['chat_enabled'] ? '1' : '0')) === '1';
@@ -4771,6 +4855,11 @@ final class PlatformRepository
     private function messageUnlocks(): array
     {
         return $this->readCollection('message_unlocks');
+    }
+
+    private function liveUnlocks(): array
+    {
+        return $this->readCollection('live_unlocks');
     }
 
     private function notifications(): array
@@ -5417,6 +5506,10 @@ final class PlatformRepository
             return false;
         }
 
+        if (! (bool) ($this->accessStateForLive($live, $userId)['granted'] ?? false)) {
+            return false;
+        }
+
         if ((int) ($live['creator_id'] ?? 0) === $userId || (string) ($user['role'] ?? '') === 'admin') {
             return true;
         }
@@ -6053,6 +6146,17 @@ final class PlatformRepository
         return false;
     }
 
+    private function hasLiveUnlock(int $liveId, int $userId): bool
+    {
+        foreach ($this->liveUnlocks() as $unlock) {
+            if ((int) ($unlock['live_id'] ?? 0) === $liveId && (int) ($unlock['user_id'] ?? 0) === $userId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function latestConversationMessageUnlock(int $messageId): ?array
     {
         $latest = null;
@@ -6467,11 +6571,17 @@ final class PlatformRepository
 
     private function accessStateForLive(array $live, ?int $userId): array
     {
-        if ((string) ($live['access_mode'] ?? 'public') === 'public') {
+        $accessMode = (string) ($live['access_mode'] ?? 'public');
+        $vipPriceTokens = max(1, (int) ($live['price_tokens'] ?? 0));
+
+        if ($accessMode === 'public') {
             return [
                 'granted' => true,
                 'requires_login' => false,
                 'requires_subscription' => false,
+                'requires_vip_unlock' => false,
+                'vip_unlocked' => false,
+                'vip_price_tokens' => 0,
             ];
         }
 
@@ -6480,6 +6590,9 @@ final class PlatformRepository
                 'granted' => false,
                 'requires_login' => true,
                 'requires_subscription' => false,
+                'requires_vip_unlock' => $accessMode === 'vip',
+                'vip_unlocked' => false,
+                'vip_price_tokens' => $accessMode === 'vip' ? $vipPriceTokens : 0,
             ];
         }
 
@@ -6488,7 +6601,10 @@ final class PlatformRepository
             return [
                 'granted' => false,
                 'requires_login' => false,
-                'requires_subscription' => true,
+                'requires_subscription' => $accessMode === 'subscriber',
+                'requires_vip_unlock' => $accessMode === 'vip',
+                'vip_unlocked' => false,
+                'vip_price_tokens' => $accessMode === 'vip' ? $vipPriceTokens : 0,
             ];
         }
 
@@ -6497,14 +6613,33 @@ final class PlatformRepository
                 'granted' => true,
                 'requires_login' => false,
                 'requires_subscription' => false,
+                'requires_vip_unlock' => false,
+                'vip_unlocked' => false,
+                'vip_price_tokens' => 0,
             ];
         }
 
-        if ((string) ($user['role'] ?? '') === 'subscriber' && $this->activeSubscriptionFor($userId, (int) ($live['creator_id'] ?? 0)) !== null) {
+        if ($accessMode === 'subscriber' && (string) ($user['role'] ?? '') === 'subscriber' && $this->activeSubscriptionFor($userId, (int) ($live['creator_id'] ?? 0)) !== null) {
             return [
                 'granted' => true,
                 'requires_login' => false,
                 'requires_subscription' => false,
+                'requires_vip_unlock' => false,
+                'vip_unlocked' => false,
+                'vip_price_tokens' => 0,
+            ];
+        }
+
+        if ($accessMode === 'vip') {
+            $hasUnlock = $this->hasLiveUnlock((int) ($live['id'] ?? 0), $userId);
+
+            return [
+                'granted' => $hasUnlock,
+                'requires_login' => false,
+                'requires_subscription' => false,
+                'requires_vip_unlock' => ! $hasUnlock,
+                'vip_unlocked' => $hasUnlock,
+                'vip_price_tokens' => $vipPriceTokens,
             ];
         }
 
@@ -6512,6 +6647,9 @@ final class PlatformRepository
             'granted' => false,
             'requires_login' => false,
             'requires_subscription' => true,
+            'requires_vip_unlock' => false,
+            'vip_unlocked' => false,
+            'vip_price_tokens' => 0,
         ];
     }
 
