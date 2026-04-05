@@ -110,10 +110,14 @@ include base_path('templates/partials/creator_topbar.php');
                 <form action="/creator/settings/update" class="space-y-8" enctype="multipart/form-data" id="creator-settings-form" method="post">
                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
 
-                    <div class="grid gap-6 md:grid-cols-2">
+                    <div class="grid gap-6 md:grid-cols-3">
                         <label class="block space-y-2">
                             <span class="text-sm font-semibold text-on-surface-variant">Nome artístico</span>
                             <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="name" type="text" value="<?= e((string) ($creator['name'] ?? '')) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-sm font-semibold text-on-surface-variant">Usuário</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="username" type="text" value="<?= e((string) ($creator['username'] ?? '')) ?>">
                         </label>
                         <label class="block space-y-2">
                             <span class="text-sm font-semibold text-on-surface-variant">Slug público</span>

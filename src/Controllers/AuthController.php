@@ -27,7 +27,7 @@ final class AuthController extends Controller
         $this->validateCsrf($request, '/login');
 
         $user = $this->app->auth->attempt(
-            trim((string) $request->input('email')),
+            trim((string) $request->input('login', (string) $request->input('email'))),
             (string) $request->input('password')
         );
 
@@ -57,13 +57,14 @@ final class AuthController extends Controller
         $this->validateCsrf($request, '/register');
 
         $name = trim((string) $request->input('name'));
+        $username = $this->app->repository->normalizeUsername((string) $request->input('username'));
         $email = trim((string) $request->input('email'));
         $password = (string) $request->input('password');
         $role = (string) $request->input('role', 'subscriber');
         $age = (int) $request->input('age', 0);
 
-        if ($name === '' || $email === '' || $password === '') {
-            $this->redirect('/register', 'Preencha nome, e-mail e senha.', 'error');
+        if ($name === '' || $username === '' || $email === '' || $password === '') {
+            $this->redirect('/register', 'Preencha nome, usuario, e-mail e senha.', 'error');
         }
 
         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -101,8 +102,13 @@ final class AuthController extends Controller
             $this->redirect('/register', 'Ja existe uma conta com este e-mail.', 'error');
         }
 
+        if ($this->app->repository->findUserByUsername($username)) {
+            $this->redirect('/register', 'Este usuario ja esta em uso.', 'error');
+        }
+
         $user = $this->app->repository->registerUser([
             'name' => $name,
+            'username' => $username,
             'email' => $email,
             'password' => $password,
             'role' => $role,

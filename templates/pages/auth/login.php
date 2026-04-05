@@ -86,17 +86,17 @@
                     <div class="grid gap-4 md:grid-cols-3">
                         <div class="lunar-glass rounded-2xl border border-white/70 p-4 shadow-sm">
                             <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Admin</p>
-                            <p class="mt-3 text-sm font-bold">admin@sexylua.local</p>
+                            <p class="mt-3 text-sm font-bold">admin</p>
                             <p class="text-sm text-on-surface-variant">admin123</p>
                         </div>
                         <div class="lunar-glass rounded-2xl border border-white/70 p-4 shadow-sm">
                             <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Criador</p>
-                            <p class="mt-3 text-sm font-bold">maria@sexylua.local</p>
+                            <p class="mt-3 text-sm font-bold">maria</p>
                             <p class="text-sm text-on-surface-variant">creator123</p>
                         </div>
                         <div class="lunar-glass rounded-2xl border border-white/70 p-4 shadow-sm">
                             <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Assinante</p>
-                            <p class="mt-3 text-sm font-bold">assinante@sexylua.local</p>
+                            <p class="mt-3 text-sm font-bold">assinante</p>
                             <p class="text-sm text-on-surface-variant">subscriber123</p>
                         </div>
                     </div>
@@ -118,8 +118,8 @@
                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
 
                     <label class="block space-y-2">
-                        <span class="px-1 text-sm font-semibold text-on-surface-variant">E-mail</span>
-                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" name="email" placeholder="voce@sexylua.local" required type="email">
+                        <span class="px-1 text-sm font-semibold text-on-surface-variant">E-mail ou usuario</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" name="login" placeholder="voce@sexylua.local ou maria" required type="text">
                     </label>
 
                     <label class="block space-y-2">

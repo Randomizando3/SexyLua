@@ -18,9 +18,9 @@ final class Auth
     ) {
     }
 
-    public function attempt(string $email, string $password): ?array
+    public function attempt(string $login, string $password): ?array
     {
-        $user = $this->repository->findUserByEmail($email);
+        $user = $this->repository->findUserByLogin($login);
 
         if (! $user) {
             return null;

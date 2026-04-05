@@ -124,10 +124,14 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="name" type="text" value="<?= e((string) ($subscriber['name'] ?? '')) ?>">
                     </label>
                     <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Usuario</span>
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="username" type="text" value="<?= e((string) ($subscriber['username'] ?? '')) ?>">
+                    </label>
+                    <label class="block space-y-2">
                         <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Cidade</span>
                         <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="city" type="text" value="<?= e((string) ($subscriber['city'] ?? '')) ?>">
                     </label>
-                    <label class="block space-y-2 md:col-span-2">
+                    <label class="block space-y-2">
                         <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">E-mail</span>
                         <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface-variant shadow-sm" readonly type="email" value="<?= e((string) ($subscriber['email'] ?? '')) ?>">
                     </label>
@@ -223,6 +227,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         <?php endif; ?>
                         <div class="pb-3">
                             <p class="text-xl font-bold"><?= e((string) ($subscriber['name'] ?? 'Assinante')) ?></p>
+                            <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($subscriber['username'] ?? 'assinante')) ?></p>
                             <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($subscriber['headline'] ?? '')) ?></p>
                         </div>
                     </div>

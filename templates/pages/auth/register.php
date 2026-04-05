@@ -110,10 +110,17 @@
                 <form action="/register" class="space-y-5" enctype="multipart/form-data" method="post">
                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
 
-                    <label class="block space-y-2">
-                        <span class="px-1 text-sm font-semibold text-on-surface-variant">Nome</span>
-                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" name="name" placeholder="Seu nome" required type="text">
-                    </label>
+                    <div class="grid gap-5 md:grid-cols-2">
+                        <label class="block space-y-2">
+                            <span class="px-1 text-sm font-semibold text-on-surface-variant">Nome</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" name="name" placeholder="Seu nome" required type="text">
+                        </label>
+
+                        <label class="block space-y-2">
+                            <span class="px-1 text-sm font-semibold text-on-surface-variant">Usuario</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" name="username" placeholder="seuusuario" required type="text">
+                        </label>
+                    </div>
 
                     <label class="block space-y-2">
                         <span class="px-1 text-sm font-semibold text-on-surface-variant">E-mail</span>

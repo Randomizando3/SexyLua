@@ -153,6 +153,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                 <div class="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-primary/10 text-sm font-extrabold text-primary"><?= e(avatar_initials((string) ($user['name'] ?? 'Usuario'))) ?></div>
                                 <div class="min-w-0">
                                     <p class="truncate text-base font-extrabold"><?= e((string) ($user['name'] ?? 'Usuario')) ?></p>
+                                    <p class="truncate text-sm text-on-surface-variant">@<?= e((string) ($user['username'] ?? 'sem-usuario')) ?></p>
                                     <p class="truncate text-sm text-on-surface-variant"><?= e((string) ($user['email'] ?? '')) ?></p>
                                     <p class="mt-1 truncate text-xs text-slate-400"><?= e((string) ($user['headline'] ?? 'Sem headline')) ?></p>
                                 </div>
@@ -208,6 +209,10 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                 <label class="block space-y-2">
                                     <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nome</span>
                                     <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="name" type="text" value="<?= e((string) ($user['name'] ?? '')) ?>">
+                                </label>
+                                <label class="block space-y-2">
+                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Usuario</span>
+                                    <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="username" type="text" value="<?= e((string) ($user['username'] ?? '')) ?>">
                                 </label>
                                 <label class="block space-y-2">
                                     <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">E-mail</span>
@@ -349,6 +354,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                 <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                 <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nome</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="name" required type="text"></label>
+                    <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Usuario</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="username" required type="text"></label>
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">E-mail</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="email" required type="email"></label>
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Senha inicial</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="password" required type="password"></label>
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Cidade</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="city" type="text"></label>

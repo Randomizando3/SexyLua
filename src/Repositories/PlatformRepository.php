@@ -95,6 +95,56 @@ final class PlatformRepository
         return null;
     }
 
+    public function findUserByUsername(string $username): ?array
+    {
+        $username = $this->normalizeUsername($username);
+
+        if ($username === '') {
+            return null;
+        }
+
+        foreach ($this->users() as $user) {
+            if ($this->normalizeUsername((string) ($user['username'] ?? '')) === $username) {
+                return $user;
+            }
+        }
+
+        return null;
+    }
+
+    public function findUserByLogin(string $login): ?array
+    {
+        $login = trim($login);
+
+        if ($login === '') {
+            return null;
+        }
+
+        $user = $this->findUserByEmail($login);
+        if ($user !== null) {
+            return $user;
+        }
+
+        return $this->findUserByUsername($login);
+    }
+
+    public function normalizeUsername(string $username): string
+    {
+        $username = mb_strtolower(trim($username));
+        if ($username === '') {
+            return '';
+        }
+
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT', $username);
+        if ($ascii !== false) {
+            $username = strtolower($ascii);
+        }
+
+        $username = preg_replace('/[^a-z0-9._-]+/', '', $username) ?? '';
+
+        return trim($username, '._-');
+    }
+
     public function registerUser(array $data): array
     {
         $users = $this->users();
@@ -102,10 +152,12 @@ final class PlatformRepository
         $role = in_array(($data['role'] ?? 'subscriber'), ['subscriber', 'creator'], true) ? $data['role'] : 'subscriber';
         $termsAcceptedAt = trim((string) ($data['terms_accepted_at'] ?? ''));
         $identityDocument = is_array($data['identity_document'] ?? null) ? $data['identity_document'] : null;
+        $username = $this->uniqueUsername((string) ($data['username'] ?? ''), null, (string) ($data['email'] ?? ($data['name'] ?? 'usuario')));
 
         $user = [
             'id' => $userId,
             'name' => trim((string) ($data['name'] ?? 'Novo Usuario')),
+            'username' => $username,
             'email' => mb_strtolower(trim((string) ($data['email'] ?? ''))),
             'password' => password_hash((string) ($data['password'] ?? ''), PASSWORD_DEFAULT),
             'role' => $role,
@@ -3074,6 +3126,7 @@ final class PlatformRepository
         $mood = trim((string) ($data['mood'] ?? ''));
         $coverStyle = trim((string) ($data['cover_style'] ?? ''));
         $slug = trim((string) ($data['slug'] ?? ''));
+        $username = $this->normalizeUsername((string) ($data['username'] ?? ''));
         $avatarUrl = trim((string) ($data['avatar_url'] ?? ''));
         $coverUrl = trim((string) ($data['cover_url'] ?? ''));
         $payoutMethod = trim((string) ($data['payout_method'] ?? ''));
@@ -3114,6 +3167,10 @@ final class PlatformRepository
         $identityDocument = is_array($data['identity_document'] ?? null) ? $data['identity_document'] : null;
         $verificationReset = false;
 
+        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $creatorId))) {
+            return false;
+        }
+
         foreach ($users as &$user) {
             if ((int) $user['id'] !== $creatorId || ($user['role'] ?? null) !== 'creator') {
                 continue;
@@ -3123,6 +3180,11 @@ final class PlatformRepository
 
             if ($name !== '' && $name !== (string) $user['name']) {
                 $user['name'] = $name;
+                $changedUsers = true;
+            }
+
+            if (array_key_exists('username', $data) && $username !== (string) ($user['username'] ?? '')) {
+                $user['username'] = $username;
                 $changedUsers = true;
             }
 
@@ -3529,6 +3591,7 @@ final class PlatformRepository
         $originalRole = '';
         $targetRole = '';
         $name = trim((string) ($data['name'] ?? ''));
+        $username = $this->normalizeUsername((string) ($data['username'] ?? ''));
         $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
         $headline = trim((string) ($data['headline'] ?? ''));
         $bio = trim((string) ($data['bio'] ?? ''));
@@ -3548,6 +3611,10 @@ final class PlatformRepository
         $verificationNote = trim((string) ($data['verification_note'] ?? ''));
         $previousVerificationStatus = '';
 
+        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $userId))) {
+            return false;
+        }
+
         foreach ($users as &$user) {
             if ((int) $user['id'] === $userId) {
                 $found = true;
@@ -3559,6 +3626,9 @@ final class PlatformRepository
                 }
                 if ($name !== '') {
                     $user['name'] = $name;
+                }
+                if (array_key_exists('username', $data)) {
+                    $user['username'] = $username;
                 }
                 if (array_key_exists('bio', $data)) {
                     $user['bio'] = $bio;
@@ -3698,12 +3768,13 @@ final class PlatformRepository
     public function createAdminManagedUser(array $data): bool
     {
         $name = trim((string) ($data['name'] ?? ''));
+        $username = $this->normalizeUsername((string) ($data['username'] ?? ''));
         $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
         $password = trim((string) ($data['password'] ?? ''));
         $role = in_array(($data['role'] ?? 'subscriber'), ['subscriber', 'creator', 'admin'], true) ? (string) $data['role'] : 'subscriber';
         $status = in_array(($data['status'] ?? 'active'), ['active', 'suspended'], true) ? (string) $data['status'] : 'active';
 
-        if ($name === '' || $email === '' || $password === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL) || $this->emailInUse($email)) {
+        if ($name === '' || $username === '' || $email === '' || $password === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL) || $this->emailInUse($email) || $this->usernameInUse($username)) {
             return false;
         }
 
@@ -3718,6 +3789,7 @@ final class PlatformRepository
         $users[] = [
             'id' => $userId,
             'name' => $name,
+            'username' => $username,
             'email' => $email,
             'password' => password_hash($password, PASSWORD_DEFAULT),
             'role' => $role,
@@ -3775,9 +3847,14 @@ final class PlatformRepository
         $changed = false;
         $found = false;
         $name = trim((string) ($data['name'] ?? ''));
+        $username = $this->normalizeUsername((string) ($data['username'] ?? ''));
         $newPassword = (string) ($data['new_password'] ?? '');
         $identityDocument = is_array($data['identity_document'] ?? null) ? $data['identity_document'] : null;
         $verificationReset = false;
+
+        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $userId))) {
+            return false;
+        }
 
         foreach ($users as &$user) {
             if ((int) ($user['id'] ?? 0) !== $userId || (string) ($user['role'] ?? '') !== $role) {
@@ -3788,6 +3865,11 @@ final class PlatformRepository
 
             if ($name !== '' && $name !== (string) ($user['name'] ?? '')) {
                 $user['name'] = $name;
+                $changed = true;
+            }
+
+            if (array_key_exists('username', $data) && $username !== (string) ($user['username'] ?? '')) {
+                $user['username'] = $username;
                 $changed = true;
             }
 
@@ -5003,6 +5085,27 @@ final class PlatformRepository
                 (string) ($transaction['type'] ?? '') === $type
                 && (int) ($transaction['related_transaction_id'] ?? 0) === $relatedTransactionId
             ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function usernameInUse(string $username, int $exceptUserId = 0): bool
+    {
+        $username = $this->normalizeUsername($username);
+
+        if ($username === '') {
+            return false;
+        }
+
+        foreach ($this->users() as $user) {
+            if ((int) ($user['id'] ?? 0) === $exceptUserId) {
+                continue;
+            }
+
+            if ($this->normalizeUsername((string) ($user['username'] ?? '')) === $username) {
                 return true;
             }
         }
@@ -6972,6 +7075,27 @@ final class PlatformRepository
         }
 
         return $slug;
+    }
+
+    private function uniqueUsername(string $seed, ?int $ignoreUserId = null, string $fallback = 'usuario'): string
+    {
+        $base = $this->normalizeUsername($seed);
+        if ($base === '') {
+            $base = $this->normalizeUsername($fallback);
+        }
+        if ($base === '') {
+            $base = 'usuario';
+        }
+
+        $username = $base;
+        $counter = 2;
+
+        while ($this->usernameInUse($username, $ignoreUserId)) {
+            $username = $base . $counter;
+            $counter++;
+        }
+
+        return $username;
     }
 
     private function mediaMtxPublishedPath(string $pathName): string

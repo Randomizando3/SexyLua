@@ -37,6 +37,7 @@ final class SeedFactory
             [
                 'id' => 1,
                 'name' => 'Admin Master',
+                'username' => 'admin',
                 'email' => 'admin@sexylua.local',
                 'password' => password_hash('admin123', PASSWORD_DEFAULT),
                 'role' => 'admin',
@@ -49,6 +50,7 @@ final class SeedFactory
             [
                 'id' => 2,
                 'name' => 'Maria Silva',
+                'username' => 'maria',
                 'email' => 'maria@sexylua.local',
                 'password' => password_hash('creator123', PASSWORD_DEFAULT),
                 'role' => 'creator',
@@ -61,6 +63,7 @@ final class SeedFactory
             [
                 'id' => 3,
                 'name' => 'Bruno Alves',
+                'username' => 'assinante',
                 'email' => 'assinante@sexylua.local',
                 'password' => password_hash('subscriber123', PASSWORD_DEFAULT),
                 'role' => 'subscriber',
