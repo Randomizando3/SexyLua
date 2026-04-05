@@ -213,6 +213,11 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                                     <option value="<?= e($value) ?>" <?= (string) ($item['kind'] ?? '') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
                                                 <?php endforeach; ?>
                                             </select>
+                                            <select class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="category">
+                                                <?php foreach (audience_category_options() as $value => $label): ?>
+                                                    <option value="<?= e($value) ?>" <?= (string) ($item['category'] ?? 'todos') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
                                             <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="duration" placeholder="Duracao" type="text" value="<?= e((string) ($item['duration'] ?? '')) ?>">
                                         </div>
                                         <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="media_url" placeholder="Media URL" type="text" value="<?= e((string) ($item['media_url'] ?? '')) ?>">
@@ -579,7 +584,11 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                                 <option value="public" <?= (string) ($live['access_mode'] ?? '') === 'public' ? 'selected' : '' ?>>Publica</option>
                                                 <option value="subscriber" <?= (string) ($live['access_mode'] ?? '') === 'subscriber' ? 'selected' : '' ?>>Assinantes</option>
                                             </select>
-                                            <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="category" placeholder="Categoria" type="text" value="<?= e((string) ($live['category'] ?? '')) ?>">
+                                            <select class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="category">
+                                                <?php foreach (audience_category_options() as $value => $label): ?>
+                                                    <option value="<?= e($value) ?>" <?= (string) ($live['category'] ?? 'todos') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
                                             <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="scheduled_for" type="datetime-local" value="<?= e((string) (($live['scheduled_for'] ?? '') !== '' ? date('Y-m-d\TH:i', strtotime((string) $live['scheduled_for'])) : '')) ?>">
                                             <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="price_luacoins" step="1" type="number" value="<?= e((string) ($live['price_tokens'] ?? 0)) ?>">
                                             <input class="w-full rounded-2xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="goal_luacoins" step="1" type="number" value="<?= e((string) ($live['goal_tokens'] ?? 0)) ?>">

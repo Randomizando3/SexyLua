@@ -46,6 +46,7 @@ $kindLabels = [
     'article' => 'Artigo',
     'live_teaser' => 'Live',
 ];
+$categoryLabels = audience_category_options();
 $storageUsedBytes = (int) ($summary['storage_used_bytes'] ?? 0);
 $storageLimitBytes = (int) ($summary['storage_limit_bytes'] ?? 524288000);
 $storageRemainingBytes = max(0, (int) ($summary['storage_remaining_bytes'] ?? ($storageLimitBytes - $storageUsedBytes)));
@@ -60,6 +61,7 @@ if ($formItem) {
         'kind' => (string) ($formItem['kind'] ?? 'gallery'),
         'visibility' => (string) ($formItem['visibility'] ?? 'subscriber'),
         'status' => (string) ($formItem['status'] ?? 'pending'),
+        'category' => (string) ($formItem['category'] ?? 'todos'),
         'media_url' => (string) ($formItem['media_url'] ?? ''),
         'excerpt' => (string) ($formItem['excerpt'] ?? ''),
         'body' => (string) ($formItem['body'] ?? ''),
@@ -197,6 +199,7 @@ include base_path('templates/partials/creator_topbar.php');
                     'kind' => $kind,
                     'visibility' => $visibility,
                     'status' => $status,
+                    'category' => (string) ($item['category'] ?? 'todos'),
                     'media_url' => (string) ($item['media_url'] ?? ''),
                     'excerpt' => (string) ($item['excerpt'] ?? ''),
                     'body' => (string) ($item['body'] ?? ''),
@@ -312,6 +315,11 @@ include base_path('templates/partials/creator_topbar.php');
                         <option value="<?= e($visibilityValue) ?>" <?= (string) ($formItem['visibility'] ?? 'subscriber') === $visibilityValue ? 'selected' : '' ?>><?= e($visibilityLabel) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" data-content-field="category" name="category">
+                    <?php foreach ($categoryLabels as $categoryValue => $categoryLabel): ?>
+                        <option value="<?= e($categoryValue) ?>" <?= (string) ($formItem['category'] ?? 'todos') === $categoryValue ? 'selected' : '' ?>><?= e($categoryLabel) ?></option>
+                    <?php endforeach; ?>
+                </select>
                 <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" data-content-field="status" name="status">
                     <?php foreach ($statusLabels as $statusValue => $statusLabel): ?>
                         <option value="<?= e($statusValue) ?>" <?= (string) ($formItem['status'] ?? 'pending') === $statusValue ? 'selected' : '' ?>><?= e($statusLabel) ?></option>
@@ -379,6 +387,7 @@ include base_path('templates/partials/creator_topbar.php');
             duration: '',
             kind: 'gallery',
             visibility: 'subscriber',
+            category: 'todos',
             status: 'pending',
             media_url: '',
             excerpt: '',
@@ -391,6 +400,7 @@ include base_path('templates/partials/creator_topbar.php');
             duration: form.querySelector('[data-content-field="duration"]'),
             kind: form.querySelector('[data-content-field="kind"]'),
             visibility: form.querySelector('[data-content-field="visibility"]'),
+            category: form.querySelector('[data-content-field="category"]'),
             status: form.querySelector('[data-content-field="status"]'),
             media_url: form.querySelector('[data-content-field="media_url"]'),
             excerpt: form.querySelector('[data-content-field="excerpt"]'),

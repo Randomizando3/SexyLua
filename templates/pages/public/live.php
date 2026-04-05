@@ -221,7 +221,7 @@ $accessMessage = $canWatch
                             <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
                                 <div class="rounded-2xl bg-[#f5f3f5] p-4">
                                     <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Categoria</p>
-                                    <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) ($live['category'] ?? 'Studio')) ?></p>
+                            <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) ($live['category_label'] ?? 'Todos')) ?></p>
                                 </div>
                                 <div class="rounded-2xl bg-[#f5f3f5] p-4">
                                     <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Acesso</p>

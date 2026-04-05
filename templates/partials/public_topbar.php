@@ -100,6 +100,7 @@ $publicTopbarMenuLinks = [
         </details>
     </div>
 </nav>
+<?php require BASE_PATH . '/templates/partials/public_age_gate.php'; ?>
 <script>
     (() => {
         const href = <?= json_encode(site_favicon_url(), JSON_UNESCAPED_SLASHES) ?>;

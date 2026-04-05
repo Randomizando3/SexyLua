@@ -18,6 +18,7 @@ $router->get('/messages/asset', [PublicController::class, 'messageAsset']);
 $router->get('/help', [PublicController::class, 'help']);
 $router->get('/terms', [PublicController::class, 'terms']);
 $router->get('/privacy', [PublicController::class, 'privacy']);
+$router->post('/audience-gate', [PublicController::class, 'storeAudienceGate']);
 $router->post('/live/chat', [PublicController::class, 'postLiveMessage']);
 $router->post('/messages/unlock', [PublicController::class, 'unlockMessage']);
 $router->get('/live/rtc/poll', [LiveRtcController::class, 'poll']);

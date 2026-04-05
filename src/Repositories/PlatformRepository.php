@@ -152,24 +152,31 @@ final class PlatformRepository
             ];
             $this->save('plans', $plans);
         } else {
-            $transactions = $this->walletTransactions();
-            $transactions[] = [
-                'id' => $this->store->nextId($transactions),
-                'user_id' => $userId,
-                'type' => 'welcome_bonus',
-                'direction' => 'in',
-                'amount' => 120,
-                'note' => 'Bonus de boas-vindas',
-                'created_at' => date('Y-m-d H:i:s'),
-            ];
-            $this->save('wallet_transactions', $transactions);
+            $settings = $this->settings();
+            $signupBonusEnabled = (bool) ($settings['subscriber_signup_bonus_enabled'] ?? true);
+            $signupBonusAmount = max(0, (int) ($settings['subscriber_signup_bonus_luacoins'] ?? 120));
+
+            if ($signupBonusEnabled && $signupBonusAmount > 0) {
+                $transactions = $this->walletTransactions();
+                $transactions[] = [
+                    'id' => $this->store->nextId($transactions),
+                    'user_id' => $userId,
+                    'type' => 'welcome_bonus',
+                    'direction' => 'in',
+                    'amount' => $signupBonusAmount,
+                    'note' => 'Bonus de boas-vindas',
+                    'created_at' => date('Y-m-d H:i:s'),
+                ];
+                $this->save('wallet_transactions', $transactions);
+            }
         }
 
         return $this->sanitizeUser($user);
     }
 
-    public function homepageData(): array
+    public function homepageData(array $filters = []): array
     {
+        $category = \normalize_audience_category((string) ($filters['category'] ?? 'todos'));
         $allCreators = $this->creators();
         usort($allCreators, static fn (array $left, array $right): int => [
             $right['featured'] ? 1 : 0,
@@ -186,16 +193,17 @@ final class PlatformRepository
             $creators = $allCreators;
         }
 
-        $liveNow = array_values(array_filter($this->livesWithCreators(), static fn (array $live): bool => $live['status'] === 'live'));
-        $upcomingLives = array_values(array_filter($this->livesWithCreators(), static fn (array $live): bool => $live['status'] === 'scheduled'));
+        $liveNow = array_values(array_filter($this->livesWithCreators(), fn (array $live): bool => $live['status'] === 'live' && $this->matchesAudienceCategory($category, (string) ($live['category'] ?? 'todos'))));
+        $upcomingLives = array_values(array_filter($this->livesWithCreators(), fn (array $live): bool => $live['status'] === 'scheduled' && $this->matchesAudienceCategory($category, (string) ($live['category'] ?? 'todos'))));
         $upcomingLives = $this->sortByDate($upcomingLives, 'scheduled_for');
-        $featuredContent = array_values(array_filter($this->contentsWithCreators(), fn (array $item): bool => $item['status'] === 'approved' && ! $this->contentIsExpired($item)));
+        $featuredContent = array_values(array_filter($this->contentsWithCreators(), fn (array $item): bool => $item['status'] === 'approved' && ! $this->contentIsExpired($item) && $this->matchesAudienceCategory($category, (string) ($item['category'] ?? 'todos'))));
 
         return [
             'featured_creators' => array_slice($creators, 0, 5),
             'live_now' => array_slice($liveNow, 0, 4),
             'upcoming_lives' => array_slice($upcomingLives, 0, 4),
             'featured_content' => array_slice($featuredContent, 0, 6),
+            'audience_category' => $category,
             'stats' => [
                 'creators' => count($allCreators),
                 'live_now' => count($liveNow),
@@ -211,6 +219,8 @@ final class PlatformRepository
         $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
         $kind = trim((string) ($filters['kind'] ?? ''));
         $liveOnly = ($filters['live_only'] ?? false) === true;
+        $includeScheduled = ($filters['include_scheduled'] ?? false) === true;
+        $category = \normalize_audience_category((string) ($filters['category'] ?? 'todos'));
 
         $creators = array_values(array_filter($this->creators(), function (array $creator) use ($query): bool {
             if ($query === '') {
@@ -222,8 +232,12 @@ final class PlatformRepository
             return str_contains($haystack, $query);
         }));
 
-        $content = array_values(array_filter($this->contentsWithCreators(), function (array $item) use ($query, $kind): bool {
+        $content = array_values(array_filter($this->contentsWithCreators(), function (array $item) use ($query, $kind, $category): bool {
             if ($item['status'] !== 'approved' || $this->contentIsExpired($item)) {
+                return false;
+            }
+
+            if (! $this->matchesAudienceCategory($category, (string) ($item['category'] ?? 'todos'))) {
                 return false;
             }
 
@@ -240,7 +254,24 @@ final class PlatformRepository
             return str_contains($haystack, $query);
         }));
 
-        $lives = array_values(array_filter($this->livesWithCreators(), static fn (array $live): bool => in_array($live['status'], ['live', 'scheduled'], true)));
+        $allowedLiveStatuses = $includeScheduled ? ['live', 'scheduled'] : ['live'];
+        $lives = array_values(array_filter($this->livesWithCreators(), function (array $live) use ($allowedLiveStatuses, $query, $category): bool {
+            if (! in_array($live['status'], $allowedLiveStatuses, true)) {
+                return false;
+            }
+
+            if (! $this->matchesAudienceCategory($category, (string) ($live['category'] ?? 'todos'))) {
+                return false;
+            }
+
+            if ($query === '') {
+                return true;
+            }
+
+            $haystack = mb_strtolower((string) (($live['title'] ?? '') . ' ' . ($live['description'] ?? '') . ' ' . ($live['creator']['name'] ?? '')));
+
+            return str_contains($haystack, $query);
+        }));
 
         if ($liveOnly) {
             $content = array_values(array_filter($content, static fn (array $item): bool => $item['kind'] === 'live_teaser'));
@@ -254,6 +285,8 @@ final class PlatformRepository
                 'q' => $query,
                 'kind' => $kind,
                 'live_only' => $liveOnly,
+                'include_scheduled' => $includeScheduled,
+                'category' => $category,
             ],
         ];
     }
@@ -273,20 +306,21 @@ final class PlatformRepository
         return null;
     }
 
-    public function creatorProfileData(int $creatorId, ?int $viewerId = null): ?array
+    public function creatorProfileData(int $creatorId, ?int $viewerId = null, array $filters = []): ?array
     {
         $creator = $this->findCreatorBySlugOrId(null, $creatorId);
+        $category = \normalize_audience_category((string) ($filters['category'] ?? 'todos'));
 
         if (! $creator) {
             return null;
         }
 
         $plans = array_values(array_filter($this->plansWithCreators(), static fn (array $plan): bool => (int) $plan['creator_id'] === $creatorId && (bool) $plan['active']));
-        $content = array_values(array_filter($this->contentsWithCreators(), fn (array $item): bool => (int) $item['creator_id'] === $creatorId && $item['status'] === 'approved' && ! $this->contentIsExpired($item)));
+        $content = array_values(array_filter($this->contentsWithCreators(), fn (array $item): bool => (int) $item['creator_id'] === $creatorId && $item['status'] === 'approved' && ! $this->contentIsExpired($item) && $this->matchesAudienceCategory($category, (string) ($item['category'] ?? 'todos'))));
         $relatedCreators = array_values(array_filter($this->creators(), static fn (array $item): bool => (int) $item['id'] !== $creatorId));
         $upcomingLives = array_values(array_filter(
             $this->livesWithCreators(),
-            static fn (array $live): bool => (int) ($live['creator_id'] ?? 0) === $creatorId && (string) ($live['status'] ?? '') === 'scheduled'
+            fn (array $live): bool => (int) ($live['creator_id'] ?? 0) === $creatorId && (string) ($live['status'] ?? '') === 'scheduled' && $this->matchesAudienceCategory($category, (string) ($live['category'] ?? 'todos'))
         ));
         $upcomingLives = $this->sortByDate($upcomingLives, 'scheduled_for');
         $upcomingLives = array_reverse($upcomingLives);
@@ -296,6 +330,7 @@ final class PlatformRepository
             'plans' => $plans,
             'content' => $content,
             'upcoming_lives' => array_slice($upcomingLives, 0, 8),
+            'audience_category' => $category,
             'is_favorite' => $viewerId ? $this->isFavoriteCreator($viewerId, $creatorId) : false,
             'is_subscribed' => $viewerId ? $this->activeSubscriptionFor($viewerId, $creatorId) !== null : false,
             'related_creators' => array_slice($relatedCreators, 0, 5),
@@ -901,6 +936,9 @@ final class PlatformRepository
         $notifyUserId = 0;
         $notifyStatus = '';
         $notifyAmount = 0;
+        $bonusAmount = 0;
+        $settings = $this->settings();
+        $topUpBonusPercent = max(0, min(100, (int) ($settings['topup_bonus_percent'] ?? 0)));
         $rawStatus = (string) (
             $payment['data']['status']
             ?? $payment['status_transaction']
@@ -994,6 +1032,9 @@ final class PlatformRepository
                     $notifyUserId = (int) ($transaction['user_id'] ?? 0);
                     $notifyStatus = 'approved';
                     $notifyAmount = (int) ($transaction['amount'] ?? 0);
+                    if ($topUpBonusPercent > 0) {
+                        $bonusAmount = max(0, (int) round($notifyAmount * ($topUpBonusPercent / 100)));
+                    }
                 }
             } elseif (in_array($status, ['rejected', 'cancelled', 'canceled', 'expired', 'failed', 'refunded', 'charged_back'], true)) {
                 $transaction['status'] = $status;
@@ -1014,13 +1055,27 @@ final class PlatformRepository
         unset($transaction);
 
         if ($changed) {
+            if ($notifyStatus === 'approved' && $notifyUserId > 0 && $bonusAmount > 0 && ! $this->hasWalletTransactionByRelatedId($transactions, 'top_up_bonus', $transactionId)) {
+                $transactions[] = [
+                    'id' => $this->store->nextId($transactions),
+                    'user_id' => $notifyUserId,
+                    'type' => 'top_up_bonus',
+                    'direction' => 'in',
+                    'amount' => $bonusAmount,
+                    'note' => 'Bonus da recarga de LuaCoins',
+                    'status' => 'approved',
+                    'related_transaction_id' => $transactionId,
+                    'created_at' => date('Y-m-d H:i:s'),
+                ];
+            }
+
             $this->save('wallet_transactions', $transactions);
         }
 
         if ($notifyUserId > 0) {
             $title = $notifyStatus === 'approved' ? 'Recarga confirmada' : 'Recarga nao aprovada';
             $body = $notifyStatus === 'approved'
-                ? 'Sua recarga de ' . $notifyAmount . ' LuaCoins foi aprovada.'
+                ? 'Sua recarga de ' . $notifyAmount . ' LuaCoins foi aprovada.' . ($bonusAmount > 0 ? ' Bonus aplicado: +' . $bonusAmount . ' LuaCoins.' : '')
                 : 'Sua tentativa de recarga de ' . $notifyAmount . ' LuaCoins nao foi aprovada.';
             $this->notifyUser($notifyUserId, 'wallet', $title, $body, '/subscriber/wallet');
         }
@@ -1707,6 +1762,7 @@ final class PlatformRepository
         $status = in_array(($data['status'] ?? 'draft'), ['draft', 'pending', 'approved', 'rejected', 'archived'], true) ? $data['status'] : 'draft';
         $visibility = in_array(($data['visibility'] ?? 'public'), ['public', 'subscriber', 'premium'], true) ? $data['visibility'] : 'public';
         $kind = in_array(($data['kind'] ?? 'gallery'), ['gallery', 'video', 'audio', 'article', 'live_teaser'], true) ? $data['kind'] : 'gallery';
+        $category = $this->normalizeAudienceCategory((string) ($data['category'] ?? 'todos'));
         $mediaUrl = trim((string) ($data['media_url'] ?? ''));
         $thumbnailUrl = trim((string) ($data['thumbnail_url'] ?? ''));
         $planId = max(0, (int) ($data['plan_id'] ?? 0));
@@ -1724,6 +1780,7 @@ final class PlatformRepository
             'visibility' => $visibility,
             'status' => $status,
             'kind' => $kind,
+            'category' => $category,
             'duration' => trim((string) ($data['duration'] ?? '')),
             'plan_id' => $planId,
             'price_tokens' => $plan ? (int) ($plan['price_tokens'] ?? 0) : max(0, (int) ($data['price_tokens'] ?? $data['price_luacoins'] ?? 0)),
@@ -2136,7 +2193,7 @@ final class PlatformRepository
             'price_tokens' => max(0, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? 0)),
             'chat_enabled' => $chatEnabled,
             'chat_audience' => $chatAudience,
-            'category' => trim((string) ($data['category'] ?? 'Chatting & Chill')),
+            'category' => $this->normalizeAudienceCategory((string) ($data['category'] ?? 'todos')),
             'access_mode' => in_array($rawAccessMode, ['public', 'subscriber'], true) ? $rawAccessMode : 'public',
             'goal_tokens' => max(0, (int) ($data['goal_luacoins'] ?? $data['goal_tokens'] ?? 0)),
             'cover_url' => trim((string) ($data['cover_url'] ?? '')),
@@ -4239,6 +4296,7 @@ final class PlatformRepository
             $item['visibility'] = in_array(($data['visibility'] ?? $item['visibility']), ['public', 'subscriber', 'premium'], true) ? (string) ($data['visibility'] ?? $item['visibility']) : (string) $item['visibility'];
             $item['kind'] = in_array(($data['kind'] ?? $item['kind']), ['gallery', 'video', 'audio', 'article', 'live_teaser'], true) ? (string) ($data['kind'] ?? $item['kind']) : (string) $item['kind'];
             $item['status'] = in_array(($data['status'] ?? $item['status']), ['draft', 'pending', 'approved', 'rejected', 'archived'], true) ? (string) ($data['status'] ?? $item['status']) : (string) $item['status'];
+            $item['category'] = $this->normalizeAudienceCategory((string) ($data['category'] ?? $item['category'] ?? 'todos'));
             $item['duration'] = trim((string) ($data['duration'] ?? $item['duration'] ?? ''));
             $item['media_url'] = trim((string) ($data['media_url'] ?? $item['media_url'] ?? ''));
             $item['thumbnail_url'] = trim((string) ($data['thumbnail_url'] ?? $item['thumbnail_url'] ?? ''));
@@ -4362,7 +4420,7 @@ final class PlatformRepository
             $live['description'] = trim((string) ($data['description'] ?? $live['description']));
             $live['status'] = in_array(($data['status'] ?? $live['status']), ['scheduled', 'live', 'ended'], true) ? (string) ($data['status'] ?? $live['status']) : (string) $live['status'];
             $live['scheduled_for'] = trim((string) ($data['scheduled_for'] ?? $live['scheduled_for']));
-            $live['category'] = trim((string) ($data['category'] ?? $live['category'] ?? 'Chatting & Chill'));
+            $live['category'] = $this->normalizeAudienceCategory((string) ($data['category'] ?? $live['category'] ?? 'todos'));
             $live['access_mode'] = in_array(($data['access_mode'] ?? $live['access_mode']), ['public', 'subscriber'], true) ? (string) ($data['access_mode'] ?? $live['access_mode']) : (string) $live['access_mode'];
             $live['price_tokens'] = max(0, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? $live['price_tokens'] ?? 0));
             $live['goal_tokens'] = max(0, (int) ($data['goal_luacoins'] ?? $data['goal_tokens'] ?? $live['goal_tokens'] ?? 0));
@@ -4479,6 +4537,9 @@ final class PlatformRepository
         $settings['live_replay_expiration_days'] = max(1, (int) ($data['live_replay_expiration_days'] ?? $settings['live_replay_expiration_days'] ?? 7));
         $settings['live_max_duration_minutes'] = max(5, (int) ($data['live_max_duration_minutes'] ?? $settings['live_max_duration_minutes'] ?? 30));
         $settings['creator_content_storage_limit_mb'] = max(1, (int) ($data['creator_content_storage_limit_mb'] ?? $settings['creator_content_storage_limit_mb'] ?? 50));
+        $settings['subscriber_signup_bonus_enabled'] = ($data['subscriber_signup_bonus_enabled'] ?? '0') === '1';
+        $settings['subscriber_signup_bonus_luacoins'] = max(0, (int) ($data['subscriber_signup_bonus_luacoins'] ?? $settings['subscriber_signup_bonus_luacoins'] ?? 120));
+        $settings['topup_bonus_percent'] = max(0, min(100, (int) ($data['topup_bonus_percent'] ?? $settings['topup_bonus_percent'] ?? 0)));
         $settings['maintenance_mode'] = ($data['maintenance_mode'] ?? '0') === '1';
         $settings['slow_mode_seconds'] = max(0, (int) ($data['slow_mode_seconds'] ?? $settings['slow_mode_seconds']));
         $settings['auto_moderation'] = ($data['auto_moderation'] ?? '0') === '1';
@@ -4492,6 +4553,16 @@ final class PlatformRepository
         $settings['seo_meta_description'] = trim((string) ($data['seo_meta_description'] ?? $settings['seo_meta_description'] ?? 'Plataforma de assinaturas, chats privados, lives e monetizacao com LuaCoins.'));
         $settings['seo_logo_white_url'] = trim((string) ($data['seo_logo_white_url'] ?? $settings['seo_logo_white_url'] ?? ''));
         $settings['seo_logo_color_url'] = trim((string) ($data['seo_logo_color_url'] ?? $settings['seo_logo_color_url'] ?? ''));
+        $settings['home_banner_enabled'] = ($data['home_banner_enabled'] ?? '0') === '1';
+        $settings['home_banner_title'] = trim((string) ($data['home_banner_title'] ?? $settings['home_banner_title'] ?? ''));
+        $settings['home_banner_subtitle'] = trim((string) ($data['home_banner_subtitle'] ?? $settings['home_banner_subtitle'] ?? ''));
+        $settings['home_banner_primary_text'] = trim((string) ($data['home_banner_primary_text'] ?? $settings['home_banner_primary_text'] ?? ''));
+        $settings['home_banner_primary_link'] = trim((string) ($data['home_banner_primary_link'] ?? $settings['home_banner_primary_link'] ?? ''));
+        $settings['home_banner_secondary_text'] = trim((string) ($data['home_banner_secondary_text'] ?? $settings['home_banner_secondary_text'] ?? ''));
+        $settings['home_banner_secondary_link'] = trim((string) ($data['home_banner_secondary_link'] ?? $settings['home_banner_secondary_link'] ?? ''));
+        $settings['home_banner_countdown_enabled'] = ($data['home_banner_countdown_enabled'] ?? '0') === '1';
+        $settings['home_banner_countdown_seconds'] = max(0, (int) ($data['home_banner_countdown_seconds'] ?? $settings['home_banner_countdown_seconds'] ?? 172800));
+        $settings['home_banner_background_url'] = trim((string) ($data['home_banner_background_url'] ?? $settings['home_banner_background_url'] ?? ''));
         $settings['syncpay_api_base_url'] = rtrim(trim((string) ($data['syncpay_api_base_url'] ?? $settings['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $settings['syncpay_client_id'] = trim((string) ($data['syncpay_client_id'] ?? $settings['syncpay_client_id'] ?? ''));
         $settings['syncpay_client_secret'] = trim((string) ($data['syncpay_client_secret'] ?? $settings['syncpay_client_secret'] ?? ''));
@@ -4706,6 +4777,8 @@ final class PlatformRepository
         }
 
         return $item + [
+            'category' => $this->normalizeAudienceCategory((string) ($item['category'] ?? 'todos')),
+            'category_label' => $this->audienceCategoryLabel((string) ($item['category'] ?? 'todos')),
             'creator' => $this->findCreatorBySlugOrId(null, (int) $item['creator_id']),
             'plan' => $plan,
             'is_expired' => $this->contentIsExpired($item),
@@ -4735,6 +4808,8 @@ final class PlatformRepository
         $resolvedStatus = $this->resolveLiveStatus($live);
 
         return array_merge($live, [
+            'category' => $this->normalizeAudienceCategory((string) ($live['category'] ?? 'todos')),
+            'category_label' => $this->audienceCategoryLabel((string) ($live['category'] ?? 'todos')),
             'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
             'base_status' => (string) ($live['status'] ?? 'scheduled'),
             'status' => $resolvedStatus,
@@ -4878,6 +4953,20 @@ final class PlatformRepository
         }
 
         return $balance;
+    }
+
+    private function hasWalletTransactionByRelatedId(array $transactions, string $type, int $relatedTransactionId): bool
+    {
+        foreach ($transactions as $transaction) {
+            if (
+                (string) ($transaction['type'] ?? '') === $type
+                && (int) ($transaction['related_transaction_id'] ?? 0) === $relatedTransactionId
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isFavoriteCreator(int $subscriberId, int $creatorId): bool
@@ -5056,6 +5145,21 @@ final class PlatformRepository
     private function sanitizeReplayVisibility(string $value): string
     {
         return in_array($value, ['public', 'subscriber'], true) ? $value : 'subscriber';
+    }
+
+    private function normalizeAudienceCategory(string $value): string
+    {
+        return \normalize_audience_category($value);
+    }
+
+    private function audienceCategoryLabel(string $value): string
+    {
+        return \audience_category_label($value);
+    }
+
+    private function matchesAudienceCategory(string $selected, string $itemCategory): bool
+    {
+        return \audience_category_matches_selection($selected, $itemCategory);
     }
 
     private function normalizePriorityTipTiers(array $tiers): array
@@ -5510,6 +5614,9 @@ final class PlatformRepository
         $normalized['live_replay_expiration_days'] = max(1, (int) ($normalized['live_replay_expiration_days'] ?? 7));
         $normalized['live_max_duration_minutes'] = max(5, (int) ($normalized['live_max_duration_minutes'] ?? 30));
         $normalized['creator_content_storage_limit_mb'] = max(1, (int) ($normalized['creator_content_storage_limit_mb'] ?? 50));
+        $normalized['subscriber_signup_bonus_enabled'] = (bool) ($normalized['subscriber_signup_bonus_enabled'] ?? true);
+        $normalized['subscriber_signup_bonus_luacoins'] = max(0, (int) ($normalized['subscriber_signup_bonus_luacoins'] ?? 120));
+        $normalized['topup_bonus_percent'] = max(0, min(100, (int) ($normalized['topup_bonus_percent'] ?? 0)));
         $normalized['live_priority_alert_duration_ms'] = max(2000, (int) ($normalized['live_priority_alert_duration_ms'] ?? 8000));
         $normalized['site_base_url'] = rtrim(trim((string) ($normalized['site_base_url'] ?? '')), '/');
         $normalized['seo_site_title'] = trim((string) ($normalized['seo_site_title'] ?? 'SexyLua'));
@@ -5517,6 +5624,16 @@ final class PlatformRepository
         $normalized['seo_meta_description'] = trim((string) ($normalized['seo_meta_description'] ?? 'Plataforma de assinaturas, chats privados, lives e monetizacao com LuaCoins.'));
         $normalized['seo_logo_white_url'] = trim((string) ($normalized['seo_logo_white_url'] ?? ''));
         $normalized['seo_logo_color_url'] = trim((string) ($normalized['seo_logo_color_url'] ?? ''));
+        $normalized['home_banner_enabled'] = (bool) ($normalized['home_banner_enabled'] ?? true);
+        $normalized['home_banner_title'] = trim((string) ($normalized['home_banner_title'] ?? 'Desbloqueie uma nova experiencia hoje'));
+        $normalized['home_banner_subtitle'] = trim((string) ($normalized['home_banner_subtitle'] ?? 'Entre, escolha sua vibe e descubra criadores, conteudos e lives em destaque.'));
+        $normalized['home_banner_primary_text'] = trim((string) ($normalized['home_banner_primary_text'] ?? 'Explorar agora'));
+        $normalized['home_banner_primary_link'] = trim((string) ($normalized['home_banner_primary_link'] ?? '/explore'));
+        $normalized['home_banner_secondary_text'] = trim((string) ($normalized['home_banner_secondary_text'] ?? 'Criar conta'));
+        $normalized['home_banner_secondary_link'] = trim((string) ($normalized['home_banner_secondary_link'] ?? '/register'));
+        $normalized['home_banner_countdown_enabled'] = (bool) ($normalized['home_banner_countdown_enabled'] ?? true);
+        $normalized['home_banner_countdown_seconds'] = max(0, (int) ($normalized['home_banner_countdown_seconds'] ?? 172800));
+        $normalized['home_banner_background_url'] = trim((string) ($normalized['home_banner_background_url'] ?? ''));
         $normalized['syncpay_api_base_url'] = rtrim(trim((string) ($normalized['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $normalized['syncpay_client_id'] = trim((string) ($normalized['syncpay_client_id'] ?? ''));
         $normalized['syncpay_client_secret'] = trim((string) ($normalized['syncpay_client_secret'] ?? ''));
@@ -5543,6 +5660,9 @@ final class PlatformRepository
             'live_replay_expiration_days' => 7,
             'live_max_duration_minutes' => 30,
             'creator_content_storage_limit_mb' => 50,
+            'subscriber_signup_bonus_enabled' => true,
+            'subscriber_signup_bonus_luacoins' => 120,
+            'topup_bonus_percent' => 0,
             'maintenance_mode' => false,
             'slow_mode_seconds' => 3,
             'auto_moderation' => true,
@@ -5557,6 +5677,16 @@ final class PlatformRepository
             'seo_meta_description' => 'Plataforma de assinaturas, chats privados, lives e monetizacao com LuaCoins.',
             'seo_logo_white_url' => '',
             'seo_logo_color_url' => '',
+            'home_banner_enabled' => true,
+            'home_banner_title' => 'Desbloqueie uma nova experiencia hoje',
+            'home_banner_subtitle' => 'Entre, escolha sua vibe e descubra criadores, conteudos e lives em destaque.',
+            'home_banner_primary_text' => 'Explorar agora',
+            'home_banner_primary_link' => '/explore',
+            'home_banner_secondary_text' => 'Criar conta',
+            'home_banner_secondary_link' => '/register',
+            'home_banner_countdown_enabled' => true,
+            'home_banner_countdown_seconds' => 172800,
+            'home_banner_background_url' => '',
             'syncpay_api_base_url' => 'https://api.syncpayments.com.br',
             'syncpay_client_id' => '',
             'syncpay_client_secret' => '',

@@ -137,6 +137,76 @@ function site_favicon_url(): string
     return $customLogo !== '' ? $customLogo : asset('img/luacoin.png');
 }
 
+function home_banner_default_image_url(): string
+{
+    return asset('img/home-banner-default.png');
+}
+
+function audience_category_options(): array
+{
+    return [
+        'todos' => 'Todos',
+        'homem' => 'Homem',
+        'mulher' => 'Mulher',
+        'trans' => 'Trans',
+    ];
+}
+
+function normalize_audience_category(?string $value, string $default = 'todos'): string
+{
+    $normalized = mb_strtolower(trim((string) $value));
+    $mapped = match ($normalized) {
+        'todos', 'all', '' => 'todos',
+        'homem', 'homens', 'male', 'man' => 'homem',
+        'mulher', 'mulheres', 'female', 'woman' => 'mulher',
+        'trans', 'transgenero', 'transgênero', 'transgender' => 'trans',
+        default => $default,
+    };
+
+    $options = audience_category_options();
+
+    return array_key_exists($mapped, $options) ? $mapped : $default;
+}
+
+function audience_category_label(?string $value): string
+{
+    $normalized = normalize_audience_category($value);
+    $options = audience_category_options();
+
+    return (string) ($options[$normalized] ?? $options['todos']);
+}
+
+function audience_category_matches_selection(?string $selection, ?string $itemCategory): bool
+{
+    $selected = normalize_audience_category($selection);
+    $item = normalize_audience_category($itemCategory);
+
+    if ($selected === 'todos') {
+        return true;
+    }
+
+    return $item === 'todos' || $item === $selected;
+}
+
+function current_public_audience_category(?string $preferred = null): string
+{
+    $preferredValue = trim((string) $preferred);
+    if ($preferredValue !== '') {
+        return normalize_audience_category($preferredValue);
+    }
+
+    return normalize_audience_category((string) ($_COOKIE['sexylua_audience_category'] ?? 'todos'));
+}
+
+function public_age_gate_completed(): bool
+{
+    return (string) ($_COOKIE['sexylua_age_gate_verified'] ?? '0') === '1'
+        && array_key_exists(
+            normalize_audience_category((string) ($_COOKIE['sexylua_audience_category'] ?? '')),
+            audience_category_options()
+        );
+}
+
 function brand_logo_white(string $classes = 'h-8 w-auto', string $alt = 'SexyLua'): string
 {
     $customLogo = media_url((string) site_setting('seo_logo_white_url', ''));

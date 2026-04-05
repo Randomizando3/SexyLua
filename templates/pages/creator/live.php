@@ -38,7 +38,7 @@ $selectedChatAudience = (string) ($selected['chat_audience'] ?? 'all');
 $selectedAccessMode = (string) ($selected['access_mode'] ?? 'public');
 $selectedAccessLabel = $selectedAccessMode === 'subscriber' ? 'Assinantes' : 'Público';
 $selectedMaxDurationMinutes = max(5, (int) ($selected['max_live_duration_minutes'] ?? 30));
-$categories = ['Chatting & Chill', 'Dancing', 'ASMR Lunar', 'Cosplay', 'Editorial', 'Backstage'];
+$categories = audience_category_options();
 $statusTabIcons = [
     'scheduled' => 'event',
     'ended' => 'task_alt',
@@ -407,8 +407,8 @@ include base_path('templates/partials/creator_topbar.php');
                     <input class="w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="scheduled_for" type="datetime-local" value="<?= e($formSchedule) ?>">
                 </div>
                 <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="category">
-                    <?php foreach ($categories as $category): ?>
-                        <option value="<?= e($category) ?>" <?= (string) ($formLive['category'] ?? 'Chatting & Chill') === $category ? 'selected' : '' ?>><?= e($category) ?></option>
+                    <?php foreach ($categories as $categoryValue => $categoryLabel): ?>
+                        <option value="<?= e($categoryValue) ?>" <?= (string) ($formLive['category'] ?? 'todos') === $categoryValue ? 'selected' : '' ?>><?= e($categoryLabel) ?></option>
                     <?php endforeach; ?>
                 </select>
                 <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="price_luacoins" placeholder="Preço em LuaCoins" type="number" value="<?= e($formPriceValue) ?>">

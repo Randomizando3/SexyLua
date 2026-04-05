@@ -18,10 +18,15 @@ final class PublicController extends Controller
 
     public function home(Request $request): void
     {
-        $home = $this->app->repository->homepageData();
+        $category = current_public_audience_category((string) $request->query('category', ''));
+        $home = $this->app->repository->homepageData([
+            'category' => $category,
+        ]);
         $this->render('pages/public/home', [
             'title' => 'SexyLua',
-            'data' => $home,
+            'data' => $home + [
+                'audience_category' => $category,
+            ],
             'prototype' => [
                 'page' => 'public.home',
             ],
@@ -30,15 +35,20 @@ final class PublicController extends Controller
 
     public function explore(Request $request): void
     {
+        $category = current_public_audience_category((string) $request->query('category', ''));
         $explore = $this->app->repository->exploreData([
             'q' => $request->query('q', ''),
             'kind' => $request->query('kind', ''),
             'live_only' => $request->query('live_only', '') === '1',
+            'include_scheduled' => $request->query('include_scheduled', '') === '1',
+            'category' => $category,
         ]);
 
         $this->render('pages/public/explore', [
             'title' => 'Explorar',
-            'data' => $explore,
+            'data' => $explore + [
+                'audience_category' => $category,
+            ],
             'prototype' => [
                 'page' => 'public.explore',
             ],
@@ -47,6 +57,7 @@ final class PublicController extends Controller
 
     public function profile(Request $request): void
     {
+        $category = current_public_audience_category((string) $request->query('category', ''));
         $creator = $this->app->repository->findCreatorBySlugOrId(
             $request->query('slug'),
             $request->query('id') !== null ? (int) $request->query('id') : null
@@ -64,11 +75,35 @@ final class PublicController extends Controller
 
         $this->render('pages/public/profile', [
             'title' => $creator['name'],
-            'data' => $profileData = $this->app->repository->creatorProfileData((int) $creator['id'], $this->app->auth->id()),
+            'data' => $profileData = $this->app->repository->creatorProfileData((int) $creator['id'], $this->app->auth->id(), [
+                'category' => $category,
+            ]),
             'prototype' => [
                 'page' => 'public.profile',
             ],
         ], null);
+    }
+
+    public function storeAudienceGate(Request $request): void
+    {
+        if (! $this->app->csrf->validate((string) $request->input('_token'))) {
+            $this->redirect('/', 'Sessao expirada. Tente novamente.', 'error');
+        }
+
+        if ((string) $request->input('accepted', '0') !== '1') {
+            setcookie('sexylua_age_gate_verified', '', time() - 3600, '/');
+            setcookie('sexylua_audience_category', '', time() - 3600, '/');
+            redirect_to('https://www.google.com');
+        }
+
+        $category = normalize_audience_category((string) $request->input('category', 'todos'));
+        $secure = str_starts_with(app_base_url($this->app->config, $this->app->repository->settings()), 'https://');
+        $expiresAt = time() + (60 * 60 * 24 * 30);
+
+        setcookie('sexylua_age_gate_verified', '1', $expiresAt, '/', '', $secure, false);
+        setcookie('sexylua_audience_category', $category, $expiresAt, '/', '', $secure, false);
+
+        $this->redirect(path_with_query('/explore', ['category' => $category]));
     }
 
     public function live(Request $request): void

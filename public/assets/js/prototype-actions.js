@@ -757,7 +757,7 @@
                     const categorySelect = document.querySelector('select');
                     const privacyOptions = Array.from(document.querySelectorAll('input[name="privacy"]'));
                     const privateMode = privacyOptions[1] && privacyOptions[1].checked;
-                    const category = categorySelect ? categorySelect.value : 'Chatting & Chill';
+                    const category = categorySelect ? categorySelect.value : 'todos';
 
                     setValue(form, 'title', titleInput && titleInput.value ? titleInput.value : 'Nova live SexyLua');
                     setValue(form, 'description', `Live criada pelo Creator Studio em ${category}${privateMode ? ' para inscritos' : ' com acesso publico'}.`);
