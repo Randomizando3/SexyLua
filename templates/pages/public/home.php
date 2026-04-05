@@ -11,6 +11,11 @@ $settings = $data['settings'] ?? [];
 $audienceCategory = (string) ($data['audience_category'] ?? 'todos');
 $audienceLabel = audience_category_label($audienceCategory);
 $guestPreviewLocked = ! is_array($currentUser) || $currentUser === [];
+$liveShowcase = $liveNow;
+$liveSectionTitle = $liveNow !== [] ? 'Ao vivo agora' : 'Lives em destaque';
+$liveSectionDescription = $liveNow !== [] 
+    ? 'Entre nas salas que ja estao acontecendo agora na SexyLua.'
+    : 'No momento nao ha transmissoes no ar para esta categoria, mas a vitrine segue pronta para quando a proxima live comecar.';
 $bannerEnabled = !empty($settings['home_banner_enabled']);
 $bannerBackground = media_url((string) ($settings['home_banner_background_url'] ?? ''));
 $bannerBackground = $bannerBackground !== '' ? $bannerBackground : home_banner_default_image_url();
