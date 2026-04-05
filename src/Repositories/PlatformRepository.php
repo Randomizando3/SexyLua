@@ -4529,6 +4529,10 @@ final class PlatformRepository
     public function updateSettings(array $data): array
     {
         $settings = $this->settings();
+        $previousBannerCountdownEnabled = (bool) ($settings['home_banner_countdown_enabled'] ?? true);
+        $previousBannerCountdownSeconds = max(0, (int) ($settings['home_banner_countdown_seconds'] ?? 172800));
+        $previousBannerCountdownTargetAt = trim((string) ($settings['home_banner_countdown_target_at'] ?? ''));
+        $previousBannerCountdownTargetTimestamp = $previousBannerCountdownTargetAt !== '' ? strtotime($previousBannerCountdownTargetAt) : false;
         $settings['platform_fee_percent'] = max(0, min(95, (int) ($data['platform_fee_percent'] ?? $settings['platform_fee_percent'])));
         $settings['luacoin_price_brl'] = max(0.01, (float) ($data['luacoin_price_brl'] ?? $data['token_price_brl'] ?? $settings['luacoin_price_brl']));
         $settings['deposit_min_luacoins'] = max(1, (int) ($data['deposit_min_luacoins'] ?? $data['deposit_min_tokens'] ?? $settings['deposit_min_luacoins']));
@@ -4562,6 +4566,20 @@ final class PlatformRepository
         $settings['home_banner_secondary_link'] = trim((string) ($data['home_banner_secondary_link'] ?? $settings['home_banner_secondary_link'] ?? ''));
         $settings['home_banner_countdown_enabled'] = ($data['home_banner_countdown_enabled'] ?? '0') === '1';
         $settings['home_banner_countdown_seconds'] = max(0, (int) ($data['home_banner_countdown_seconds'] ?? $settings['home_banner_countdown_seconds'] ?? 172800));
+        $shouldResetHomeBannerCountdown = $settings['home_banner_countdown_enabled']
+            && (
+                ! $previousBannerCountdownEnabled
+                || $settings['home_banner_countdown_seconds'] !== $previousBannerCountdownSeconds
+                || $previousBannerCountdownTargetAt === ''
+                || $previousBannerCountdownTargetTimestamp === false
+            );
+        if ($settings['home_banner_countdown_enabled']) {
+            $settings['home_banner_countdown_target_at'] = $shouldResetHomeBannerCountdown
+                ? date('c', time() + $settings['home_banner_countdown_seconds'])
+                : $previousBannerCountdownTargetAt;
+        } else {
+            $settings['home_banner_countdown_target_at'] = '';
+        }
         $settings['home_banner_background_url'] = trim((string) ($data['home_banner_background_url'] ?? $settings['home_banner_background_url'] ?? ''));
         $settings['syncpay_api_base_url'] = rtrim(trim((string) ($data['syncpay_api_base_url'] ?? $settings['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $settings['syncpay_client_id'] = trim((string) ($data['syncpay_client_id'] ?? $settings['syncpay_client_id'] ?? ''));
@@ -5633,6 +5651,10 @@ final class PlatformRepository
         $normalized['home_banner_secondary_link'] = trim((string) ($normalized['home_banner_secondary_link'] ?? '/register'));
         $normalized['home_banner_countdown_enabled'] = (bool) ($normalized['home_banner_countdown_enabled'] ?? true);
         $normalized['home_banner_countdown_seconds'] = max(0, (int) ($normalized['home_banner_countdown_seconds'] ?? 172800));
+        $normalized['home_banner_countdown_target_at'] = trim((string) ($normalized['home_banner_countdown_target_at'] ?? ''));
+        if ($normalized['home_banner_countdown_target_at'] !== '' && strtotime($normalized['home_banner_countdown_target_at']) === false) {
+            $normalized['home_banner_countdown_target_at'] = '';
+        }
         $normalized['home_banner_background_url'] = trim((string) ($normalized['home_banner_background_url'] ?? ''));
         $normalized['syncpay_api_base_url'] = rtrim(trim((string) ($normalized['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $normalized['syncpay_client_id'] = trim((string) ($normalized['syncpay_client_id'] ?? ''));
@@ -5686,6 +5708,7 @@ final class PlatformRepository
             'home_banner_secondary_link' => '/register',
             'home_banner_countdown_enabled' => true,
             'home_banner_countdown_seconds' => 172800,
+            'home_banner_countdown_target_at' => '',
             'home_banner_background_url' => '',
             'syncpay_api_base_url' => 'https://api.syncpayments.com.br',
             'syncpay_client_id' => '',

@@ -27,6 +27,15 @@ $bannerSecondaryText = (string) ($settings['home_banner_secondary_text'] ?? 'Cri
 $bannerSecondaryLink = (string) ($settings['home_banner_secondary_link'] ?? '/register');
 $bannerCountdownEnabled = !empty($settings['home_banner_countdown_enabled']);
 $bannerCountdownSeconds = max(0, (int) ($settings['home_banner_countdown_seconds'] ?? 172800));
+$bannerCountdownTargetAt = trim((string) ($settings['home_banner_countdown_target_at'] ?? ''));
+$bannerCountdownTargetTimestamp = $bannerCountdownTargetAt !== '' ? strtotime($bannerCountdownTargetAt) : false;
+if ($bannerCountdownTargetTimestamp === false || $bannerCountdownTargetTimestamp <= 0) {
+    $bannerCountdownTargetTimestamp = time() + $bannerCountdownSeconds;
+}
+$bannerCountdownRemaining = max(0, $bannerCountdownTargetTimestamp - time());
+$bannerCountdownHours = (int) floor($bannerCountdownRemaining / 3600);
+$bannerCountdownMinutes = (int) floor(($bannerCountdownRemaining % 3600) / 60);
+$bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bannerCountdownMinutes, $bannerCountdownRemaining % 60);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -65,9 +74,9 @@ $bannerCountdownSeconds = max(0, (int) ($settings['home_banner_countdown_seconds
                                 Categoria atual: <?= e($audienceLabel) ?>
                             </span>
                             <?php if ($bannerCountdownEnabled): ?>
-                                <span class="inline-flex items-center gap-3 rounded-full bg-[#2a0815]/80 px-4 py-2 text-white shadow-lg" data-home-banner-countdown data-seconds="<?= e((string) $bannerCountdownSeconds) ?>">
+                                <span class="inline-flex items-center gap-3 rounded-full bg-[#2a0815]/80 px-4 py-2 text-white shadow-lg" data-home-banner-countdown data-target-ts="<?= e((string) $bannerCountdownTargetTimestamp) ?>">
                                     <span class="text-[10px] font-bold uppercase tracking-[0.28em] text-white/65">Ultima chance</span>
-                                    <span class="headline text-2xl font-extrabold tracking-[0.18em]">48:00:00</span>
+                                    <span class="headline text-2xl font-extrabold tracking-[0.18em]"><?= e($bannerCountdownDisplay) ?></span>
                                 </span>
                             <?php endif; ?>
                         </div>
@@ -259,13 +268,14 @@ $bannerCountdownSeconds = max(0, (int) ($settings['home_banner_countdown_seconds
         (() => {
             const nodes = document.querySelectorAll('[data-home-banner-countdown]');
             nodes.forEach((node) => {
-                let remaining = Number.parseInt(node.getAttribute('data-seconds') || '0', 10);
-                if (!Number.isFinite(remaining) || remaining <= 0) {
+                const targetTimestamp = Number.parseInt(node.getAttribute('data-target-ts') || '0', 10);
+                if (!Number.isFinite(targetTimestamp) || targetTimestamp <= 0) {
                     return;
                 }
 
                 const value = node.querySelector('.headline');
                 const render = () => {
+                    const remaining = Math.max(0, targetTimestamp - Math.floor(Date.now() / 1000));
                     const hours = Math.floor(remaining / 3600);
                     const minutes = Math.floor((remaining % 3600) / 60);
                     const seconds = remaining % 60;
@@ -276,10 +286,6 @@ $bannerCountdownSeconds = max(0, (int) ($settings['home_banner_countdown_seconds
 
                 render();
                 window.setInterval(() => {
-                    if (remaining <= 0) {
-                        return;
-                    }
-                    remaining -= 1;
                     render();
                 }, 1000);
             });

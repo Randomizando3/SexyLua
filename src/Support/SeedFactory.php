@@ -122,6 +122,7 @@ final class SeedFactory
             'home_banner_secondary_link' => '/register',
             'home_banner_countdown_enabled' => true,
             'home_banner_countdown_seconds' => 172800,
+            'home_banner_countdown_target_at' => date('c', time() + 172800),
             'home_banner_background_url' => '',
             'theme' => 'lunar-metamorphosis',
             'announcement' => '',

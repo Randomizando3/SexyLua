@@ -11,6 +11,7 @@ $syncPayWebhookUrl = (string) ($settings['syncpay_webhook_url'] ?? webhook_url($
 $seoLogoWhitePreview = media_url((string) ($settings['seo_logo_white_url'] ?? '')) ?: asset('img/sexylualogobranco.png');
 $seoLogoColorPreview = media_url((string) ($settings['seo_logo_color_url'] ?? '')) ?: asset('img/sexylualogomagenta.png');
 $homeBannerPreview = media_url((string) ($settings['home_banner_background_url'] ?? '')) ?: home_banner_default_image_url();
+$homeBannerCountdownTargetAt = trim((string) ($settings['home_banner_countdown_target_at'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -347,7 +348,17 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                             <input class="rounded border-none text-primary focus:ring-primary/20" name="home_banner_countdown_enabled" type="checkbox" value="1" <?= !empty($settings['home_banner_countdown_enabled']) ? 'checked' : '' ?>>
                                             Exibir contador regressivo
                                         </label>
-                                        <label class="block space-y-2"><span class="settings-mini-label">Contador (segundos)</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="home_banner_countdown_seconds" step="1" type="number" value="<?= e((string) ($settings['home_banner_countdown_seconds'] ?? 172800)) ?>"></label>
+                                        <label class="block space-y-2">
+                                            <span class="settings-mini-label">Contador (segundos)</span>
+                                            <input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="home_banner_countdown_seconds" step="1" type="number" value="<?= e((string) ($settings['home_banner_countdown_seconds'] ?? 172800)) ?>">
+                                            <span class="block text-xs text-on-surface-variant">
+                                                <?php if ($homeBannerCountdownTargetAt !== '' && strtotime($homeBannerCountdownTargetAt) !== false): ?>
+                                                    Termino atual salvo: <?= e(date('d/m/Y H:i', strtotime($homeBannerCountdownTargetAt))) ?>
+                                                <?php else: ?>
+                                                    Ao salvar, o contador passa a contar deste momento em diante.
+                                                <?php endif; ?>
+                                            </span>
+                                        </label>
                                     </div>
                                     <label class="block space-y-2"><span class="settings-mini-label">Imagem do banner URL</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_url" type="text" value="<?= e((string) ($settings['home_banner_background_url'] ?? '')) ?>"></label>
                                     <label class="block space-y-2"><span class="settings-mini-label">Upload da imagem do banner</span><input accept=".png,.jpg,.jpeg,.webp,.gif" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_file" type="file"></label>
