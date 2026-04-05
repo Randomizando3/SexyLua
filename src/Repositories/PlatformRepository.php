@@ -274,8 +274,31 @@ final class PlatformRepository
         }));
 
         if ($liveOnly) {
-            $content = array_values(array_filter($content, static fn (array $item): bool => $item['kind'] === 'live_teaser'));
+            $creators = [];
+            $content = [];
         }
+
+        usort($lives, static function (array $left, array $right): int {
+            $priority = static function (array $live): int {
+                return match ((string) ($live['status'] ?? '')) {
+                    'live' => 0,
+                    'scheduled' => 1,
+                    default => 2,
+                };
+            };
+
+            $leftPriority = $priority($left);
+            $rightPriority = $priority($right);
+            if ($leftPriority !== $rightPriority) {
+                return $leftPriority <=> $rightPriority;
+            }
+
+            if ($leftPriority === 0) {
+                return ((int) ($right['viewer_count'] ?? 0)) <=> ((int) ($left['viewer_count'] ?? 0));
+            }
+
+            return strcmp((string) ($left['scheduled_for'] ?? ''), (string) ($right['scheduled_for'] ?? ''));
+        });
 
         return [
             'creators' => $creators,
