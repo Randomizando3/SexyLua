@@ -8,6 +8,9 @@ $adminAvatarUrl = media_url((string) ($admin['avatar_url'] ?? ''));
 $adminCoverUrl = media_url((string) ($admin['cover_url'] ?? ''));
 $siteBaseUrl = (string) ($settings['site_base_url'] ?? app_base_url($app->config, $settings));
 $syncPayWebhookUrl = (string) ($settings['syncpay_webhook_url'] ?? webhook_url($app->config, $settings, '/webhook/syncpay'));
+$seoLogoWhitePreview = media_url((string) ($settings['seo_logo_white_url'] ?? '')) ?: asset('img/sexylualogobranco.png');
+$seoLogoColorPreview = media_url((string) ($settings['seo_logo_color_url'] ?? '')) ?: asset('img/sexylualogomagenta.png');
+$homeBannerPreview = media_url((string) ($settings['home_banner_background_url'] ?? '')) ?: home_banner_default_image_url();
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -41,6 +44,47 @@ $syncPayWebhookUrl = (string) ($settings['syncpay_webhook_url'] ?? webhook_url($
         .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; }
         body { background: #fbf9fb; color: #1b1c1d; font-family: "Manrope", sans-serif; }
         h1, h2, h3, h4 { font-family: "Plus Jakarta Sans", sans-serif; }
+        .settings-form input:not([type="checkbox"]):not([type="file"]):not([type="radio"]),
+        .settings-form select,
+        .settings-form textarea {
+            font-size: 0.95rem;
+            padding: 0.85rem 1rem !important;
+        }
+        .settings-form input[type="file"] { padding: 0.75rem 1rem !important; }
+        .settings-kicker {
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            color: #ab1155;
+        }
+        .settings-subcard {
+            border-radius: 1.75rem;
+            background: #f5f3f5;
+            padding: 1.25rem;
+        }
+        .settings-mini-label {
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+        .settings-preview-tile {
+            overflow: hidden;
+            border-radius: 1.75rem;
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            background: #ffffff;
+            box-shadow: 0 14px 32px rgba(27, 28, 29, 0.06);
+        }
+        .settings-logo-preview {
+            display: flex;
+            min-height: 7rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+        }
         @media (max-width: 768px) {
             .mobile-stack { background: transparent !important; padding: 0 !important; box-shadow: none !important; }
             .mobile-card { border-radius: 1.75rem; background: #ffffff !important; padding: 1.15rem !important; box-shadow: 0 12px 32px rgba(27, 28, 29, 0.08); }
@@ -123,8 +167,21 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
         </form>
     </section>
 
-    <form action="/admin/settings/update" class="space-y-8" enctype="multipart/form-data" method="post">
+    <form action="/admin/settings/update" class="settings-form space-y-6" enctype="multipart/form-data" method="post">
         <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+        <section class="sticky top-20 z-20 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-[0px_18px_40px_rgba(27,28,29,0.08)] backdrop-blur">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p class="settings-kicker">Publicacao</p>
+                    <h3 class="mt-2 text-2xl font-extrabold">Salvar configuracoes do sistema</h3>
+                    <p class="mt-2 text-sm text-on-surface-variant">Os ajustes abaixo ficam organizados por topicos para voce revisar sem se perder entre SEO, branding, financeiro e operacao.</p>
+                </div>
+                <button class="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-white shadow-[0px_18px_36px_rgba(171,17,85,0.22)]" data-prototype-skip="1" type="submit">
+                    <span class="material-symbols-outlined text-base">save</span>
+                    Salvar configuracoes
+                </button>
+            </div>
+        </section>
         <section class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
             <article class="rounded-3xl bg-surface-container-lowest p-5 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">LuaCoin</p><p class="mt-2 text-2xl font-extrabold text-primary"><?= e(brl_amount((float) ($settings['luacoin_price_brl'] ?? 0.07))) ?></p></article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Deposito minimo</p><p class="mt-2 text-2xl font-extrabold text-primary"><?= e(luacoins_amount((int) ($settings['deposit_min_luacoins'] ?? 100))) ?></p></article>
@@ -133,10 +190,11 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
             <article class="rounded-3xl bg-surface-container-lowest p-5 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Armazenamento</p><p class="mt-2 text-2xl font-extrabold text-primary"><?= e((string) ((int) ($settings['creator_content_storage_limit_mb'] ?? 50))) ?> MB</p></article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Alerta live</p><p class="mt-2 text-2xl font-extrabold text-primary"><?= e((string) ((int) ($settings['live_priority_alert_duration_ms'] ?? 8000) / 1000)) ?> s</p></article>
         </section>
-        <div class="grid grid-cols-1 gap-8 2xl:grid-cols-[1fr_0.85fr]">
+        <div class="grid grid-cols-1 gap-8">
             <section class="space-y-8">
                 <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                     <div class="mb-6">
+                        <p class="settings-kicker">Financeiro</p>
                         <h3 class="text-2xl font-extrabold">Financeiro base</h3>
                         <p class="mt-2 text-sm text-on-surface-variant">Controle fee, LuaCoin e limites operacionais de dinheiro e conteudo.</p>
                     </div>
@@ -155,6 +213,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
 
                 <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                     <div class="mb-6">
+                        <p class="settings-kicker">Lives</p>
                         <h3 class="text-2xl font-extrabold">Lives e moderacao</h3>
                         <p class="mt-2 text-sm text-on-surface-variant">Defina limites, velocidade de chat e o comportamento visual padrao da plataforma.</p>
                     </div>
@@ -176,6 +235,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
 
                 <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                     <div class="mb-6">
+                        <p class="settings-kicker">Pagamentos</p>
                         <h3 class="text-2xl font-extrabold">SyncPay PIX</h3>
                         <p class="mt-2 text-sm text-on-surface-variant">Configure a SyncPay para recarga de LuaCoins. Saques continuam manuais pelo admin.</p>
                     </div>
@@ -195,6 +255,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
             <section class="space-y-8">
                 <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                     <div class="mb-6">
+                        <p class="settings-kicker">Comunicacao</p>
                         <h3 class="text-2xl font-extrabold">Comunicacao</h3>
                         <p class="mt-2 text-sm text-on-surface-variant">Mensagens operacionais e ajustes de leitura para os times internos.</p>
                     </div>
@@ -205,65 +266,127 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                 </div>
                 <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm" id="seo">
                     <div class="mb-6">
-                        <h3 class="text-2xl font-extrabold">SEO e branding</h3>
-                        <p class="mt-2 text-sm text-on-surface-variant">Defina titulos, meta description e substitua os logos geral branco e colorido.</p>
+                        <p class="settings-kicker">SEO</p>
+                        <h3 class="mt-2 text-2xl font-extrabold">Branding e banner da home</h3>
+                        <p class="mt-2 text-sm text-on-surface-variant">Organize a identidade da marca e o banner principal em uma leitura linear, com preview sempre no mesmo contexto do campo que voce esta editando.</p>
                     </div>
-                    <div class="space-y-5">
-                        <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Titulo do site</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_site_title" type="text" value="<?= e((string) ($settings['seo_site_title'] ?? 'SexyLua')) ?>"></label>
-                        <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Meta title</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_meta_title" type="text" value="<?= e((string) ($settings['seo_meta_title'] ?? 'SexyLua')) ?>"></label>
-                        <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Meta description</span><textarea class="min-h-32 w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_meta_description"><?= e((string) ($settings['seo_meta_description'] ?? '')) ?></textarea></label>
-                        <div class="mobile-stack rounded-3xl bg-surface-container-low p-6">
-                            <div class="grid grid-cols-1 gap-5">
-                                <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Logo branco URL</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_logo_white_url" type="text" value="<?= e((string) ($settings['seo_logo_white_url'] ?? '')) ?>"></label>
-                                <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload do logo branco</span><input accept=".png,.jpg,.jpeg,.webp,.svg,.gif" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_logo_white_file" type="file"></label>
-                                <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Logo colorido URL</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_logo_color_url" type="text" value="<?= e((string) ($settings['seo_logo_color_url'] ?? '')) ?>"></label>
-                                <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload do logo colorido</span><input accept=".png,.jpg,.jpeg,.webp,.svg,.gif" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_logo_color_file" type="file"></label>
+                    <div class="space-y-6">
+                        <section class="settings-subcard space-y-5">
+                            <div>
+                                <p class="settings-kicker">Metadados</p>
+                                <h4 class="mt-2 text-xl font-extrabold">Identidade textual do site</h4>
+                                <p class="mt-2 text-sm text-on-surface-variant">Esses textos alimentam o navegador, o SEO e a apresentacao institucional da SexyLua.</p>
                             </div>
-                        </div>
-                        <div class="mobile-stack rounded-3xl bg-surface-container-low p-6">
-                            <div class="grid grid-cols-1 gap-5">
-                                <label class="mobile-card flex items-center gap-3 rounded-3xl bg-white px-5 py-4 text-sm font-semibold text-on-surface"><input class="rounded border-none text-primary focus:ring-primary/20" name="home_banner_enabled" type="checkbox" value="1" <?= !empty($settings['home_banner_enabled']) ? 'checked' : '' ?>>Exibir banner principal na home</label>
-                                <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Titulo do banner</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_title" type="text" value="<?= e((string) ($settings['home_banner_title'] ?? '')) ?>"></label>
-                                <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Subtitulo do banner</span><textarea class="min-h-28 w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_subtitle"><?= e((string) ($settings['home_banner_subtitle'] ?? '')) ?></textarea></label>
-                                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-                                    <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Botao principal</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_primary_text" type="text" value="<?= e((string) ($settings['home_banner_primary_text'] ?? '')) ?>"></label>
-                                    <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Link principal</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_primary_link" type="text" value="<?= e((string) ($settings['home_banner_primary_link'] ?? '')) ?>"></label>
-                                    <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Botao secundario</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_secondary_text" type="text" value="<?= e((string) ($settings['home_banner_secondary_text'] ?? '')) ?>"></label>
-                                    <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Link secundario</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_secondary_link" type="text" value="<?= e((string) ($settings['home_banner_secondary_link'] ?? '')) ?>"></label>
+                            <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                                <label class="block space-y-2 xl:col-span-2"><span class="settings-mini-label">Titulo do site</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_site_title" type="text" value="<?= e((string) ($settings['seo_site_title'] ?? 'SexyLua')) ?>"></label>
+                                <label class="block space-y-2 xl:col-span-2"><span class="settings-mini-label">Meta title</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_meta_title" type="text" value="<?= e((string) ($settings['seo_meta_title'] ?? 'SexyLua')) ?>"></label>
+                                <label class="block space-y-2 xl:col-span-2"><span class="settings-mini-label">Meta description</span><textarea class="min-h-28 w-full rounded-3xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_meta_description"><?= e((string) ($settings['seo_meta_description'] ?? '')) ?></textarea></label>
+                            </div>
+                        </section>
+
+                        <section class="settings-subcard space-y-5">
+                            <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_260px] xl:items-start">
+                                <div>
+                                    <p class="settings-kicker">Logo branco</p>
+                                    <h4 class="mt-2 text-xl font-extrabold">Logo para fundos escuros</h4>
+                                    <p class="mt-2 text-sm text-on-surface-variant">Usado em topo, overlays e areas em que a marca precisa aparecer sobre fundo escuro ou colorido.</p>
                                 </div>
-                                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-                                    <label class="mobile-card flex items-center gap-3 rounded-3xl bg-white px-5 py-4 text-sm font-semibold text-on-surface"><input class="rounded border-none text-primary focus:ring-primary/20" name="home_banner_countdown_enabled" type="checkbox" value="1" <?= !empty($settings['home_banner_countdown_enabled']) ? 'checked' : '' ?>>Exibir contador regressivo</label>
-                                    <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Contador (segundos)</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="home_banner_countdown_seconds" step="1" type="number" value="<?= e((string) ($settings['home_banner_countdown_seconds'] ?? 172800)) ?>"></label>
-                                    <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm md:col-span-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Imagem do banner URL</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_url" type="text" value="<?= e((string) ($settings['home_banner_background_url'] ?? '')) ?>"></label>
-                                    <label class="mobile-card block space-y-2 rounded-3xl bg-white p-5 shadow-sm md:col-span-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload da imagem do banner</span><input accept=".png,.jpg,.jpeg,.webp,.gif" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_file" type="file"></label>
-                                </div>
-                                <div class="mobile-card overflow-hidden rounded-3xl bg-white p-0 shadow-sm">
-                                    <img alt="Preview do banner da home" class="h-40 w-full object-cover" src="<?= e(media_url((string) ($settings['home_banner_background_url'] ?? '')) ?: home_banner_default_image_url()) ?>">
+                                <div class="settings-preview-tile p-4">
+                                    <div class="settings-logo-preview bg-primary">
+                                        <img alt="Preview do logo branco" class="max-h-10 w-auto object-contain" src="<?= e($seoLogoWhitePreview) ?>">
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="rounded-3xl bg-surface-container-low p-5">
-                            <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Preview rapido</p>
-                            <div class="mt-4 flex flex-wrap items-center gap-4">
-                                <div class="rounded-2xl bg-primary px-5 py-4"><?= brand_logo_white('h-6 w-auto') ?></div>
-                                <div class="rounded-2xl bg-white px-5 py-4 shadow-sm"><?= brand_logo_magenta('h-6 w-auto') ?></div>
+                            <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                                <label class="block space-y-2"><span class="settings-mini-label">URL do logo branco</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_logo_white_url" type="text" value="<?= e((string) ($settings['seo_logo_white_url'] ?? '')) ?>"></label>
+                                <label class="block space-y-2"><span class="settings-mini-label">Upload do logo branco</span><input accept=".png,.jpg,.jpeg,.webp,.svg,.gif" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_logo_white_file" type="file"></label>
                             </div>
-                        </div>
+                        </section>
+
+                        <section class="settings-subcard space-y-5">
+                            <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_260px] xl:items-start">
+                                <div>
+                                    <p class="settings-kicker">Logo colorido</p>
+                                    <h4 class="mt-2 text-xl font-extrabold">Logo para fundos claros</h4>
+                                    <p class="mt-2 text-sm text-on-surface-variant">Ideal para paginas institucionais, cards claros e qualquer ponto em que o rosa da marca precise aparecer com contraste limpo.</p>
+                                </div>
+                                <div class="settings-preview-tile p-4">
+                                    <div class="settings-logo-preview bg-white">
+                                        <img alt="Preview do logo colorido" class="max-h-10 w-auto object-contain" src="<?= e($seoLogoColorPreview) ?>">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                                <label class="block space-y-2"><span class="settings-mini-label">URL do logo colorido</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_logo_color_url" type="text" value="<?= e((string) ($settings['seo_logo_color_url'] ?? '')) ?>"></label>
+                                <label class="block space-y-2"><span class="settings-mini-label">Upload do logo colorido</span><input accept=".png,.jpg,.jpeg,.webp,.svg,.gif" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="seo_logo_color_file" type="file"></label>
+                            </div>
+                        </section>
+
+                        <section class="settings-subcard space-y-5">
+                            <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_0.95fr] xl:items-start">
+                                <div class="space-y-4">
+                                    <div>
+                                        <p class="settings-kicker">Banner principal</p>
+                                        <h4 class="mt-2 text-xl font-extrabold">Hero promocional da home</h4>
+                                        <p class="mt-2 text-sm text-on-surface-variant">Controle titulo, texto, botoes, contador e a imagem de fundo sem precisar procurar o preview em outra parte da pagina.</p>
+                                    </div>
+                                    <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-on-surface">
+                                        <input class="rounded border-none text-primary focus:ring-primary/20" name="home_banner_enabled" type="checkbox" value="1" <?= !empty($settings['home_banner_enabled']) ? 'checked' : '' ?>>
+                                        Exibir banner principal na home
+                                    </label>
+                                    <label class="block space-y-2"><span class="settings-mini-label">Titulo do banner</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_title" type="text" value="<?= e((string) ($settings['home_banner_title'] ?? '')) ?>"></label>
+                                    <label class="block space-y-2"><span class="settings-mini-label">Subtitulo do banner</span><textarea class="min-h-28 w-full rounded-3xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_subtitle"><?= e((string) ($settings['home_banner_subtitle'] ?? '')) ?></textarea></label>
+                                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <label class="block space-y-2"><span class="settings-mini-label">Botao principal</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_primary_text" type="text" value="<?= e((string) ($settings['home_banner_primary_text'] ?? '')) ?>"></label>
+                                        <label class="block space-y-2"><span class="settings-mini-label">Link principal</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_primary_link" type="text" value="<?= e((string) ($settings['home_banner_primary_link'] ?? '')) ?>"></label>
+                                        <label class="block space-y-2"><span class="settings-mini-label">Botao secundario</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_secondary_text" type="text" value="<?= e((string) ($settings['home_banner_secondary_text'] ?? '')) ?>"></label>
+                                        <label class="block space-y-2"><span class="settings-mini-label">Link secundario</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_secondary_link" type="text" value="<?= e((string) ($settings['home_banner_secondary_link'] ?? '')) ?>"></label>
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-on-surface">
+                                            <input class="rounded border-none text-primary focus:ring-primary/20" name="home_banner_countdown_enabled" type="checkbox" value="1" <?= !empty($settings['home_banner_countdown_enabled']) ? 'checked' : '' ?>>
+                                            Exibir contador regressivo
+                                        </label>
+                                        <label class="block space-y-2"><span class="settings-mini-label">Contador (segundos)</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" min="0" name="home_banner_countdown_seconds" step="1" type="number" value="<?= e((string) ($settings['home_banner_countdown_seconds'] ?? 172800)) ?>"></label>
+                                    </div>
+                                    <label class="block space-y-2"><span class="settings-mini-label">Imagem do banner URL</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_url" type="text" value="<?= e((string) ($settings['home_banner_background_url'] ?? '')) ?>"></label>
+                                    <label class="block space-y-2"><span class="settings-mini-label">Upload da imagem do banner</span><input accept=".png,.jpg,.jpeg,.webp,.gif" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_file" type="file"></label>
+                                </div>
+                                <div class="space-y-4">
+                                    <div class="settings-preview-tile overflow-hidden">
+                                        <img alt="Preview do banner da home" class="h-56 w-full object-cover" src="<?= e($homeBannerPreview) ?>">
+                                        <div class="space-y-3 p-5">
+                                            <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
+                                                <span class="rounded-full bg-[#f5f3f5] px-3 py-1">Preview</span>
+                                                <?php if (!empty($settings['home_banner_countdown_enabled'])): ?>
+                                                    <span class="rounded-full bg-primary/10 px-3 py-1 text-primary">Contador ativo</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <p class="text-2xl font-extrabold text-on-surface"><?= e((string) ($settings['home_banner_title'] ?? 'SexyLua')) ?></p>
+                                            <p class="text-sm leading-6 text-on-surface-variant"><?= e((string) ($settings['home_banner_subtitle'] ?? 'Configure titulo, subtitulo, botoes e fundo para destacar a campanha principal da home.')) ?></p>
+                                            <div class="flex flex-wrap gap-3 pt-1">
+                                                <span class="rounded-full bg-primary px-4 py-2 text-xs font-bold text-white"><?= e((string) ($settings['home_banner_primary_text'] ?? 'Botao principal')) ?></span>
+                                                <span class="rounded-full border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600"><?= e((string) ($settings['home_banner_secondary_text'] ?? 'Botao secundario')) ?></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
                     </div>
                 </div>
-                <div class="rounded-3xl bg-primary p-8 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)]">
-                    <p class="text-xs font-bold uppercase tracking-[0.25em] text-white/70">Checklist</p>
-                    <h3 class="mt-3 text-3xl font-extrabold">Publicacao segura</h3>
-                    <ul class="mt-4 space-y-3 text-sm text-white/85">
-                        <li>1. Defina o deposito minimo e os limites de saque.</li>
-                        <li>2. Confirme Site URL, webhook e credenciais SyncPay.</li>
-                        <li>3. Ajuste o titulo/meta para o SEO publico.</li>
-                        <li>4. Mantenha o armazenamento enxuto enquanto o replay segue desabilitado.</li>
-                    </ul>
-                    <button class="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-primary" data-prototype-skip="1" type="submit">
-                        <span class="material-symbols-outlined text-base">save</span>
-                        Salvar configuracoes
-                    </button>
+                <div class="rounded-3xl border border-primary/10 bg-white p-6 shadow-sm">
+                    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p class="settings-kicker">Checklist</p>
+                            <h3 class="mt-2 text-2xl font-extrabold">Revisao final antes de salvar</h3>
+                            <p class="mt-2 text-sm text-on-surface-variant">Confira dados financeiros, webhook, identidade visual e banner da home. Tudo foi reorganizado para voce revisar em sequencia, sem se perder na pagina.</p>
+                        </div>
+                        <button class="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-white shadow-[0px_18px_36px_rgba(171,17,85,0.22)]" data-prototype-skip="1" type="submit">
+                            <span class="material-symbols-outlined text-base">save</span>
+                            Salvar configuracoes
+                        </button>
+                    </div>
                 </div>
             </section>
         </div>
