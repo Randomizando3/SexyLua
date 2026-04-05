@@ -19,8 +19,8 @@ $liveSectionDescription = $liveNow !== []
 $bannerEnabled = !empty($settings['home_banner_enabled']);
 $bannerBackground = media_url((string) ($settings['home_banner_background_url'] ?? ''));
 $bannerBackground = $bannerBackground !== '' ? $bannerBackground : home_banner_default_image_url();
-$bannerTitle = (string) ($settings['home_banner_title'] ?? 'Desbloqueie uma nova experiencia hoje');
-$bannerSubtitle = (string) ($settings['home_banner_subtitle'] ?? 'Entre, escolha sua vibe e descubra criadores, conteudos e lives em destaque.');
+$bannerTitle = (string) ($settings['home_banner_title'] ?? 'Cadastre-se hoje e ganhe 10 LuaCoins gratis');
+$bannerSubtitle = (string) ($settings['home_banner_subtitle'] ?? 'Crie sua conta agora, receba 10 LuaCoins no cadastro e aproveite bonus extra em cada deposito para entrar na SexyLua com mais liberdade.');
 $bannerPrimaryText = (string) ($settings['home_banner_primary_text'] ?? 'Explorar agora');
 $bannerPrimaryLink = (string) ($settings['home_banner_primary_link'] ?? '/explore');
 $bannerSecondaryText = (string) ($settings['home_banner_secondary_text'] ?? 'Criar conta');
@@ -91,41 +91,22 @@ $bannerCountdownSeconds = max(0, (int) ($settings['home_banner_countdown_seconds
     <?php endif; ?>
 
     <section class="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(216,27,96,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(171,17,85,0.12),_transparent_35%),linear-gradient(180deg,#fff5f8_0%,#fbf9fb_100%)] px-8 py-20">
-        <div class="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] lg:items-center">
-            <div>
+        <div class="mx-auto max-w-5xl text-center">
+            <div class="flex justify-center">
                 <div class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60] shadow-sm">
                     <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1;">nightlight</span>
                     Curadoria SexyLua
                 </div>
-                <h2 class="headline mt-6 max-w-3xl text-4xl font-extrabold leading-tight text-slate-950 md:text-6xl">Encontre criadores, conteudos e salas ao vivo do jeito que voce quer explorar.</h2>
-                <p class="mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
-                    Entre para desbloquear a experiencia completa, conversar com criadores, salvar favoritos, assinar planos e assistir sem restricoes visuais.
-                </p>
-                <div class="mt-8 flex flex-wrap gap-4">
+            </div>
+            <h2 class="headline mx-auto mt-6 max-w-4xl text-3xl font-extrabold leading-tight text-slate-950 md:text-5xl">Encontre criadores, conteudos e salas ao vivo do jeito que voce quer explorar.</h2>
+            <p class="mx-auto mt-5 max-w-3xl text-base leading-relaxed text-slate-600 md:text-lg">
+                Entre para desbloquear a experiencia completa, conversar com criadores, salvar favoritos, assinar planos e assistir sem restricoes visuais.
+            </p>
+            <div class="mt-8 flex flex-wrap justify-center gap-4">
                     <a class="signature-glow rounded-full px-8 py-4 text-sm font-bold uppercase tracking-widest text-white shadow-lg shadow-[#ab1155]/20" href="<?= e(path_with_query('/explore', ['category' => $audienceCategory])) ?>">Explorar agora</a>
                     <?php if (! $currentUser): ?>
                         <a class="rounded-full bg-white px-8 py-4 text-sm font-bold uppercase tracking-widest text-slate-700 shadow-sm" href="/register">Criar conta</a>
                     <?php endif; ?>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div class="rounded-3xl bg-white p-6 shadow-sm">
-                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Criadores</p>
-                    <p class="headline mt-3 text-4xl font-extrabold text-[#D81B60]"><?= e(number_format((int) ($stats['creators'] ?? 0), 0, ',', '.')) ?></p>
-                </div>
-                <div class="rounded-3xl bg-white p-6 shadow-sm">
-                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Ao vivo</p>
-                    <p class="headline mt-3 text-4xl font-extrabold text-[#D81B60]"><?= e(number_format((int) ($stats['live_now'] ?? 0), 0, ',', '.')) ?></p>
-                </div>
-                <div class="rounded-3xl bg-white p-6 shadow-sm">
-                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Conteudos</p>
-                    <p class="headline mt-3 text-4xl font-extrabold text-[#D81B60]"><?= e(number_format((int) ($stats['approved_content'] ?? 0), 0, ',', '.')) ?></p>
-                </div>
-                <div class="rounded-3xl bg-white p-6 shadow-sm">
-                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Assinantes</p>
-                    <p class="headline mt-3 text-4xl font-extrabold text-[#D81B60]"><?= e(number_format((int) ($stats['subscribers'] ?? 0), 0, ',', '.')) ?></p>
-                </div>
             </div>
         </div>
     </section>

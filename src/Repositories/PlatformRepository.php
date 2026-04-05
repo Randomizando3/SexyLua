@@ -154,7 +154,7 @@ final class PlatformRepository
         } else {
             $settings = $this->settings();
             $signupBonusEnabled = (bool) ($settings['subscriber_signup_bonus_enabled'] ?? true);
-            $signupBonusAmount = max(0, (int) ($settings['subscriber_signup_bonus_luacoins'] ?? 120));
+            $signupBonusAmount = max(0, (int) ($settings['subscriber_signup_bonus_luacoins'] ?? 10));
 
             if ($signupBonusEnabled && $signupBonusAmount > 0) {
                 $transactions = $this->walletTransactions();
@@ -4538,8 +4538,8 @@ final class PlatformRepository
         $settings['live_max_duration_minutes'] = max(5, (int) ($data['live_max_duration_minutes'] ?? $settings['live_max_duration_minutes'] ?? 30));
         $settings['creator_content_storage_limit_mb'] = max(1, (int) ($data['creator_content_storage_limit_mb'] ?? $settings['creator_content_storage_limit_mb'] ?? 50));
         $settings['subscriber_signup_bonus_enabled'] = ($data['subscriber_signup_bonus_enabled'] ?? '0') === '1';
-        $settings['subscriber_signup_bonus_luacoins'] = max(0, (int) ($data['subscriber_signup_bonus_luacoins'] ?? $settings['subscriber_signup_bonus_luacoins'] ?? 120));
-        $settings['topup_bonus_percent'] = max(0, min(100, (int) ($data['topup_bonus_percent'] ?? $settings['topup_bonus_percent'] ?? 0)));
+        $settings['subscriber_signup_bonus_luacoins'] = max(0, (int) ($data['subscriber_signup_bonus_luacoins'] ?? $settings['subscriber_signup_bonus_luacoins'] ?? 10));
+        $settings['topup_bonus_percent'] = max(0, min(100, (int) ($data['topup_bonus_percent'] ?? $settings['topup_bonus_percent'] ?? 10)));
         $settings['maintenance_mode'] = ($data['maintenance_mode'] ?? '0') === '1';
         $settings['slow_mode_seconds'] = max(0, (int) ($data['slow_mode_seconds'] ?? $settings['slow_mode_seconds']));
         $settings['auto_moderation'] = ($data['auto_moderation'] ?? '0') === '1';
@@ -5615,8 +5615,8 @@ final class PlatformRepository
         $normalized['live_max_duration_minutes'] = max(5, (int) ($normalized['live_max_duration_minutes'] ?? 30));
         $normalized['creator_content_storage_limit_mb'] = max(1, (int) ($normalized['creator_content_storage_limit_mb'] ?? 50));
         $normalized['subscriber_signup_bonus_enabled'] = (bool) ($normalized['subscriber_signup_bonus_enabled'] ?? true);
-        $normalized['subscriber_signup_bonus_luacoins'] = max(0, (int) ($normalized['subscriber_signup_bonus_luacoins'] ?? 120));
-        $normalized['topup_bonus_percent'] = max(0, min(100, (int) ($normalized['topup_bonus_percent'] ?? 0)));
+        $normalized['subscriber_signup_bonus_luacoins'] = max(0, (int) ($normalized['subscriber_signup_bonus_luacoins'] ?? 10));
+        $normalized['topup_bonus_percent'] = max(0, min(100, (int) ($normalized['topup_bonus_percent'] ?? 10)));
         $normalized['live_priority_alert_duration_ms'] = max(2000, (int) ($normalized['live_priority_alert_duration_ms'] ?? 8000));
         $normalized['site_base_url'] = rtrim(trim((string) ($normalized['site_base_url'] ?? '')), '/');
         $normalized['seo_site_title'] = trim((string) ($normalized['seo_site_title'] ?? 'SexyLua'));
@@ -5625,8 +5625,8 @@ final class PlatformRepository
         $normalized['seo_logo_white_url'] = trim((string) ($normalized['seo_logo_white_url'] ?? ''));
         $normalized['seo_logo_color_url'] = trim((string) ($normalized['seo_logo_color_url'] ?? ''));
         $normalized['home_banner_enabled'] = (bool) ($normalized['home_banner_enabled'] ?? true);
-        $normalized['home_banner_title'] = trim((string) ($normalized['home_banner_title'] ?? 'Desbloqueie uma nova experiencia hoje'));
-        $normalized['home_banner_subtitle'] = trim((string) ($normalized['home_banner_subtitle'] ?? 'Entre, escolha sua vibe e descubra criadores, conteudos e lives em destaque.'));
+        $normalized['home_banner_title'] = trim((string) ($normalized['home_banner_title'] ?? 'Cadastre-se hoje e ganhe 10 LuaCoins gratis'));
+        $normalized['home_banner_subtitle'] = trim((string) ($normalized['home_banner_subtitle'] ?? 'Crie sua conta agora, receba 10 LuaCoins no cadastro e aproveite bonus extra em cada deposito para entrar na SexyLua com mais liberdade.'));
         $normalized['home_banner_primary_text'] = trim((string) ($normalized['home_banner_primary_text'] ?? 'Explorar agora'));
         $normalized['home_banner_primary_link'] = trim((string) ($normalized['home_banner_primary_link'] ?? '/explore'));
         $normalized['home_banner_secondary_text'] = trim((string) ($normalized['home_banner_secondary_text'] ?? 'Criar conta'));
@@ -5661,8 +5661,8 @@ final class PlatformRepository
             'live_max_duration_minutes' => 30,
             'creator_content_storage_limit_mb' => 50,
             'subscriber_signup_bonus_enabled' => true,
-            'subscriber_signup_bonus_luacoins' => 120,
-            'topup_bonus_percent' => 0,
+            'subscriber_signup_bonus_luacoins' => 10,
+            'topup_bonus_percent' => 10,
             'maintenance_mode' => false,
             'slow_mode_seconds' => 3,
             'auto_moderation' => true,
@@ -5678,8 +5678,8 @@ final class PlatformRepository
             'seo_logo_white_url' => '',
             'seo_logo_color_url' => '',
             'home_banner_enabled' => true,
-            'home_banner_title' => 'Desbloqueie uma nova experiencia hoje',
-            'home_banner_subtitle' => 'Entre, escolha sua vibe e descubra criadores, conteudos e lives em destaque.',
+            'home_banner_title' => 'Cadastre-se hoje e ganhe 10 LuaCoins gratis',
+            'home_banner_subtitle' => 'Crie sua conta agora, receba 10 LuaCoins no cadastro e aproveite bonus extra em cada deposito para entrar na SexyLua com mais liberdade.',
             'home_banner_primary_text' => 'Explorar agora',
             'home_banner_primary_link' => '/explore',
             'home_banner_secondary_text' => 'Criar conta',
