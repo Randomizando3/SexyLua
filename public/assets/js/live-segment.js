@@ -31,6 +31,9 @@
         endedBanner: document.querySelector('[data-live-ended-banner]'),
         priorityAlert: document.querySelector('[data-live-priority-alert]'),
         priorityAlertText: document.querySelector('[data-live-priority-alert-text]'),
+        inlineAlert: document.querySelector('[data-live-inline-alert]'),
+        inlineAlertText: document.querySelector('[data-live-inline-alert-text]'),
+        inlineAlertKicker: document.querySelector('[data-live-inline-alert-kicker]'),
         viewerCounts: Array.from(document.querySelectorAll('[data-live-viewer-count]')),
         startButton: document.querySelector('[data-live-start]'),
         stopButton: document.querySelector('[data-live-stop]'),
@@ -46,6 +49,7 @@
         supportersEmpty: document.querySelector('[data-live-top-supporters-empty]'),
         chatForm: document.querySelector('[data-live-chat-form]'),
         tipForm: document.querySelector('[data-live-tip-form]'),
+        darkroomForm: document.querySelector('[data-live-darkroom-form]'),
         darkroomButton: document.querySelector('[data-live-darkroom-button]'),
         darkroomStatus: document.querySelector('[data-live-darkroom-status]'),
         tipAmountLabel: document.querySelector('[data-live-tip-amount-label]'),
@@ -77,9 +81,10 @@
         canChat: false,
         canTip: false,
         accessMessage: root.dataset.accessMessage || '',
-        darkroomActive: false,
-        darkroomIsOwner: false,
-        requiresDarkroomWait: false,
+        darkroomActive: root.dataset.darkroomActive === '1',
+        darkroomIsOwner: root.dataset.darkroomIsOwner === '1',
+        requiresDarkroomWait: root.dataset.requiresDarkroomWait === '1',
+        inlineAlertTimer: null,
     }
 
     const video = () => mode === 'creator' ? el.previewVideo : el.remoteVideo
@@ -116,6 +121,19 @@
         }
         el.error.classList.remove('hidden')
         el.error.textContent = String(message)
+    }
+
+    const showInlineAlert = (message = '', tone = 'success', kicker = 'Atualizacao da sala') => {
+        if (!el.inlineAlert || !el.inlineAlertText || !message) return
+        const toneClass = tone === 'info' ? 'bg-sky-600/90' : (tone === 'error' ? 'bg-rose-500/90' : 'bg-emerald-500/90')
+        el.inlineAlert.classList.remove('hidden', 'bg-emerald-500/90', 'bg-sky-600/90', 'bg-rose-500/90')
+        el.inlineAlert.classList.add(toneClass)
+        el.inlineAlertText.textContent = String(message)
+        if (el.inlineAlertKicker) el.inlineAlertKicker.textContent = String(kicker)
+        if (state.inlineAlertTimer) window.clearTimeout(state.inlineAlertTimer)
+        state.inlineAlertTimer = window.setTimeout(() => {
+            if (el.inlineAlert) el.inlineAlert.classList.add('hidden')
+        }, 6500)
     }
 
     const payloadNeedsRejoin = (payload) => {
@@ -528,6 +546,8 @@
             if (payloadNeedsRejoin(payload)) scheduleRejoin()
             return
         }
+        const wasDarkroomActive = state.darkroomActive
+        const wasCanWatch = state.canWatch
         showError('')
         state.canWatch = payload.can_watch !== undefined ? Boolean(payload.can_watch) : state.canWatch
         state.canChat = payload.can_chat !== undefined ? Boolean(payload.can_chat) : state.canChat
@@ -537,6 +557,15 @@
         state.darkroomIsOwner = payload.darkroom_is_owner !== undefined ? Boolean(payload.darkroom_is_owner) : state.darkroomIsOwner
         state.requiresDarkroomWait = payload.requires_darkroom_wait !== undefined ? Boolean(payload.requires_darkroom_wait) : state.requiresDarkroomWait
         syncDarkroomUi()
+        if (!wasDarkroomActive && state.darkroomActive) {
+            if (state.darkroomIsOwner) {
+                showInlineAlert(state.accessMessage || 'Darkroom ativado com sucesso.', 'success', 'Darkroom ativado')
+            } else if (state.requiresDarkroomWait) {
+                showInlineAlert(state.accessMessage || 'A live entrou em darkroom temporariamente.', 'info', 'Darkroom ativo')
+            }
+        } else if (wasCanWatch && !state.canWatch && state.requiresDarkroomWait) {
+            showInlineAlert(state.accessMessage || 'A live entrou em darkroom temporariamente.', 'info', 'Darkroom ativo')
+        }
         renderChat(payload.chat_messages || [])
         renderTips(payload.recent_tips || [])
         renderSupporters(payload.top_supporters || [])
@@ -572,7 +601,7 @@
         if (state.joining) return state.joining
         state.joining = (async () => {
             if (liveId <= 0) return false
-            if (mode === 'viewer' && !state.canWatch) return false
+            if (mode === 'viewer' && !state.canWatch && !state.requiresDarkroomWait) return false
             const payload = await postForm(joinUrl, { _token: csrf, live_id: liveId, role: mode === 'creator' ? 'creator' : 'viewer' })
             if (!payload.ok) {
                 showError(payload.message || 'Nao foi possivel entrar na live.')
@@ -662,10 +691,28 @@
         poll().catch(() => {})
     }
 
+    const sendDarkroom = async (event) => {
+        event.preventDefault()
+        if (!el.darkroomForm) return
+        const payload = await postForm(el.darkroomForm.action, Object.fromEntries(new FormData(el.darkroomForm).entries()))
+        if (!payload.ok) {
+            if (payload.wallet_url) {
+                window.location.assign(String(payload.wallet_url))
+                return
+            }
+            showError(payload.message || 'Nao foi possivel ativar o darkroom.')
+            showInlineAlert(payload.message || 'Nao foi possivel ativar o darkroom.', 'error', 'Darkroom')
+            return
+        }
+        applyPayload(payload)
+        poll().catch(() => {})
+    }
+
     if (el.startButton) el.startButton.addEventListener('click', () => { startCreatorBroadcast().catch((error) => showError(error instanceof Error ? error.message : 'Nao foi possivel iniciar a live.')) })
     if (el.stopButton) el.stopButton.addEventListener('click', () => { stopCreatorBroadcast('manual').catch((error) => showError(error instanceof Error ? error.message : 'Nao foi possivel encerrar a live.')) })
     if (el.chatForm) el.chatForm.addEventListener('submit', sendChat)
     if (el.tipForm) el.tipForm.addEventListener('submit', sendTip)
+    if (el.darkroomForm) el.darkroomForm.addEventListener('submit', sendDarkroom)
     tipPresetButtons().forEach((button) => {
         button.addEventListener('click', () => {
             applyTipPreset(button.dataset.liveTipPreset || '1', button.dataset.liveTipMessage || '')
@@ -686,12 +733,15 @@
             const amountField = tipAmountField()
             applyTipPreset(amountField ? amountField.value : '1')
         }
+        syncDarkroomUi()
         if (mode === 'viewer' && !state.canWatch) {
             setWaiting(state.accessMessage || 'Entre para assistir esta live.')
-            return
+            if (!state.requiresDarkroomWait) {
+                return
+            }
         }
         const joined = await ensureJoined()
-        if (!joined && mode === 'viewer') return
+        if (!joined && mode === 'viewer' && !state.requiresDarkroomWait) return
         startElapsed()
         poll().catch(() => {})
     }

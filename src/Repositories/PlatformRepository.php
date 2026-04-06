@@ -2616,7 +2616,7 @@ final class PlatformRepository
             if ($userId === null || (int) $live['creator_id'] !== $userId) {
                 return ['ok' => false, 'message' => 'Apenas o criador desta live pode abrir a transmissao.'];
             }
-        } elseif (! (bool) ($access['granted'] ?? false)) {
+        } elseif (! (bool) ($access['granted'] ?? false) && ! (bool) ($access['requires_darkroom_wait'] ?? false)) {
             return [
                 'ok' => false,
                 'message' => (bool) ($access['requires_login'] ?? false)

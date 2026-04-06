@@ -134,6 +134,9 @@ if ($accessMessage === '') {
                 data-csrf="<?= e($app->csrf->token()) ?>"
                 data-can-watch="<?= $canWatch ? '1' : '0' ?>"
                 data-access-message="<?= e($accessMessage) ?>"
+                data-darkroom-active="<?= $darkroomActive ? '1' : '0' ?>"
+                data-darkroom-is-owner="<?= $darkroomIsOwner ? '1' : '0' ?>"
+                data-requires-darkroom-wait="<?= $requiresDarkroomWait ? '1' : '0' ?>"
                 data-join-url="/live/rtc/join"
                 data-signal-url="/live/rtc/signal"
                 data-poll-url="/live/rtc/poll"
@@ -159,6 +162,17 @@ if ($accessMessage === '') {
                             <div class="min-w-0">
                                 <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-[#D81B60]">Mensagem em destaque</p>
                                 <p class="mt-1 text-sm font-semibold text-slate-700" data-live-priority-alert-text><?= e((string) ($priorityAlert['alert_text'] ?? '')) ?></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden absolute left-1/2 top-24 z-[6] w-[min(92%,40rem)] -translate-x-1/2 rounded-3xl border border-white/20 bg-emerald-500/90 px-5 py-4 text-white shadow-2xl backdrop-blur-md" data-live-inline-alert>
+                        <div class="flex items-center gap-4">
+                            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/15">
+                                <img alt="LuaCoin" class="h-7 w-7" src="<?= e(asset('img/luacoin.png')) ?>">
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-white/75" data-live-inline-alert-kicker>Atualizacao da sala</p>
+                                <p class="mt-1 text-sm font-semibold text-white" data-live-inline-alert-text></p>
                             </div>
                         </div>
                     </div>
@@ -268,7 +282,7 @@ if ($accessMessage === '') {
                                                     <?php if ($darkroomActive): ?>
                                                         <span class="inline-flex w-fit rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500" data-live-darkroom-status><?= e($darkroomIsOwner ? 'Darkroom ativo para voce' : 'Darkroom indisponivel no momento') ?></span>
                                                     <?php elseif ($darkroomCanActivate): ?>
-                                                        <form action="/live/darkroom" method="post">
+                                                        <form action="/live/darkroom" data-live-darkroom-form method="post">
                                                             <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                                             <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
                                                             <input name="redirect" type="hidden" value="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">

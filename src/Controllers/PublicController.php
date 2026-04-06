@@ -286,11 +286,22 @@ final class PublicController extends Controller
     public function activateDarkroom(Request $request): void
     {
         if ($this->app->auth->guest()) {
+            if ($this->expectsJson($request)) {
+                $this->json(['ok' => false, 'message' => 'Entre para ativar o darkroom desta live.'], 401);
+            }
+
             $this->redirect('/login', 'Entre para ativar o darkroom desta live.', 'error');
         }
 
         $redirect = (string) $request->input('redirect', path_with_query('/live', ['id' => (int) $request->input('live_id', 0)]));
-        $this->validateCsrf($request, $redirect);
+        if (! $this->app->csrf->validate((string) $request->input('_token'))) {
+            if ($this->expectsJson($request)) {
+                $this->json(['ok' => false, 'message' => 'Sessao expirada. Envie o formulario novamente.'], 419);
+            }
+
+            $this->redirect($redirect, 'Sessao expirada. Envie o formulario novamente.', 'error');
+        }
+
         $result = $this->app->repository->activateLiveDarkroom((int) $request->input('live_id', 0), (int) ($this->user()['id'] ?? 0));
 
         if (! (bool) ($result['ok'] ?? false) && str_contains(mb_strtolower((string) ($result['message'] ?? '')), 'saldo insuficiente')) {
@@ -300,7 +311,32 @@ final class PublicController extends Controller
                 'admin' => '/admin/finance',
                 default => '/subscriber/wallet',
             };
+
+            if ($this->expectsJson($request)) {
+                $this->json([
+                    'ok' => false,
+                    'message' => 'Voce nao tem LuaCoins suficientes para ativar o darkroom. Recarregue sua carteira para continuar.',
+                    'wallet_url' => $walletUrl,
+                ], 422);
+            }
+
             $this->redirect($walletUrl, 'Voce nao tem LuaCoins suficientes para ativar o darkroom. Recarregue sua carteira para continuar.', 'error');
+        }
+
+        if ($this->expectsJson($request)) {
+            if (! (bool) ($result['ok'] ?? false)) {
+                $this->json([
+                    'ok' => false,
+                    'message' => (string) ($result['message'] ?? 'Nao foi possivel ativar o darkroom.'),
+                ], 422);
+            }
+
+            $room = $this->app->repository->liveRoomData((int) $request->input('live_id', 0), (int) ($this->user()['id'] ?? 0)) ?? [];
+
+            $this->json([
+                'ok' => true,
+                'message' => (string) ($result['message'] ?? 'Darkroom ativado com sucesso.'),
+            ] + $room);
         }
 
         $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel ativar o darkroom.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
