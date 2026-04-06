@@ -72,7 +72,7 @@
         stateTimer: null,
         pollIntervalMs: 1500,
         heartbeatIntervalMs: 10000,
-        stateIntervalMs: 2000,
+        stateIntervalMs: 1000,
         currentUrl: '',
         currentType: '',
         hls: null,
@@ -91,6 +91,7 @@
         darkroomIsOwner: root.dataset.darkroomIsOwner === '1',
         requiresDarkroomWait: root.dataset.requiresDarkroomWait === '1',
         inlineAlertTimer: null,
+        darkroomReloadTimer: null,
     }
 
     const video = () => mode === 'creator' ? el.previewVideo : el.remoteVideo
@@ -195,6 +196,15 @@
             }
         }
         syncDarkroomBanner()
+    }
+
+    const scheduleDarkroomReload = () => {
+        if (mode !== 'viewer' || state.darkroomReloadTimer) return
+        state.darkroomReloadTimer = window.setTimeout(() => {
+            try {
+                window.location.reload()
+            } catch {}
+        }, 220)
     }
 
     const isDarkroomBlockedViewer = () => mode === 'viewer' && state.darkroomActive && !state.darkroomIsOwner
@@ -576,6 +586,7 @@
             return
         }
         const wasDarkroomActive = state.darkroomActive
+        const wasDarkroomOwner = state.darkroomIsOwner
         const wasCanWatch = state.canWatch
         showError('')
         state.canWatch = payload.can_watch !== undefined ? Boolean(payload.can_watch) : state.canWatch
@@ -590,6 +601,25 @@
             state.requiresDarkroomWait = true
         }
         syncDarkroomUi()
+        const shouldForceDarkroomRefresh = mode === 'viewer'
+            && Boolean(payload.darkroom_active)
+            && (
+                Boolean(el.darkroomForm)
+                || (Boolean(payload.requires_darkroom_wait) && (!el.darkroomBanner || el.darkroomBanner.classList.contains('hidden')))
+            )
+
+        if (
+            mode === 'viewer'
+            && (
+                wasDarkroomActive !== state.darkroomActive
+                || (state.darkroomActive && wasDarkroomOwner !== state.darkroomIsOwner)
+                || (state.darkroomActive && wasCanWatch !== state.canWatch)
+            )
+        ) {
+            scheduleDarkroomReload()
+        } else if (shouldForceDarkroomRefresh) {
+            scheduleDarkroomReload()
+        }
         if (!wasDarkroomActive && state.darkroomActive) {
             if (state.darkroomIsOwner) {
                 showInlineAlert(state.accessMessage || 'Darkroom ativado com sucesso.', 'success', 'Darkroom ativado')

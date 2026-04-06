@@ -40,11 +40,21 @@ final class JsonStore implements StoreInterface
 
     public function write(string $collection, array $data): void
     {
-        file_put_contents(
+        $payload = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        if ($payload === false) {
+            throw new \RuntimeException('Nao foi possivel serializar a colecao JSON.');
+        }
+
+        $written = file_put_contents(
             $this->path($collection),
-            (string) json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $payload,
             LOCK_EX
         );
+
+        if ($written === false) {
+            throw new \RuntimeException('Nao foi possivel persistir a colecao JSON em disco.');
+        }
     }
 
     public function nextId(array $records): int
