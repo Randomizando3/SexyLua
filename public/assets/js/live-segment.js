@@ -7,6 +7,7 @@
     const csrf = root.dataset.csrf || ''
     const canBroadcast = root.dataset.canBroadcast === '1'
     const joinUrl = root.dataset.joinUrl || '/live/rtc/join'
+    const stateUrl = root.dataset.stateUrl || '/live/state'
     const startUrl = root.dataset.startUrl || '/live/rtc/start'
     const stopUrl = root.dataset.stopUrl || '/live/rtc/stop'
     const pollUrl = root.dataset.pollUrl || '/live/rtc/poll'
@@ -68,8 +69,10 @@
         rejoinTimer: null,
         pollTimer: null,
         heartbeatTimer: null,
+        stateTimer: null,
         pollIntervalMs: 1500,
         heartbeatIntervalMs: 10000,
+        stateIntervalMs: 2000,
         currentUrl: '',
         currentType: '',
         hls: null,
@@ -613,6 +616,18 @@
         state.heartbeatTimer = window.setInterval(() => { heartbeat().catch(() => {}) }, state.heartbeatIntervalMs)
     }
 
+    const refreshRoomState = async () => {
+        if (mode !== 'viewer' || liveId <= 0 || !stateUrl) return
+        const separator = stateUrl.includes('?') ? '&' : '?'
+        applyPayload(await getJson(`${stateUrl}${separator}id=${encodeURIComponent(liveId)}`))
+    }
+
+    const startStateLoop = () => {
+        if (mode !== 'viewer') return
+        if (state.stateTimer) window.clearInterval(state.stateTimer)
+        state.stateTimer = window.setInterval(() => { refreshRoomState().catch(() => {}) }, state.stateIntervalMs)
+    }
+
     const ensureJoined = async () => {
         if (state.joined && state.peerId) return true
         if (state.joining) return state.joining
@@ -751,14 +766,19 @@
             applyTipPreset(amountField ? amountField.value : '1')
         }
         syncDarkroomUi()
+        startStateLoop()
         if (mode === 'viewer' && !state.canWatch) {
             setWaiting(state.accessMessage || 'Entre para assistir esta live.')
             if (!state.requiresDarkroomWait) {
+                refreshRoomState().catch(() => {})
                 return
             }
         }
         const joined = await ensureJoined()
         if (!joined && mode === 'viewer' && !state.requiresDarkroomWait) return
+        if (mode === 'viewer') {
+            refreshRoomState().catch(() => {})
+        }
         startElapsed()
         poll().catch(() => {})
     }

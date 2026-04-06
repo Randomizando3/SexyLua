@@ -14,6 +14,7 @@ $router->get('/', [PublicController::class, 'home']);
 $router->get('/explore', [PublicController::class, 'explore']);
 $router->get('/profile', [PublicController::class, 'profile']);
 $router->get('/live', [PublicController::class, 'live']);
+$router->get('/live/state', [PublicController::class, 'liveState']);
 $router->get('/messages/asset', [PublicController::class, 'messageAsset']);
 $router->get('/help', [PublicController::class, 'help']);
 $router->get('/terms', [PublicController::class, 'terms']);

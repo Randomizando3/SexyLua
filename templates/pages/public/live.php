@@ -139,6 +139,7 @@ if ($accessMessage === '') {
                 data-darkroom-is-owner="<?= $darkroomIsOwner ? '1' : '0' ?>"
                 data-requires-darkroom-wait="<?= $requiresDarkroomWait ? '1' : '0' ?>"
                 data-join-url="/live/rtc/join"
+                data-state-url="/live/state"
                 data-signal-url="/live/rtc/signal"
                 data-poll-url="/live/rtc/poll"
                 data-heartbeat-url="/live/rtc/heartbeat"

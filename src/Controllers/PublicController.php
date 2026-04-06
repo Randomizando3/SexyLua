@@ -130,6 +130,46 @@ final class PublicController extends Controller
         ], null);
     }
 
+    public function liveState(Request $request): void
+    {
+        $liveId = (int) $request->query('id', 0);
+        $data = $this->app->repository->liveRoomData($liveId, $this->app->auth->id());
+
+        if ($data === null) {
+            $this->json(['ok' => false, 'message' => 'Live nao encontrada.'], 404);
+        }
+
+        $this->json([
+            'ok' => true,
+            'live' => $data['live'] ?? [],
+            'stream' => $data['stream'] ?? [],
+            'chat_messages' => $data['messages'] ?? [],
+            'recent_tips' => $data['recent_tips'] ?? [],
+            'top_supporters' => $data['top_supporters'] ?? [],
+            'tip_total_amount' => (int) ($data['tip_total_amount'] ?? 0),
+            'priority_alert' => $data['priority_alert'] ?? null,
+            'can_watch' => (bool) ($data['can_watch'] ?? false),
+            'can_chat' => (bool) ($data['can_chat'] ?? false),
+            'can_tip' => (bool) ($data['can_tip'] ?? false),
+            'requires_login' => (bool) ($data['requires_login'] ?? false),
+            'requires_subscription' => (bool) ($data['requires_subscription'] ?? false),
+            'requires_vip_unlock' => (bool) ($data['requires_vip_unlock'] ?? false),
+            'vip_unlocked' => (bool) ($data['vip_unlocked'] ?? false),
+            'vip_unlock_price' => (int) ($data['vip_unlock_price'] ?? 0),
+            'darkroom_available' => (bool) ($data['darkroom_available'] ?? false),
+            'darkroom_active' => (bool) ($data['darkroom_active'] ?? false),
+            'requires_darkroom_wait' => (bool) ($data['requires_darkroom_wait'] ?? false),
+            'darkroom_is_owner' => (bool) ($data['darkroom_is_owner'] ?? false),
+            'darkroom_price_tokens' => (int) ($data['darkroom_price_tokens'] ?? 0),
+            'darkroom_duration_minutes' => (int) ($data['darkroom_duration_minutes'] ?? 0),
+            'darkroom_remaining_seconds' => (int) ($data['darkroom_remaining_seconds'] ?? 0),
+            'darkroom_owner_name' => (string) ($data['darkroom_owner_name'] ?? ''),
+            'darkroom_started_at' => (string) ($data['darkroom_started_at'] ?? ''),
+            'darkroom_ends_at' => (string) ($data['darkroom_ends_at'] ?? ''),
+            'access_message' => (string) ($data['access_message'] ?? ''),
+        ], 200);
+    }
+
     public function messageAsset(Request $request): void
     {
         if ($this->app->auth->guest()) {
