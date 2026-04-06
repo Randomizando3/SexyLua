@@ -42,6 +42,9 @@ $profileUrl = path_with_query('/profile', ['id' => (int) ($creator['id'] ?? 0)])
 $messagesUrl = '/login';
 $subscriptionsUrl = '/login';
 $authUser = $app->auth->user();
+$isCreatorViewer = ($authUser['role'] ?? '') === 'creator' && (int) ($authUser['id'] ?? 0) === (int) ($creator['id'] ?? 0);
+$isAdminViewer = ($authUser['role'] ?? '') === 'admin';
+$darkroomCanActivate = $darkroomAvailable && ! $darkroomActive && ! $isCreatorViewer && ! $isAdminViewer;
 $mobileShortcutItems = [];
 
 if (($authUser['role'] ?? '') === 'subscriber') {
@@ -208,24 +211,23 @@ if ($accessMessage === '') {
                             <span class="material-symbols-outlined rounded-full bg-white p-2 text-slate-700 transition-transform group-open:rotate-180">expand_more</span>
                         </summary>
                         <div class="space-y-5 px-1 pb-1 pt-4">
-                            <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                                <div class="flex items-center gap-5">
-                                    <div class="h-20 w-20 rounded-full border-2 border-[#ab1155] p-1">
+                            <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                                <a class="group flex min-w-0 items-center gap-5 rounded-3xl bg-white p-4 shadow-sm xl:col-span-2" href="<?= e($profileUrl) ?>">
+                                    <div class="h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-[#ab1155] p-1">
                                         <?php if ((string) ($creator['avatar_url'] ?? '') !== ''): ?>
                                             <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-full w-full rounded-full object-cover" src="<?= e(media_url((string) ($creator['avatar_url'] ?? ''))) ?>">
                                         <?php else: ?>
                                             <div class="signature-glow flex h-full w-full items-center justify-center rounded-full text-lg font-bold text-white"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
                                         <?php endif; ?>
                                     </div>
-                                    <div>
-                                        <h1 class="headline text-3xl font-extrabold tracking-tight"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h1>
+                                    <div class="min-w-0">
+                                        <h1 class="headline text-3xl font-extrabold tracking-tight transition-colors group-hover:text-[#ab1155]"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h1>
                                         <p class="mt-1 text-slate-500"><?= e((string) ($creator['headline'] ?? 'Criando experiencias exclusivas ao vivo.')) ?></p>
-                                        <a class="mt-3 inline-block text-sm font-bold text-[#ab1155] underline" href="<?= e($profileUrl) ?>">Abrir perfil</a>
                                     </div>
-                                </div>
-                                <div class="flex w-full flex-col gap-3 md:w-[26rem]">
+                                </a>
+                                <div class="contents">
                                     <?php if ($canTip): ?>
-                                        <form action="/tip" class="flex flex-col gap-3" data-live-tip-form method="post">
+                                        <form action="/tip" class="<?= $darkroomAvailable ? '' : 'xl:col-span-2 ' ?>flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-sm" data-live-tip-form method="post">
                                             <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                             <input name="creator_id" type="hidden" value="<?= e((string) ((int) ($creator['id'] ?? 0))) ?>">
                                             <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
@@ -237,9 +239,9 @@ if ($accessMessage === '') {
                                                     <button aria-pressed="<?= (int) $tier === $defaultTipAmount ? 'true' : 'false' ?>" class="<?= (int) $tier === $defaultTipAmount ? 'signature-glow text-white' : 'bg-[#f5f3f5] text-[#ab1155]' ?> rounded-full px-4 py-2 text-xs font-bold transition-colors" data-live-tip-preset="<?= e($tierKey) ?>" data-live-tip-message="<?= e($tierMessage) ?>" data-prototype-skip="1" type="button"><?= e($tierKey) ?></button>
                                                 <?php endforeach; ?>
                                             </div>
-                                            <div class="rounded-3xl bg-white p-3 shadow-sm">
+                                            <div class="rounded-3xl bg-[#f8f4f7] p-3">
                                                 <label class="block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Mensagem da gorjeta</label>
-                                                <input class="mt-2 w-full rounded-full border-none bg-[#f5f3f5] px-5 py-3 text-sm text-slate-800 shadow-sm focus:ring-2 focus:ring-[#ab1155]/20" maxlength="180" name="message" placeholder="Edite a mensagem que vai aparecer sobre o player" type="text" value="<?= e($defaultTipMessage !== '' ? $defaultTipMessage : 'Mensagem em destaque de ' . $defaultTipAmount . ' LuaCoins.') ?>">
+                                                <input class="mt-2 w-full rounded-full border-none bg-white px-5 py-3 text-sm text-slate-800 shadow-sm focus:ring-2 focus:ring-[#ab1155]/20" maxlength="180" name="message" placeholder="Edite a mensagem que vai aparecer sobre o player" type="text" value="<?= e($defaultTipMessage !== '' ? $defaultTipMessage : 'Mensagem em destaque de ' . $defaultTipAmount . ' LuaCoins.') ?>">
                                             </div>
                                     <div class="flex items-center justify-between gap-3">
                                         <div class="rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
@@ -251,19 +253,21 @@ if ($accessMessage === '') {
                                     </div>
                                         </form>
                                         <?php if ($darkroomAvailable): ?>
-                                            <div class="rounded-3xl bg-white p-3 shadow-sm">
-                                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <div class="rounded-3xl bg-white p-4 shadow-sm">
+                                                <div class="flex h-full flex-col justify-between gap-4">
                                                     <div>
                                                         <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Darkroom</p>
                                                         <?php if ($darkroomActive): ?>
                                                             <p class="mt-2 text-sm font-semibold text-slate-700"><?= e($darkroomIsOwner ? 'Seu darkroom esta ativo agora.' : $accessMessage) ?></p>
-                                                            <p class="mt-1 text-xs text-slate-500"><?= e($darkroomIsOwner ? ('Duracao de ' . $darkroomDurationMinutes . ' minuto(s).') : 'A live volta automaticamente ao fim deste periodo.') ?></p>
+                                                            <p class="mt-2 text-xs text-slate-500"><?= e($darkroomIsOwner ? ('Duracao de ' . $darkroomDurationMinutes . ' minuto(s).') : 'A live volta automaticamente ao fim deste periodo.') ?></p>
                                                         <?php else: ?>
                                                             <p class="mt-2 text-sm font-semibold text-slate-700">Ative a sala privada por <?= luacoin_amount_html($darkroomPrice, 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?> durante <?= e((string) $darkroomDurationMinutes) ?> min.</p>
-                                                            <p class="mt-1 text-xs text-slate-500">Quando ativado, a live fica exclusiva para voce neste periodo.</p>
+                                                            <p class="mt-2 text-xs text-slate-500">Quando ativado, a live fica exclusiva para voce neste periodo.</p>
                                                         <?php endif; ?>
                                                     </div>
-                                                    <?php if (! $darkroomActive): ?>
+                                                    <?php if ($darkroomActive): ?>
+                                                        <span class="inline-flex w-fit rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500"><?= e($darkroomIsOwner ? 'Darkroom ativo' : 'Darkroom em andamento') ?></span>
+                                                    <?php elseif ($darkroomCanActivate): ?>
                                                         <form action="/live/darkroom" method="post">
                                                             <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                                             <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
@@ -271,30 +275,30 @@ if ($accessMessage === '') {
                                                             <button class="rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Ativar darkroom</button>
                                                         </form>
                                                     <?php else: ?>
-                                                        <span class="rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500"><?= e($darkroomIsOwner ? 'Darkroom ativo' : 'Darkroom em andamento') ?></span>
+                                                        <span class="inline-flex w-fit rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Disponivel para espectadores</span>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
                                         <?php endif; ?>
                                     <?php elseif ($requiresLogin): ?>
-                                        <a class="signature-glow rounded-full px-8 py-3 text-center text-sm font-bold text-white shadow-lg" href="/login">Entrar para assistir</a>
+                                        <a class="signature-glow rounded-3xl px-8 py-4 text-center text-sm font-bold text-white shadow-lg xl:col-span-2" href="/login">Entrar para assistir</a>
                                     <?php elseif ($requiresDarkroomWait): ?>
-                                        <div class="rounded-3xl bg-white p-4 shadow-sm">
+                                        <div class="rounded-3xl bg-white p-4 shadow-sm xl:col-span-2">
                                             <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Darkroom ativo</p>
                                             <p class="mt-2 text-sm font-semibold text-slate-700"><?= e($accessMessage) ?></p>
                                         </div>
                                     <?php elseif ($requiresSubscription): ?>
-                                        <a class="signature-glow rounded-full px-8 py-3 text-center text-sm font-bold text-white shadow-lg" href="<?= e($profileUrl) ?>">Assinar para liberar</a>
+                                        <a class="signature-glow rounded-3xl px-8 py-4 text-center text-sm font-bold text-white shadow-lg xl:col-span-2" href="<?= e($profileUrl) ?>">Assinar para liberar</a>
                                     <?php elseif ($requiresVipUnlock): ?>
-                                        <form action="/live/unlock" class="flex flex-col gap-3" method="post">
+                                        <form action="/live/unlock" class="flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-sm xl:col-span-2" method="post">
                                             <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                             <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
                                             <input name="redirect" type="hidden" value="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
-                                            <div class="rounded-3xl bg-white p-3 shadow-sm">
+                                            <div>
                                                 <label class="block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Live VIP</label>
                                                 <p class="mt-2 text-sm font-semibold text-slate-700">Desbloqueie por <?= luacoin_amount_html($vipUnlockPrice, 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?> e entre nesta transmissão.</p>
                                             </div>
-                                            <button class="signature-glow rounded-full px-8 py-3 text-sm font-bold text-white shadow-lg" data-prototype-skip="1" type="submit">Desbloquear live VIP</button>
+                                            <button class="signature-glow w-fit rounded-full px-8 py-3 text-sm font-bold text-white shadow-lg" data-prototype-skip="1" type="submit">Desbloquear live VIP</button>
                                         </form>
                                     <?php endif; ?>
                                 </div>

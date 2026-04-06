@@ -660,8 +660,8 @@
             const amountField = tipAmountField()
             applyTipPreset(amountField ? amountField.value : '1')
         }
-        if (mode === 'viewer' && !canWatch) {
-            setWaiting(accessMessage || 'Entre para assistir esta live.')
+        if (mode === 'viewer' && !state.canWatch) {
+            setWaiting(state.accessMessage || 'Entre para assistir esta live.')
             return
         }
         const joined = await ensureJoined()

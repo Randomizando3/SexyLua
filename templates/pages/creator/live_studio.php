@@ -318,14 +318,18 @@ include base_path('templates/partials/creator_topbar.php');
                     <p class="mt-3 text-sm text-slate-500">Use estes dados no OBS ou no seu encoder. O público assiste por HLS, mas a entrada é RTMP.</p>
 
                     <div class="mt-6 space-y-4">
-                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <button class="relative rounded-2xl bg-[#f5f3f5] p-4 text-left transition hover:bg-[#f0eaee]" data-copy-feedback="Servidor copiado" data-copy-text="<?= e($ingestServer) ?>" type="button">
+                            <span class="absolute right-4 top-4 hidden rounded-full bg-slate-900 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white" data-copy-status>Copiado</span>
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Servidor</p>
                             <p class="mt-2 break-all text-sm font-bold text-slate-700"><?= e($ingestServer) ?></p>
-                        </div>
-                        <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                            <p class="mt-3 text-xs font-semibold text-[#D81B60]">Toque para copiar</p>
+                        </button>
+                        <button class="relative rounded-2xl bg-[#f5f3f5] p-4 text-left transition hover:bg-[#f0eaee]" data-copy-feedback="Chave copiada" data-copy-text="<?= e($streamKey) ?>" type="button">
+                            <span class="absolute right-4 top-4 hidden rounded-full bg-slate-900 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white" data-copy-status>Copiado</span>
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Chave de stream</p>
                             <p class="mt-2 break-all text-sm font-bold text-slate-700"><?= e($streamKey) ?></p>
-                        </div>
+                            <p class="mt-3 text-xs font-semibold text-[#D81B60]">Toque para copiar</p>
+                        </button>
                         <div class="rounded-2xl bg-[#f5f3f5] p-4">
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Padrão recomendado</p>
                             <ul class="mt-3 space-y-2 text-sm text-slate-700">
@@ -349,6 +353,34 @@ include base_path('templates/partials/creator_topbar.php');
     document.querySelectorAll('div.rounded-2xl.bg-\\[\\#f5f3f5\\].px-4.py-3.text-sm.text-slate-500').forEach((node) => {
         if (!node.textContent || !node.textContent.toLowerCase().includes('grava')) return;
         node.textContent = 'O foco deste estudio esta na transmissao ao vivo e no acompanhamento do chat em tempo real.'
+    })
+
+    document.querySelectorAll('[data-copy-text]').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const text = button.dataset.copyText || ''
+            if (!text) return
+            try {
+                await navigator.clipboard.writeText(text)
+            } catch {
+                const helper = document.createElement('textarea')
+                helper.value = text
+                helper.setAttribute('readonly', 'readonly')
+                helper.style.position = 'absolute'
+                helper.style.left = '-9999px'
+                document.body.appendChild(helper)
+                helper.select()
+                document.execCommand('copy')
+                document.body.removeChild(helper)
+            }
+            const badge = button.querySelector('[data-copy-status]')
+            if (!badge) return
+            badge.textContent = button.dataset.copyFeedback || 'Copiado'
+            badge.classList.remove('hidden')
+            window.clearTimeout(button.__copyTimer)
+            button.__copyTimer = window.setTimeout(() => {
+                badge.classList.add('hidden')
+            }, 1800)
+        })
     })
 </script>
 </body>
