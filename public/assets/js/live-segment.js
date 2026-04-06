@@ -197,6 +197,8 @@
         syncDarkroomBanner()
     }
 
+    const isDarkroomBlockedViewer = () => mode === 'viewer' && state.darkroomActive && !state.darkroomIsOwner
+
     const postForm = async (url, payload) => {
         const body = new URLSearchParams()
         Object.entries(payload).forEach(([key, value]) => {
@@ -544,6 +546,13 @@
             return
         }
 
+        if (isDarkroomBlockedViewer()) {
+            state.canWatch = false
+            destroyPlayer()
+            setWaiting(state.accessMessage || 'A live entrou em darkroom temporariamente.')
+            return
+        }
+
         if (!state.canWatch) {
             destroyPlayer()
             setWaiting(state.accessMessage || 'Entre para assistir esta live.')
@@ -576,6 +585,10 @@
         state.darkroomActive = payload.darkroom_active !== undefined ? Boolean(payload.darkroom_active) : state.darkroomActive
         state.darkroomIsOwner = payload.darkroom_is_owner !== undefined ? Boolean(payload.darkroom_is_owner) : state.darkroomIsOwner
         state.requiresDarkroomWait = payload.requires_darkroom_wait !== undefined ? Boolean(payload.requires_darkroom_wait) : state.requiresDarkroomWait
+        if (isDarkroomBlockedViewer()) {
+            state.canWatch = false
+            state.requiresDarkroomWait = true
+        }
         syncDarkroomUi()
         if (!wasDarkroomActive && state.darkroomActive) {
             if (state.darkroomIsOwner) {
