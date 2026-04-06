@@ -458,8 +458,8 @@ include base_path('templates/partials/creator_topbar.php');
             <textarea class="min-h-[92px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="pinned_notice" placeholder="Aviso fixado"><?= e((string) ($formLive['pinned_notice'] ?? '')) ?></textarea>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="darkroom_price_luacoins" placeholder="Valor para tornar a sala DarkRoom" type="number" value="<?= e($formDarkroomPriceValue) ?>">
-                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="darkroom_duration_minutes" placeholder="Duração da Sala DarkRoom" type="number" value="<?= e($formDarkroomDurationValue) ?>">
+                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="darkroom_price_luacoins" placeholder="Valor para tornar a sala DarkRoom em LuaCoins" type="number" value="<?= e($formDarkroomPriceValue) ?>">
+                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="darkroom_duration_minutes" placeholder="Duração da Sala DarkRoom em minutos" type="number" value="<?= e($formDarkroomDurationValue) ?>">
             </div>
 
             <input name="max_bitrate_kbps" type="hidden" value="<?= e((string) ((int) ($formLive['max_bitrate_kbps'] ?? 800))) ?>">

@@ -376,6 +376,30 @@ final class CreatorController extends Controller
         $this->redirect($redirect, $ok ? 'Configuracoes da sala atualizadas.' : 'Nao foi possivel salvar a sala.', $ok ? 'success' : 'error');
     }
 
+    public function startLiveDarkroom(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+        $redirect = path_with_query('/creator/live/studio', ['live' => (int) $request->input('live_id', 0)]);
+        $this->validateCsrf($request, $redirect);
+        $result = $this->app->repository->creatorActivateLiveDarkroom(
+            (int) $request->input('live_id', 0),
+            (int) $this->user()['id'],
+            (int) $request->input('target_user_id', 0)
+        );
+
+        $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel iniciar a darkroom.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
+    }
+
+    public function cancelLiveDarkroom(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+        $redirect = path_with_query('/creator/live/studio', ['live' => (int) $request->input('live_id', 0)]);
+        $this->validateCsrf($request, $redirect);
+        $result = $this->app->repository->cancelLiveDarkroom((int) $request->input('live_id', 0), (int) $this->user()['id']);
+
+        $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel encerrar a darkroom.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
+    }
+
     public function requestPayout(Request $request): void
     {
         $this->app->auth->requireRole('creator');

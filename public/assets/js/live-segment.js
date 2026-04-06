@@ -90,8 +90,12 @@
         darkroomActive: root.dataset.darkroomActive === '1',
         darkroomIsOwner: root.dataset.darkroomIsOwner === '1',
         requiresDarkroomWait: root.dataset.requiresDarkroomWait === '1',
+        darkroomEndsAt: root.dataset.darkroomEndsAt || '',
         inlineAlertTimer: null,
         darkroomReloadTimer: null,
+        darkroomBannerTimer: null,
+        darkroomBannerTimerFor: '',
+        darkroomOwnerBannerDismissedFor: '',
     }
 
     const video = () => mode === 'creator' ? el.previewVideo : el.remoteVideo
@@ -130,7 +134,7 @@
         el.error.textContent = String(message)
     }
 
-    const showInlineAlert = (message = '', tone = 'success', kicker = 'Atualizacao da sala') => {
+    const showInlineAlert = (message = '', tone = 'success', kicker = 'Atualizacao da sala', durationMs = 6500) => {
         if (!el.inlineAlert || !el.inlineAlertText || !message) return
         const toneClass = tone === 'info' ? 'bg-sky-600/90' : (tone === 'error' ? 'bg-rose-500/90' : 'bg-emerald-500/90')
         el.inlineAlert.classList.remove('hidden', 'bg-emerald-500/90', 'bg-sky-600/90', 'bg-rose-500/90')
@@ -140,7 +144,7 @@
         if (state.inlineAlertTimer) window.clearTimeout(state.inlineAlertTimer)
         state.inlineAlertTimer = window.setTimeout(() => {
             if (el.inlineAlert) el.inlineAlert.classList.add('hidden')
-        }, 6500)
+        }, Math.max(1200, Number(durationMs || 6500)))
     }
 
     const payloadNeedsRejoin = (payload) => {
@@ -167,9 +171,22 @@
         if (el.waitBox) el.waitBox.classList.add('hidden')
     }
 
+    const darkroomBannerSignature = () => `${state.darkroomActive ? '1' : '0'}|${state.darkroomIsOwner ? '1' : '0'}|${String(state.darkroomEndsAt || '')}`
+
     const syncDarkroomBanner = () => {
         if (!el.darkroomBanner || !el.darkroomBannerText) return
         if (!state.darkroomActive) {
+            if (state.darkroomBannerTimer) {
+                window.clearTimeout(state.darkroomBannerTimer)
+                state.darkroomBannerTimer = null
+            }
+            state.darkroomBannerTimerFor = ''
+            state.darkroomOwnerBannerDismissedFor = ''
+            el.darkroomBanner.classList.add('hidden')
+            return
+        }
+        const signature = darkroomBannerSignature()
+        if (state.darkroomIsOwner && state.darkroomOwnerBannerDismissedFor === signature) {
             el.darkroomBanner.classList.add('hidden')
             return
         }
@@ -177,6 +194,24 @@
         el.darkroomBannerText.textContent = String(state.accessMessage || (state.darkroomIsOwner ? 'Seu darkroom esta ativo agora.' : 'A live entrou em darkroom temporariamente.'))
         if (el.darkroomBannerKicker) {
             el.darkroomBannerKicker.textContent = state.darkroomIsOwner ? 'Darkroom ativo para voce' : 'Darkroom ativo'
+        }
+        if (state.darkroomIsOwner) {
+            if (!state.darkroomBannerTimer || state.darkroomBannerTimerFor !== signature) {
+                if (state.darkroomBannerTimer) {
+                    window.clearTimeout(state.darkroomBannerTimer)
+                }
+                state.darkroomBannerTimerFor = signature
+                state.darkroomBannerTimer = window.setTimeout(() => {
+                    state.darkroomOwnerBannerDismissedFor = signature
+                    state.darkroomBannerTimer = null
+                    state.darkroomBannerTimerFor = ''
+                    if (el.darkroomBanner) el.darkroomBanner.classList.add('hidden')
+                }, 5000)
+            }
+        } else if (state.darkroomBannerTimer) {
+            window.clearTimeout(state.darkroomBannerTimer)
+            state.darkroomBannerTimer = null
+            state.darkroomBannerTimerFor = ''
         }
     }
 
@@ -596,6 +631,7 @@
         state.darkroomActive = payload.darkroom_active !== undefined ? Boolean(payload.darkroom_active) : state.darkroomActive
         state.darkroomIsOwner = payload.darkroom_is_owner !== undefined ? Boolean(payload.darkroom_is_owner) : state.darkroomIsOwner
         state.requiresDarkroomWait = payload.requires_darkroom_wait !== undefined ? Boolean(payload.requires_darkroom_wait) : state.requiresDarkroomWait
+        state.darkroomEndsAt = payload.darkroom_ends_at !== undefined ? String(payload.darkroom_ends_at || '') : state.darkroomEndsAt
         if (isDarkroomBlockedViewer()) {
             state.canWatch = false
             state.requiresDarkroomWait = true
@@ -622,7 +658,7 @@
         }
         if (!wasDarkroomActive && state.darkroomActive) {
             if (state.darkroomIsOwner) {
-                showInlineAlert(state.accessMessage || 'Darkroom ativado com sucesso.', 'success', 'Darkroom ativado')
+                showInlineAlert(state.accessMessage || 'Darkroom ativado com sucesso.', 'success', 'Darkroom ativado', 5000)
             } else if (state.requiresDarkroomWait) {
                 showInlineAlert(state.accessMessage || 'A live entrou em darkroom temporariamente.', 'info', 'Darkroom ativo')
             }

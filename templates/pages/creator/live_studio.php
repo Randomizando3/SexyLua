@@ -38,6 +38,10 @@ $hlsUrl = (string) ($selected['hls_url'] ?? '');
 $ingestServer = $ingestUrl !== '' ? preg_replace('~/[^/]+$~', '', $ingestUrl) : '';
 $streamKey = $ingestUrl !== '' ? basename(parse_url($ingestUrl, PHP_URL_PATH) ?: '') : (string) ($selected['stream_key'] ?? '');
 $audioSampleRate = (int) ($selected['audio_sample_rate'] ?? 48000);
+$studioDarkroom = is_array($selected['active_darkroom'] ?? null) ? $selected['active_darkroom'] : null;
+$studioDarkroomCandidates = array_values(is_array($selected['darkroom_candidates'] ?? null) ? $selected['darkroom_candidates'] : []);
+$studioDarkroomDuration = max(0, (int) ($selected['darkroom_duration_minutes'] ?? 0));
+$studioDarkroomPrice = max(0, (int) ($selected['darkroom_price_tokens'] ?? 0));
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -282,8 +286,8 @@ include base_path('templates/partials/creator_topbar.php');
                                 </select>
                             </label>
                             <label class="block space-y-2">
-                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Valor da Live VIP</span>
-                                <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" min="0" name="price_luacoins" placeholder="Ex.: 25" type="number" value="<?= e((string) ((int) ($selected['price_tokens'] ?? 0) > 0 ? (int) ($selected['price_tokens'] ?? 0) : '')) ?>">
+                                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Valor da Live VIP em LuaCoins</span>
+                                <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" min="0" name="price_luacoins" placeholder="Ex.: 25 LuaCoins" type="number" value="<?= e((string) ((int) ($selected['price_tokens'] ?? 0) > 0 ? (int) ($selected['price_tokens'] ?? 0) : '')) ?>">
                             </label>
                             <label class="block space-y-2">
                                 <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Quem pode falar</span>
@@ -298,18 +302,109 @@ include base_path('templates/partials/creator_topbar.php');
                         </div>
 
                         <label class="block space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Valor para tornar a sala DarkRoom</span>
-                            <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" min="0" name="darkroom_price_luacoins" placeholder="Ex.: 80" type="number" value="<?= e((string) ((int) ($selected['darkroom_price_tokens'] ?? 0) > 0 ? (int) ($selected['darkroom_price_tokens'] ?? 0) : '')) ?>">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Valor para tornar a sala DarkRoom em LuaCoins</span>
+                            <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" min="0" name="darkroom_price_luacoins" placeholder="Ex.: 80 LuaCoins" type="number" value="<?= e((string) ((int) ($selected['darkroom_price_tokens'] ?? 0) > 0 ? (int) ($selected['darkroom_price_tokens'] ?? 0) : '')) ?>">
                         </label>
                         <label class="block space-y-2">
                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Duração da Sala DarkRoom</span>
-                            <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" min="0" name="darkroom_duration_minutes" placeholder="Ex.: 5" type="number" value="<?= e((string) ((int) ($selected['darkroom_duration_minutes'] ?? 0) > 0 ? (int) ($selected['darkroom_duration_minutes'] ?? 0) : '')) ?>">
+                            <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" min="0" name="darkroom_duration_minutes" placeholder="Ex.: 5 minutos" type="number" value="<?= e((string) ((int) ($selected['darkroom_duration_minutes'] ?? 0) > 0 ? (int) ($selected['darkroom_duration_minutes'] ?? 0) : '')) ?>">
                         </label>
                         <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-sm text-slate-500">Quando o darkroom estiver ativo, a live fica exclusiva para quem pagou durante o periodo configurado.</div>
                         <div class="flex flex-wrap gap-3">
                             <button class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Salvar sala</button>
                         </div>
                     </form>
+                    <div class="mt-6 rounded-3xl bg-[#f8f4f7] p-5">
+                        <div class="flex flex-wrap items-start justify-between gap-4">
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Controle imediato do DarkRoom</p>
+                                <h3 class="headline mt-2 text-xl font-extrabold">Abra ou encerre uma sala privada sem sair do estudio</h3>
+                                <p class="mt-2 text-sm text-slate-500">Escolha um espectador ao vivo ou um assinante para iniciar uma darkroom manual. Se precisar, voce tambem pode encerrar a atual na hora.</p>
+                            </div>
+                            <?php if ($studioDarkroom !== null): ?>
+                                <form action="/creator/live/darkroom/cancel" method="post">
+                                    <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                    <input name="live_id" type="hidden" value="<?= e((string) $selectedLiveId) ?>">
+                                    <button class="rounded-full bg-rose-500 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Cancelar darkroom atual</button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+
+                        <?php if ($studioDarkroom !== null): ?>
+                            <div class="mt-5 rounded-3xl bg-white p-4 shadow-sm">
+                                <div class="flex items-center gap-4">
+                                    <div class="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-[#f5f3f5]">
+                                        <?php if ((string) ($studioDarkroom['user_avatar_url'] ?? '') !== ''): ?>
+                                            <img alt="<?= e((string) ($studioDarkroom['user_name'] ?? 'Assinante')) ?>" class="h-full w-full object-cover" src="<?= e(media_url((string) ($studioDarkroom['user_avatar_url'] ?? ''))) ?>">
+                                        <?php else: ?>
+                                            <div class="signature-glow flex h-full w-full items-center justify-center text-sm font-bold text-white"><?= e(avatar_initials((string) ($studioDarkroom['user_name'] ?? 'Assinante'))) ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Darkroom em andamento</p>
+                                        <p class="mt-2 text-base font-bold text-slate-800"><?= e((string) ($studioDarkroom['user_name'] ?? 'Assinante')) ?></p>
+                                        <p class="mt-1 text-sm text-slate-500">@<?= e((string) ($studioDarkroom['user_username'] ?? 'sem-username')) ?></p>
+                                    </div>
+                                    <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-right">
+                                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Tempo restante</p>
+                                        <p class="mt-2 text-sm font-bold text-slate-800"><?= e(gmdate(((int) ($studioDarkroom['remaining_seconds'] ?? 0)) >= 3600 ? 'H:i:s' : 'i:s', max(0, (int) ($studioDarkroom['remaining_seconds'] ?? 0)))) ?></p>
+                                    </div>
+                                </div>
+                                <div class="mt-4 flex flex-wrap gap-3 text-sm text-slate-500">
+                                    <span class="rounded-full bg-[#f5f3f5] px-4 py-2 font-semibold"><?= e((bool) ($studioDarkroom['creator_initiated'] ?? false) ? 'Iniciada pelo criador' : 'Ativada por pagamento') ?></span>
+                                    <span class="rounded-full bg-[#f5f3f5] px-4 py-2 font-semibold"><?= (int) ($studioDarkroom['amount'] ?? 0) > 0 ? luacoin_amount_html((int) ($studioDarkroom['amount'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') : 'Sem cobranca automatica' ?></span>
+                                    <span class="rounded-full bg-[#f5f3f5] px-4 py-2 font-semibold"><?= e((string) ((int) ($studioDarkroom['duration_minutes'] ?? 0))) ?> min</span>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div class="mt-5 rounded-3xl bg-white p-4 text-sm text-slate-500 shadow-sm">
+                                Nenhuma darkroom esta ativa agora. Quando quiser abrir uma sala privada manualmente, escolha um usuario abaixo.
+                            </div>
+                        <?php endif; ?>
+
+                        <details class="group mt-5 rounded-3xl bg-white p-4 shadow-sm" <?= $studioDarkroom === null ? 'open' : '' ?>>
+                            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 marker:content-none">
+                                <div>
+                                    <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Nova darkroom manual</p>
+                                    <p class="mt-2 text-sm font-semibold text-slate-700">Escolha um espectador atual ou assinante com pesquisa</p>
+                                </div>
+                                <span class="material-symbols-outlined rounded-full bg-[#f5f3f5] p-2 text-slate-700 transition-transform group-open:rotate-180">expand_more</span>
+                            </summary>
+                            <div class="pt-4">
+                                <?php if ($studioDarkroom !== null): ?>
+                                    <p class="rounded-2xl bg-[#f8f4f7] px-4 py-3 text-sm text-slate-500">Cancele a darkroom atual antes de iniciar outra.</p>
+                                <?php elseif ($selectedStatus !== 'live'): ?>
+                                    <p class="rounded-2xl bg-[#f8f4f7] px-4 py-3 text-sm text-slate-500">A darkroom manual fica disponivel assim que a live estiver ao vivo.</p>
+                                <?php elseif ($studioDarkroomCandidates === []): ?>
+                                    <p class="rounded-2xl bg-[#f8f4f7] px-4 py-3 text-sm text-slate-500">Nenhum assinante ou espectador elegivel apareceu ainda nesta sala.</p>
+                                <?php else: ?>
+                                    <form action="/creator/live/darkroom/start" class="space-y-4" method="post">
+                                        <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                        <input name="live_id" type="hidden" value="<?= e((string) $selectedLiveId) ?>">
+                                        <label class="block space-y-2">
+                                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Pesquisar usuario</span>
+                                            <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 text-sm font-semibold text-slate-700" data-darkroom-user-search placeholder="Digite nome ou @usuario" type="search">
+                                        </label>
+                                        <label class="block space-y-2">
+                                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Usuario para a darkroom</span>
+                                            <select class="min-h-[220px] rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 text-sm font-semibold text-slate-700" data-darkroom-user-select name="target_user_id" size="6">
+                                                <?php foreach ($studioDarkroomCandidates as $candidate): ?>
+                                                    <option data-search="<?= e(mb_strtolower((string) (($candidate['name'] ?? '') . ' ' . ($candidate['username'] ?? '') . ' ' . ($candidate['badge'] ?? '')))) ?>" value="<?= e((string) ((int) ($candidate['id'] ?? 0))) ?>">
+                                                        <?= e((string) ($candidate['name'] ?? 'Usuario')) ?><?= (string) ($candidate['username'] ?? '') !== '' ? ' (@' . e((string) $candidate['username']) . ')' : '' ?><?= (string) ($candidate['badge'] ?? '') !== '' ? ' • ' . e((string) ($candidate['badge'] ?? '')) : '' ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </label>
+                                        <div class="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+                                            <span class="rounded-full bg-[#f5f3f5] px-4 py-2 font-semibold"><?= e((string) $studioDarkroomDuration) ?> min configurados</span>
+                                            <span class="rounded-full bg-[#f5f3f5] px-4 py-2 font-semibold"><?= $studioDarkroomPrice > 0 ? luacoin_amount_html($studioDarkroomPrice, 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') : 'Sem cobranca automatica' ?></span>
+                                        </div>
+                                        <button class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Iniciar darkroom agora</button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
+                        </details>
+                    </div>
                 </section>
 
                 <section class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
@@ -381,6 +476,30 @@ include base_path('templates/partials/creator_topbar.php');
                 badge.classList.add('hidden')
             }, 1800)
         })
+    })
+
+    document.querySelectorAll('[data-darkroom-user-search]').forEach((input) => {
+        const select = input.closest('form')?.querySelector('[data-darkroom-user-select]')
+        if (!select) return
+
+        const filterOptions = () => {
+            const query = (input.value || '').trim().toLowerCase()
+            let firstVisible = null
+
+            Array.from(select.options).forEach((option) => {
+                const haystack = String(option.dataset.search || option.textContent || '').toLowerCase()
+                const matches = query === '' || haystack.includes(query)
+                option.hidden = !matches
+                if (matches && firstVisible === null) firstVisible = option
+            })
+
+            if (firstVisible) {
+                select.value = firstVisible.value
+            }
+        }
+
+        input.addEventListener('input', filterOptions)
+        filterOptions()
     })
 </script>
 </body>

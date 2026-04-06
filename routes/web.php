@@ -78,6 +78,8 @@ $router->post('/creator/memberships/message', [CreatorController::class, 'sendMe
 $router->post('/creator/messages/send', [CreatorController::class, 'sendConversationMessage']);
 $router->post('/creator/live/save', [CreatorController::class, 'saveLive']);
 $router->post('/creator/live/studio', [CreatorController::class, 'updateLiveStudio']);
+$router->post('/creator/live/darkroom/start', [CreatorController::class, 'startLiveDarkroom']);
+$router->post('/creator/live/darkroom/cancel', [CreatorController::class, 'cancelLiveDarkroom']);
 $router->post('/creator/live/status', [CreatorController::class, 'updateLiveStatus']);
 $router->post('/creator/live/delete', [CreatorController::class, 'deleteLive']);
 $router->post('/creator/wallet/payout', [CreatorController::class, 'requestPayout']);

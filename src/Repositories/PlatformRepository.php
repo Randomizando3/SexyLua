@@ -1846,6 +1846,132 @@ final class PlatformRepository
         return ['ok' => true, 'message' => 'Darkroom ativado com sucesso.'];
     }
 
+    public function creatorActivateLiveDarkroom(int $liveId, int $creatorId, int $targetUserId): array
+    {
+        $live = $this->findLiveById($liveId);
+
+        if ($live === null || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+            return ['ok' => false, 'message' => 'Live nao encontrada para este criador.'];
+        }
+
+        if ($this->resolveLiveStatus($live) !== 'live') {
+            return ['ok' => false, 'message' => 'O darkroom manual so pode ser iniciado enquanto a live estiver ao vivo.'];
+        }
+
+        $darkroomDuration = $this->sanitizeDarkroomDurationMinutes((int) ($live['darkroom_duration_minutes'] ?? 0));
+        if ($darkroomDuration <= 0) {
+            return ['ok' => false, 'message' => 'Defina a duracao da Sala DarkRoom em minutos antes de iniciar manualmente.'];
+        }
+
+        $targetUser = $this->findUserById($targetUserId);
+        if ($targetUser === null || (string) ($targetUser['status'] ?? 'active') !== 'active') {
+            return ['ok' => false, 'message' => 'Escolha um assinante ou espectador valido para iniciar o darkroom.'];
+        }
+
+        if ((string) ($targetUser['role'] ?? '') === 'admin' || (int) ($targetUser['id'] ?? 0) === $creatorId) {
+            return ['ok' => false, 'message' => 'Selecione um assinante ou espectador diferente do criador.'];
+        }
+
+        $candidateIds = array_map(
+            static fn (array $candidate): int => (int) ($candidate['id'] ?? 0),
+            $this->darkroomCandidatesForCreatorLive($creatorId, $liveId)
+        );
+
+        if (! in_array($targetUserId, $candidateIds, true)) {
+            return ['ok' => false, 'message' => 'Esse usuario nao esta disponivel na lista de espectadores e assinantes atuais.'];
+        }
+
+        $activeDarkroom = $this->activeDarkroomForLive($liveId);
+        if ($activeDarkroom !== null) {
+            if ((int) ($activeDarkroom['user_id'] ?? 0) === $targetUserId) {
+                return ['ok' => true, 'message' => 'Esse usuario ja esta na darkroom atual.'];
+            }
+
+            return ['ok' => false, 'message' => 'Ja existe um darkroom ativo nesta live. Cancele o atual antes de iniciar outro.'];
+        }
+
+        $darkrooms = $this->liveDarkrooms();
+        $now = date('Y-m-d H:i:s');
+        $darkrooms[] = [
+            'id' => $this->store->nextId($darkrooms),
+            'live_id' => $liveId,
+            'creator_id' => $creatorId,
+            'user_id' => $targetUserId,
+            'amount' => 0,
+            'duration_minutes' => $darkroomDuration,
+            'status' => 'active',
+            'started_at' => $now,
+            'ends_at' => date('Y-m-d H:i:s', strtotime('+' . $darkroomDuration . ' minutes')),
+            'ended_at' => '',
+            'created_at' => $now,
+            'creator_initiated' => true,
+        ];
+        $this->save('live_darkrooms', $darkrooms);
+
+        $liveTitle = trim((string) ($live['title'] ?? 'Live'));
+        $this->notifyUser(
+            $targetUserId,
+            'live',
+            'Darkroom iniciada',
+            'O criador abriu uma darkroom com voce na live ' . $liveTitle . ' por ' . $darkroomDuration . ' minuto(s).',
+            path_with_query('/live', ['id' => $liveId]),
+            [
+                'live_id' => $liveId,
+                'duration_minutes' => $darkroomDuration,
+                'creator_initiated' => true,
+            ]
+        );
+
+        return ['ok' => true, 'message' => 'Darkroom iniciada com ' . (string) ($targetUser['name'] ?? 'o assinante') . '.'];
+    }
+
+    public function cancelLiveDarkroom(int $liveId, int $creatorId): array
+    {
+        $live = $this->findLiveById($liveId);
+
+        if ($live === null || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+            return ['ok' => false, 'message' => 'Live nao encontrada para este criador.'];
+        }
+
+        $activeDarkroom = $this->activeDarkroomForLive($liveId);
+        if ($activeDarkroom === null) {
+            return ['ok' => false, 'message' => 'Nao ha darkroom ativa nesta live agora.'];
+        }
+
+        $darkrooms = $this->liveDarkrooms();
+        $now = date('Y-m-d H:i:s');
+        foreach ($darkrooms as &$row) {
+            if ((int) ($row['id'] ?? 0) !== (int) ($activeDarkroom['id'] ?? 0)) {
+                continue;
+            }
+
+            $row['status'] = 'cancelled';
+            $row['ended_at'] = $now;
+            $row['cancelled_by_creator_id'] = $creatorId;
+            break;
+        }
+        unset($row);
+
+        $this->save('live_darkrooms', $darkrooms);
+
+        $ownerId = (int) ($activeDarkroom['user_id'] ?? 0);
+        if ($ownerId > 0 && $ownerId !== $creatorId) {
+            $this->notifyUser(
+                $ownerId,
+                'live',
+                'Darkroom encerrada',
+                'O criador encerrou a darkroom atual e a live voltou ao modo normal.',
+                path_with_query('/live', ['id' => $liveId]),
+                [
+                    'live_id' => $liveId,
+                    'creator_cancelled' => true,
+                ]
+            );
+        }
+
+        return ['ok' => true, 'message' => 'Darkroom encerrada e sala publica restaurada.'];
+    }
+
     public function findSecureConversationMessageAttachment(int $messageId, int $viewerId): ?array
     {
         $user = $this->findUserById($viewerId);
@@ -2405,6 +2531,8 @@ final class PlatformRepository
             $selectedMessages = $this->liveChatMessagesFor((int) ($selectedLive['id'] ?? 0), 8);
             $selectedEngagement = $this->liveEngagementData($selectedLive, 6, 4);
             $selectedLive['tip_total_amount'] = (int) ($selectedEngagement['tip_total_amount'] ?? 0);
+            $selectedLive['active_darkroom'] = $this->activeDarkroomSummaryForCreator($creatorId, (int) ($selectedLive['id'] ?? 0));
+            $selectedLive['darkroom_candidates'] = $this->darkroomCandidatesForCreatorLive($creatorId, (int) ($selectedLive['id'] ?? 0));
         }
 
         return [
@@ -6818,7 +6946,16 @@ final class PlatformRepository
         $user = $userId !== null ? $this->findUserById($userId) : null;
         $isCreatorViewer = $userId !== null && (int) ($live['creator_id'] ?? 0) === $userId;
         $isDarkroomOwner = $activeDarkroom !== null && $userId !== null && (int) ($activeDarkroom['user_id'] ?? 0) === $userId;
+        $darkroomCreatorInitiated = $activeDarkroom !== null && (bool) ($activeDarkroom['creator_initiated'] ?? false);
         $requiresDarkroomWait = false;
+
+        if ($isDarkroomOwner && $darkroomCreatorInitiated && $user !== null) {
+            $base['granted'] = true;
+            $base['requires_login'] = false;
+            $base['requires_subscription'] = false;
+            $base['requires_vip_unlock'] = false;
+            $base['vip_unlocked'] = true;
+        }
 
         if ((bool) ($base['granted'] ?? false) && $activeDarkroom !== null && ! $isDarkroomOwner) {
             $base['granted'] = false;
@@ -6842,6 +6979,7 @@ final class PlatformRepository
             'darkroom_started_at' => (string) ($activeDarkroom['started_at'] ?? ''),
             'darkroom_ends_at' => (string) ($activeDarkroom['ends_at'] ?? ''),
             'darkroom_viewer_is_creator' => $isCreatorViewer,
+            'darkroom_creator_initiated' => $darkroomCreatorInitiated,
         ];
         $access['access_message'] = $this->liveAccessMessage($live, $access);
 
@@ -6938,6 +7076,123 @@ final class PlatformRepository
         $darkroom['user'] = $this->findUserById((int) ($darkroom['user_id'] ?? 0));
 
         return $darkroom;
+    }
+
+    private function activeDarkroomSummaryForCreator(int $creatorId, int $liveId): ?array
+    {
+        $live = $this->findLiveById($liveId);
+        if ($live === null || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+            return null;
+        }
+
+        $darkroom = $this->activeDarkroomForLive($liveId);
+        if ($darkroom === null) {
+            return null;
+        }
+
+        $user = $darkroom['user'] ?? $this->findUserById((int) ($darkroom['user_id'] ?? 0)) ?? [];
+
+        return [
+            'id' => (int) ($darkroom['id'] ?? 0),
+            'user_id' => (int) ($darkroom['user_id'] ?? 0),
+            'user_name' => (string) ($user['name'] ?? 'Assinante'),
+            'user_username' => (string) ($user['username'] ?? ''),
+            'user_avatar_url' => (string) ($user['avatar_url'] ?? ''),
+            'remaining_seconds' => max(0, (int) ($darkroom['remaining_seconds'] ?? 0)),
+            'duration_minutes' => max(0, (int) ($darkroom['duration_minutes'] ?? 0)),
+            'started_at' => (string) ($darkroom['started_at'] ?? ''),
+            'ends_at' => (string) ($darkroom['ends_at'] ?? ''),
+            'creator_initiated' => (bool) ($darkroom['creator_initiated'] ?? false),
+            'amount' => max(0, (int) ($darkroom['amount'] ?? 0)),
+        ];
+    }
+
+    private function darkroomCandidatesForCreatorLive(int $creatorId, int $liveId): array
+    {
+        $live = $this->findLiveById($liveId);
+        if ($live === null || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+            return [];
+        }
+
+        $candidates = [];
+        $now = time();
+
+        foreach ($this->livePresence() as $row) {
+            if (
+                (int) ($row['live_id'] ?? 0) !== $liveId
+                || (string) ($row['role'] ?? '') !== 'viewer'
+                || (int) ($row['user_id'] ?? 0) <= 0
+                || $this->timestampAgeSeconds((string) ($row['last_seen'] ?? ''), $now) > self::LIVE_PRESENCE_TIMEOUT_SECONDS
+            ) {
+                continue;
+            }
+
+            $user = $this->findUserById((int) ($row['user_id'] ?? 0));
+            if ($user === null || (string) ($user['status'] ?? 'active') !== 'active' || (string) ($user['role'] ?? '') === 'admin' || (int) ($user['id'] ?? 0) === $creatorId) {
+                continue;
+            }
+
+            $candidateId = (int) ($user['id'] ?? 0);
+            if (! isset($candidates[$candidateId])) {
+                $candidates[$candidateId] = [
+                    'id' => $candidateId,
+                    'name' => (string) ($user['name'] ?? 'Usuario'),
+                    'username' => (string) ($user['username'] ?? ''),
+                    'avatar_url' => (string) ($user['avatar_url'] ?? ''),
+                    'is_online' => true,
+                    'labels' => [],
+                ];
+            }
+
+            $candidates[$candidateId]['is_online'] = true;
+            $candidates[$candidateId]['labels']['live'] = 'Ao vivo';
+        }
+
+        foreach ($this->subscriptions() as $subscription) {
+            if ((int) ($subscription['creator_id'] ?? 0) !== $creatorId || (string) ($subscription['status'] ?? '') !== 'active') {
+                continue;
+            }
+
+            $user = $this->findUserById((int) ($subscription['subscriber_id'] ?? 0));
+            if ($user === null || (string) ($user['status'] ?? 'active') !== 'active' || (string) ($user['role'] ?? '') === 'admin' || (int) ($user['id'] ?? 0) === $creatorId) {
+                continue;
+            }
+
+            $candidateId = (int) ($user['id'] ?? 0);
+            if (! isset($candidates[$candidateId])) {
+                $candidates[$candidateId] = [
+                    'id' => $candidateId,
+                    'name' => (string) ($user['name'] ?? 'Usuario'),
+                    'username' => (string) ($user['username'] ?? ''),
+                    'avatar_url' => (string) ($user['avatar_url'] ?? ''),
+                    'is_online' => false,
+                    'labels' => [],
+                ];
+            }
+
+            $plan = $this->findPlanById((int) ($subscription['plan_id'] ?? 0));
+            $planName = trim((string) ($plan['name'] ?? ''));
+            $candidates[$candidateId]['labels']['subscription'] = $planName !== '' ? ('Assinante • ' . $planName) : 'Assinante';
+        }
+
+        $result = array_map(static function (array $candidate): array {
+            $labels = array_values((array) ($candidate['labels'] ?? []));
+            $candidate['badge'] = implode(' • ', $labels);
+            unset($candidate['labels']);
+
+            return $candidate;
+        }, array_values($candidates));
+
+        usort($result, static function (array $left, array $right): int {
+            $onlineComparison = ((int) ($right['is_online'] ?? 0)) <=> ((int) ($left['is_online'] ?? 0));
+            if ($onlineComparison !== 0) {
+                return $onlineComparison;
+            }
+
+            return strcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? ''));
+        });
+
+        return $result;
     }
 
     private function sanitizeDarkroomDurationMinutes(int $minutes): int

@@ -138,6 +138,7 @@ if ($accessMessage === '') {
                 data-darkroom-active="<?= $darkroomActive ? '1' : '0' ?>"
                 data-darkroom-is-owner="<?= $darkroomIsOwner ? '1' : '0' ?>"
                 data-requires-darkroom-wait="<?= $requiresDarkroomWait ? '1' : '0' ?>"
+                data-darkroom-ends-at="<?= e($darkroomEndsAt) ?>"
                 data-join-url="/live/rtc/join"
                 data-state-url="/live/state"
                 data-signal-url="/live/rtc/signal"
@@ -202,11 +203,6 @@ if ($accessMessage === '') {
                             <p class="mt-3 text-sm text-white/75" data-live-waiting-text><?= e($accessMessage) ?></p>
                             <?php if ($requiresLogin): ?>
                                 <a class="signature-glow mt-5 inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-bold text-white shadow-lg" href="/login">Entrar para assistir</a>
-                            <?php elseif ($requiresDarkroomWait): ?>
-                                <div class="mt-5 rounded-3xl bg-white/10 p-4 backdrop-blur-md">
-                                    <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-white/70">Darkroom ativo</p>
-                                    <p class="mt-2 text-sm text-white/80"><?= e($accessMessage) ?></p>
-                                </div>
                             <?php elseif ($requiresVipUnlock): ?>
                                 <div class="mt-5 rounded-3xl bg-white/10 p-4 backdrop-blur-md">
                                     <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-white/70">Live VIP</p>
