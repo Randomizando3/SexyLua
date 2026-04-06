@@ -34,6 +34,7 @@ final class PlatformRepository
         'messages',
         'message_unlocks',
         'live_unlocks',
+        'live_darkrooms',
         'notifications',
         'announcements',
         'live_messages',
@@ -428,6 +429,8 @@ final class PlatformRepository
         $related = array_values(array_filter($this->livesWithCreators(), static fn (array $item): bool => (int) ($item['id'] ?? 0) !== $liveId));
         $engagement = $this->liveEngagementData($decoratedLive);
         $stream = $this->publicLiveStreamState($liveId);
+        $shouldHideRoomData = ! (bool) ($access['granted'] ?? false)
+            && ((bool) ($access['requires_vip_unlock'] ?? false) || (bool) ($access['requires_darkroom_wait'] ?? false));
 
         if (! (bool) ($access['granted'] ?? false)) {
             $stream['hls_url'] = '';
@@ -436,10 +439,10 @@ final class PlatformRepository
 
         return [
             'live' => $decoratedLive,
-            'messages' => $messages,
+            'messages' => $shouldHideRoomData ? [] : $messages,
             'related_lives' => array_slice($related, 0, 5),
-            'recent_tips' => $engagement['recent_tips'],
-            'top_supporters' => $engagement['top_supporters'],
+            'recent_tips' => $shouldHideRoomData ? [] : $engagement['recent_tips'],
+            'top_supporters' => $shouldHideRoomData ? [] : $engagement['top_supporters'],
             'tip_total_amount' => (int) ($engagement['tip_total_amount'] ?? 0),
             'can_watch' => (bool) ($access['granted'] ?? false),
             'requires_login' => (bool) ($access['requires_login'] ?? false),
@@ -447,6 +450,17 @@ final class PlatformRepository
             'requires_vip_unlock' => (bool) ($access['requires_vip_unlock'] ?? false),
             'vip_unlocked' => (bool) ($access['vip_unlocked'] ?? false),
             'vip_unlock_price' => (int) ($access['vip_price_tokens'] ?? (int) ($decoratedLive['price_tokens'] ?? 0)),
+            'darkroom_available' => (bool) ($access['darkroom_available'] ?? false),
+            'darkroom_active' => (bool) ($access['darkroom_active'] ?? false),
+            'requires_darkroom_wait' => (bool) ($access['requires_darkroom_wait'] ?? false),
+            'darkroom_is_owner' => (bool) ($access['darkroom_is_owner'] ?? false),
+            'darkroom_price_tokens' => (int) ($access['darkroom_price_tokens'] ?? 0),
+            'darkroom_duration_minutes' => (int) ($access['darkroom_duration_minutes'] ?? 0),
+            'darkroom_remaining_seconds' => (int) ($access['darkroom_remaining_seconds'] ?? 0),
+            'darkroom_owner_name' => (string) ($access['darkroom_owner_name'] ?? ''),
+            'darkroom_started_at' => (string) ($access['darkroom_started_at'] ?? ''),
+            'darkroom_ends_at' => (string) ($access['darkroom_ends_at'] ?? ''),
+            'access_message' => (string) ($access['access_message'] ?? ''),
             'can_chat' => $this->canUserChatInLive($decoratedLive, $viewerId),
             'can_tip' => $viewerId !== null && (bool) ($access['granted'] ?? false),
             'stream' => $stream,
@@ -874,7 +888,7 @@ final class PlatformRepository
             0
         );
         $instantContentSpend = array_reduce(
-            array_filter($transactions, static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'instant_content'),
+            array_filter($transactions, static fn (array $transaction): bool => in_array((string) ($transaction['type'] ?? ''), ['instant_content', 'vip_live', 'darkroom'], true)),
             static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0),
             0
         );
@@ -1727,6 +1741,111 @@ final class PlatformRepository
         return ['ok' => true, 'message' => 'Live VIP desbloqueada com sucesso.'];
     }
 
+    public function activateLiveDarkroom(int $liveId, int $userId): array
+    {
+        $live = $this->findLiveById($liveId);
+
+        if ($live === null) {
+            return ['ok' => false, 'message' => 'Live nao encontrada.'];
+        }
+
+        $user = $this->findUserById($userId);
+        if ($user === null || (string) ($user['status'] ?? 'active') !== 'active') {
+            return ['ok' => false, 'message' => 'Sua conta nao pode ativar o darkroom agora.'];
+        }
+
+        if ((int) ($live['creator_id'] ?? 0) === $userId || (string) ($user['role'] ?? '') === 'admin') {
+            return ['ok' => false, 'message' => 'O criador ja possui acesso total a esta live.'];
+        }
+
+        $darkroomPrice = max(0, (int) ($live['darkroom_price_tokens'] ?? 0));
+        $darkroomDuration = $this->sanitizeDarkroomDurationMinutes((int) ($live['darkroom_duration_minutes'] ?? 0));
+
+        if ($darkroomPrice <= 0 || $darkroomDuration <= 0) {
+            return ['ok' => false, 'message' => 'O darkroom nao esta disponivel para esta live.'];
+        }
+
+        if ($this->resolveLiveStatus($live) !== 'live') {
+            return ['ok' => false, 'message' => 'O darkroom so pode ser ativado durante a live ao vivo.'];
+        }
+
+        $baseAccess = $this->baseAccessStateForLive($live, $userId);
+        if (! (bool) ($baseAccess['granted'] ?? false)) {
+            if ((bool) ($baseAccess['requires_subscription'] ?? false)) {
+                return ['ok' => false, 'message' => 'Assine esta live antes de ativar o darkroom.'];
+            }
+
+            if ((bool) ($baseAccess['requires_vip_unlock'] ?? false)) {
+                return ['ok' => false, 'message' => 'Desbloqueie a Live VIP antes de ativar o darkroom.'];
+            }
+
+            return ['ok' => false, 'message' => 'Seu acesso a esta live nao esta ativo.'];
+        }
+
+        $activeDarkroom = $this->activeDarkroomForLive($liveId);
+        if ($activeDarkroom !== null) {
+            if ((int) ($activeDarkroom['user_id'] ?? 0) === $userId) {
+                return ['ok' => true, 'message' => 'Seu darkroom ja esta ativo nesta live.'];
+            }
+
+            return [
+                'ok' => false,
+                'message' => 'Esta live ja esta em darkroom para ' . (string) ($activeDarkroom['user']['name'] ?? 'outro espectador') . '.',
+            ];
+        }
+
+        if ($this->walletBalance($userId) < $darkroomPrice) {
+            return ['ok' => false, 'message' => 'Saldo insuficiente para ativar o darkroom.'];
+        }
+
+        $creatorId = (int) ($live['creator_id'] ?? 0);
+        $title = trim((string) ($live['title'] ?? 'Live'));
+        $this->chargeSubscriberAndCreditCreator($userId, $creatorId, $darkroomPrice, 'darkroom', 'Darkroom da live ' . $title, $liveId);
+
+        $darkrooms = $this->liveDarkrooms();
+        $now = date('Y-m-d H:i:s');
+        foreach ($darkrooms as &$row) {
+            if ((int) ($row['live_id'] ?? 0) !== $liveId || (string) ($row['status'] ?? 'ended') !== 'active') {
+                continue;
+            }
+
+            $row['status'] = 'ended';
+            $row['ended_at'] = $now;
+        }
+        unset($row);
+
+        $darkrooms[] = [
+            'id' => $this->store->nextId($darkrooms),
+            'live_id' => $liveId,
+            'creator_id' => $creatorId,
+            'user_id' => $userId,
+            'amount' => $darkroomPrice,
+            'duration_minutes' => $darkroomDuration,
+            'status' => 'active',
+            'started_at' => $now,
+            'ends_at' => date('Y-m-d H:i:s', strtotime('+' . $darkroomDuration . ' minutes')),
+            'ended_at' => '',
+            'created_at' => $now,
+        ];
+        $this->save('live_darkrooms', $darkrooms);
+
+        $this->notifyUser(
+            $creatorId,
+            'sale',
+            'Darkroom ativado',
+            (string) ($user['name'] ?? 'Usuario') . ' ativou o darkroom por ' . $darkroomPrice . ' LuaCoins durante ' . $darkroomDuration . ' minuto(s).',
+            path_with_query('/creator/live/studio', ['live' => $liveId]),
+            [
+                'live_id' => $liveId,
+                'amount' => $darkroomPrice,
+                'buyer_id' => $userId,
+                'duration_minutes' => $darkroomDuration,
+            ]
+        );
+
+        return ['ok' => true, 'message' => 'Darkroom ativado com sucesso.'];
+    }
+
     public function findSecureConversationMessageAttachment(int $messageId, int $viewerId): ?array
     {
         $user = $this->findUserById($viewerId);
@@ -2325,6 +2444,8 @@ final class PlatformRepository
         if ($normalizedAccessMode === 'vip') {
             $priceTokens = max(1, $priceTokens);
         }
+        $darkroomPriceTokens = max(0, (int) ($data['darkroom_price_luacoins'] ?? $data['darkroom_price_tokens'] ?? 0));
+        $darkroomDurationMinutes = $this->sanitizeDarkroomDurationMinutes((int) ($data['darkroom_duration_minutes'] ?? 0));
         $scheduledFor = $this->normalizeLiveDateTime(
             (string) ($data['scheduled_for'] ?? ''),
             $liveType === 'instant' ? '+2 hours' : '+1 day'
@@ -2341,6 +2462,8 @@ final class PlatformRepository
             'scheduled_for' => $scheduledFor,
             'viewer_count' => max(0, (int) ($data['viewer_count'] ?? 0)),
             'price_tokens' => $priceTokens,
+            'darkroom_price_tokens' => $darkroomPriceTokens,
+            'darkroom_duration_minutes' => $darkroomDurationMinutes,
             'chat_enabled' => $chatEnabled,
             'chat_audience' => $chatAudience,
             'category' => $this->normalizeAudienceCategory((string) ($data['category'] ?? 'todos')),
@@ -2444,6 +2567,8 @@ final class PlatformRepository
                 (string) ($live['access_mode'] ?? 'public') === 'vip' ? 1 : 0,
                 (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? $live['price_tokens'] ?? 0)
             );
+            $live['darkroom_price_tokens'] = max(0, (int) ($data['darkroom_price_luacoins'] ?? $data['darkroom_price_tokens'] ?? $live['darkroom_price_tokens'] ?? 0));
+            $live['darkroom_duration_minutes'] = $this->sanitizeDarkroomDurationMinutes((int) ($data['darkroom_duration_minutes'] ?? $live['darkroom_duration_minutes'] ?? 0));
             $live['chat_audience'] = $this->sanitizeLiveChatAudience((string) ($data['chat_audience'] ?? ($live['chat_audience'] ?? 'all')));
             $live['chat_enabled'] = (string) $live['chat_audience'] !== 'off';
             $changed = true;
@@ -2498,10 +2623,13 @@ final class PlatformRepository
                     ? 'Entre para acessar esta live.'
                     : ((bool) ($access['requires_vip_unlock'] ?? false)
                         ? 'Desbloqueie esta Live VIP para assistir.'
-                        : 'Esta live exige assinatura ativa.'),
+                        : ((bool) ($access['requires_darkroom_wait'] ?? false)
+                            ? (string) ($access['access_message'] ?? 'O darkroom esta ativo nesta live.')
+                            : 'Esta live exige assinatura ativa.')),
                 'requires_login' => (bool) ($access['requires_login'] ?? false),
                 'requires_subscription' => (bool) ($access['requires_subscription'] ?? false),
                 'requires_vip_unlock' => (bool) ($access['requires_vip_unlock'] ?? false),
+                'requires_darkroom_wait' => (bool) ($access['requires_darkroom_wait'] ?? false),
             ];
         }
 
@@ -2899,10 +3027,6 @@ final class PlatformRepository
         }
 
         $access = $this->accessStateForLive($live, $userId);
-        if ((string) ($presence['role'] ?? 'viewer') === 'viewer' && ! (bool) ($access['granted'] ?? false)) {
-            return ['ok' => false, 'message' => 'Seu acesso a esta live nao esta mais ativo.'];
-        }
-
         $signals = array_values(array_filter(
             $this->liveSignals(),
             static fn (array $signal): bool => (int) ($signal['live_id'] ?? 0) === $liveId
@@ -2911,6 +3035,10 @@ final class PlatformRepository
         ));
         usort($signals, static fn (array $left, array $right): int => ((int) ($left['id'] ?? 0)) <=> ((int) ($right['id'] ?? 0)));
         $stream = $this->publicLiveStreamState($liveId);
+        if ((string) ($presence['role'] ?? 'viewer') === 'viewer' && ! (bool) ($access['granted'] ?? false)) {
+            $stream['hls_url'] = '';
+            $stream['ready'] = false;
+        }
         $segments = array_values(array_filter(
             (array) ($stream['segments'] ?? []),
             static fn (array $segment): bool => (int) ($segment['sequence'] ?? 0) > $afterId
@@ -2918,6 +3046,8 @@ final class PlatformRepository
 
         $decoratedLive = $this->hydrateLiveRuntime($this->decorateLive($live));
         $engagement = $this->liveEngagementData($decoratedLive);
+        $shouldHideRoomData = ! (bool) ($access['granted'] ?? false)
+            && ((bool) ($access['requires_vip_unlock'] ?? false) || (bool) ($access['requires_darkroom_wait'] ?? false));
 
         return [
             'ok' => true,
@@ -2931,14 +3061,32 @@ final class PlatformRepository
             'segments' => $segments,
             'live' => $decoratedLive,
             'stream' => $stream,
-            'chat_messages' => $this->liveChatMessagesFor($liveId, 20),
-            'recent_tips' => $engagement['recent_tips'],
-            'top_supporters' => $engagement['top_supporters'],
+            'chat_messages' => $shouldHideRoomData ? [] : $this->liveChatMessagesFor($liveId, 20),
+            'recent_tips' => $shouldHideRoomData ? [] : $engagement['recent_tips'],
+            'top_supporters' => $shouldHideRoomData ? [] : $engagement['top_supporters'],
             'tip_total_amount' => (int) ($engagement['tip_total_amount'] ?? 0),
             'priority_alert' => $this->latestPriorityAlertForLive($liveId),
             'viewer_count' => $this->activeViewerCountForLive($liveId),
+            'can_watch' => (bool) ($access['granted'] ?? false),
             'can_chat' => $this->canUserChatInLive($decoratedLive, $userId),
+            'can_tip' => $userId !== null && (bool) ($access['granted'] ?? false),
             'chat_audience' => (string) ($decoratedLive['chat_audience'] ?? 'all'),
+            'requires_login' => (bool) ($access['requires_login'] ?? false),
+            'requires_subscription' => (bool) ($access['requires_subscription'] ?? false),
+            'requires_vip_unlock' => (bool) ($access['requires_vip_unlock'] ?? false),
+            'requires_darkroom_wait' => (bool) ($access['requires_darkroom_wait'] ?? false),
+            'vip_unlocked' => (bool) ($access['vip_unlocked'] ?? false),
+            'vip_unlock_price' => (int) ($access['vip_price_tokens'] ?? (int) ($decoratedLive['price_tokens'] ?? 0)),
+            'darkroom_available' => (bool) ($access['darkroom_available'] ?? false),
+            'darkroom_active' => (bool) ($access['darkroom_active'] ?? false),
+            'darkroom_is_owner' => (bool) ($access['darkroom_is_owner'] ?? false),
+            'darkroom_price_tokens' => (int) ($access['darkroom_price_tokens'] ?? 0),
+            'darkroom_duration_minutes' => (int) ($access['darkroom_duration_minutes'] ?? 0),
+            'darkroom_remaining_seconds' => (int) ($access['darkroom_remaining_seconds'] ?? 0),
+            'darkroom_owner_name' => (string) ($access['darkroom_owner_name'] ?? ''),
+            'darkroom_started_at' => (string) ($access['darkroom_started_at'] ?? ''),
+            'darkroom_ends_at' => (string) ($access['darkroom_ends_at'] ?? ''),
+            'access_message' => (string) ($access['access_message'] ?? ''),
             'server_time' => date('c'),
         ];
     }
@@ -3071,7 +3219,7 @@ final class PlatformRepository
             0
         );
         $tipsIncome = array_reduce(
-            array_filter($wallet['transactions'], static fn (array $transaction): bool => (string) ($transaction['type'] ?? '') === 'tip_income'),
+            array_filter($wallet['transactions'], static fn (array $transaction): bool => in_array((string) ($transaction['type'] ?? ''), ['tip_income', 'vip_live_income', 'darkroom_income'], true)),
             static fn (int $carry, array $transaction): int => $carry + (int) ($transaction['amount'] ?? 0),
             0
         );
@@ -4104,11 +4252,11 @@ final class PlatformRepository
         $creatorIncome = 0;
 
         foreach ($transactions as $transaction) {
-            if (in_array($transaction['type'], ['subscription', 'tip', 'instant_content'], true) && $transaction['direction'] === 'out') {
+            if (in_array($transaction['type'], ['subscription', 'tip', 'instant_content', 'vip_live', 'darkroom'], true) && $transaction['direction'] === 'out') {
                 $subscriberSpend += (int) $transaction['amount'];
             }
 
-            if (in_array($transaction['type'], ['subscription_income', 'tip_income', 'instant_content_income'], true) && $transaction['direction'] === 'in') {
+            if (in_array($transaction['type'], ['subscription_income', 'tip_income', 'instant_content_income', 'vip_live_income', 'darkroom_income'], true) && $transaction['direction'] === 'in') {
                 $creatorIncome += (int) $transaction['amount'];
             }
         }
@@ -4612,6 +4760,8 @@ final class PlatformRepository
             $live['category'] = $this->normalizeAudienceCategory((string) ($data['category'] ?? $live['category'] ?? 'todos'));
             $live['access_mode'] = in_array(($data['access_mode'] ?? $live['access_mode']), ['public', 'subscriber', 'vip'], true) ? (string) ($data['access_mode'] ?? $live['access_mode']) : (string) $live['access_mode'];
             $live['price_tokens'] = max((string) ($live['access_mode'] ?? 'public') === 'vip' ? 1 : 0, (int) ($data['price_luacoins'] ?? $data['price_tokens'] ?? $live['price_tokens'] ?? 0));
+            $live['darkroom_price_tokens'] = max(0, (int) ($data['darkroom_price_luacoins'] ?? $data['darkroom_price_tokens'] ?? $live['darkroom_price_tokens'] ?? 0));
+            $live['darkroom_duration_minutes'] = $this->sanitizeDarkroomDurationMinutes((int) ($data['darkroom_duration_minutes'] ?? $live['darkroom_duration_minutes'] ?? 0));
             $live['goal_tokens'] = max(0, (int) ($data['goal_luacoins'] ?? $data['goal_tokens'] ?? $live['goal_tokens'] ?? 0));
             $live['viewer_count'] = max(0, (int) ($data['viewer_count'] ?? $live['viewer_count'] ?? 0));
             $live['chat_enabled'] = ($data['chat_enabled'] ?? ($live['chat_enabled'] ? '1' : '0')) === '1';
@@ -4860,6 +5010,11 @@ final class PlatformRepository
     private function liveUnlocks(): array
     {
         return $this->readCollection('live_unlocks');
+    }
+
+    private function liveDarkrooms(): array
+    {
+        return $this->readCollection('live_darkrooms');
     }
 
     private function notifications(): array
@@ -6569,7 +6724,7 @@ final class PlatformRepository
         }
     }
 
-    private function accessStateForLive(array $live, ?int $userId): array
+    private function baseAccessStateForLive(array $live, ?int $userId): array
     {
         $accessMode = (string) ($live['access_mode'] ?? 'public');
         $vipPriceTokens = max(1, (int) ($live['price_tokens'] ?? 0));
@@ -6651,6 +6806,143 @@ final class PlatformRepository
             'vip_unlocked' => false,
             'vip_price_tokens' => 0,
         ];
+    }
+
+    private function accessStateForLive(array $live, ?int $userId): array
+    {
+        $base = $this->baseAccessStateForLive($live, $userId);
+        $darkroomPriceTokens = max(0, (int) ($live['darkroom_price_tokens'] ?? 0));
+        $darkroomDurationMinutes = $this->sanitizeDarkroomDurationMinutes((int) ($live['darkroom_duration_minutes'] ?? 0));
+        $darkroomAvailable = $darkroomPriceTokens > 0 && $darkroomDurationMinutes > 0;
+        $activeDarkroom = $darkroomAvailable ? $this->activeDarkroomForLive((int) ($live['id'] ?? 0)) : null;
+        $user = $userId !== null ? $this->findUserById($userId) : null;
+        $isPrivilegedViewer = $userId !== null
+            && (
+                (int) ($live['creator_id'] ?? 0) === $userId
+                || (string) ($user['role'] ?? '') === 'admin'
+            );
+        $isDarkroomOwner = $activeDarkroom !== null && $userId !== null && (int) ($activeDarkroom['user_id'] ?? 0) === $userId;
+        $requiresDarkroomWait = false;
+
+        if ((bool) ($base['granted'] ?? false) && $activeDarkroom !== null && ! $isPrivilegedViewer && ! $isDarkroomOwner) {
+            $base['granted'] = false;
+            $requiresDarkroomWait = true;
+        }
+
+        $ownerName = trim((string) ($activeDarkroom['user']['name'] ?? ''));
+        if ($ownerName === '' && $activeDarkroom !== null) {
+            $ownerName = 'um espectador';
+        }
+
+        $access = $base + [
+            'darkroom_available' => $darkroomAvailable,
+            'darkroom_active' => $activeDarkroom !== null,
+            'requires_darkroom_wait' => $requiresDarkroomWait,
+            'darkroom_is_owner' => $isDarkroomOwner,
+            'darkroom_price_tokens' => $darkroomPriceTokens,
+            'darkroom_duration_minutes' => $darkroomDurationMinutes,
+            'darkroom_remaining_seconds' => max(0, (int) ($activeDarkroom['remaining_seconds'] ?? 0)),
+            'darkroom_owner_name' => $ownerName,
+            'darkroom_started_at' => (string) ($activeDarkroom['started_at'] ?? ''),
+            'darkroom_ends_at' => (string) ($activeDarkroom['ends_at'] ?? ''),
+        ];
+        $access['access_message'] = $this->liveAccessMessage($live, $access);
+
+        return $access;
+    }
+
+    private function liveAccessMessage(array $live, array $access): string
+    {
+        if ((bool) ($access['requires_login'] ?? false)) {
+            return (bool) ($access['requires_vip_unlock'] ?? false)
+                ? 'Entre para desbloquear esta Live VIP.'
+                : 'Entre para assistir esta live exclusiva.';
+        }
+
+        if ((bool) ($access['requires_subscription'] ?? false)) {
+            return 'Esta live e exclusiva para assinantes ativos.';
+        }
+
+        if ((bool) ($access['requires_vip_unlock'] ?? false)) {
+            return 'Desbloqueie esta Live VIP para assistir agora.';
+        }
+
+        if ((bool) ($access['requires_darkroom_wait'] ?? false)) {
+            $ownerName = trim((string) ($access['darkroom_owner_name'] ?? ''));
+            $remainingSeconds = max(0, (int) ($access['darkroom_remaining_seconds'] ?? 0));
+            $remainingLabel = $remainingSeconds > 0 ? $this->formatLiveDuration($remainingSeconds) : 'alguns instantes';
+            $prefix = $ownerName !== '' ? $ownerName . ' ativou o darkroom.' : 'O darkroom esta ativo.';
+
+            return $prefix . ' A live volta para os demais em ' . $remainingLabel . '.';
+        }
+
+        if ((bool) ($access['darkroom_active'] ?? false) && (bool) ($access['darkroom_is_owner'] ?? false)) {
+            $remainingSeconds = max(0, (int) ($access['darkroom_remaining_seconds'] ?? 0));
+            $remainingLabel = $remainingSeconds > 0 ? $this->formatLiveDuration($remainingSeconds) : 'alguns instantes';
+
+            return 'Darkroom ativo para voce. Aproveite a sala privada por ' . $remainingLabel . '.';
+        }
+
+        return 'Aguardando o criador iniciar a live.';
+    }
+
+    private function activeDarkroomForLive(int $liveId): ?array
+    {
+        $darkrooms = $this->liveDarkrooms();
+        $changed = false;
+        $nowTimestamp = time();
+
+        foreach ($darkrooms as &$darkroom) {
+            if ((int) ($darkroom['live_id'] ?? 0) !== $liveId || (string) ($darkroom['status'] ?? 'ended') !== 'active') {
+                continue;
+            }
+
+            $endsAt = strtotime((string) ($darkroom['ends_at'] ?? ''));
+            if ($endsAt !== false && $endsAt <= $nowTimestamp) {
+                $darkroom['status'] = 'ended';
+                $darkroom['ended_at'] = date('Y-m-d H:i:s', $endsAt);
+                $changed = true;
+            }
+        }
+        unset($darkroom);
+
+        if ($changed) {
+            $this->save('live_darkrooms', $darkrooms);
+        }
+
+        $active = array_values(array_filter(
+            $darkrooms,
+            static function (array $darkroom) use ($liveId, $nowTimestamp): bool {
+                if ((int) ($darkroom['live_id'] ?? 0) !== $liveId || (string) ($darkroom['status'] ?? 'ended') !== 'active') {
+                    return false;
+                }
+
+                $endsAt = strtotime((string) ($darkroom['ends_at'] ?? ''));
+
+                return $endsAt !== false && $endsAt > $nowTimestamp;
+            }
+        ));
+
+        if ($active === []) {
+            return null;
+        }
+
+        usort($active, static fn (array $left, array $right): int => strcmp((string) ($right['started_at'] ?? ''), (string) ($left['started_at'] ?? '')));
+        $darkroom = $active[0];
+        $endsAt = strtotime((string) ($darkroom['ends_at'] ?? ''));
+        $darkroom['remaining_seconds'] = $endsAt !== false ? max(0, $endsAt - time()) : 0;
+        $darkroom['user'] = $this->findUserById((int) ($darkroom['user_id'] ?? 0));
+
+        return $darkroom;
+    }
+
+    private function sanitizeDarkroomDurationMinutes(int $minutes): int
+    {
+        if ($minutes <= 0) {
+            return 0;
+        }
+
+        return max(1, min(240, $minutes));
     }
 
     private function hydrateLiveRuntime(array $live): array

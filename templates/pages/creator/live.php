@@ -66,8 +66,12 @@ $formLiveType = (string) ($formLive['live_type'] ?? 'scheduled');
 $formSchedule = $formLive && (string) ($formLive['scheduled_for'] ?? '') !== '' ? date('Y-m-d\TH:i', strtotime((string) ($formLive['scheduled_for'] ?? ''))) : '';
 $formPriceValueRaw = (int) ($formLive['price_tokens'] ?? 0);
 $formGoalValueRaw = (int) ($formLive['goal_tokens'] ?? 0);
+$formDarkroomPriceRaw = (int) ($formLive['darkroom_price_tokens'] ?? 0);
+$formDarkroomDurationRaw = (int) ($formLive['darkroom_duration_minutes'] ?? 0);
 $formPriceValue = $formPriceValueRaw > 0 ? (string) $formPriceValueRaw : '';
 $formGoalValue = $formGoalValueRaw > 0 ? (string) $formGoalValueRaw : '';
+$formDarkroomPriceValue = $formDarkroomPriceRaw > 0 ? (string) $formDarkroomPriceRaw : '';
+$formDarkroomDurationValue = $formDarkroomDurationRaw > 0 ? (string) $formDarkroomDurationRaw : '';
 $modalTitle = $formLiveId > 0 ? 'Editar live' : 'Nova live';
 $modalSubmitLabel = $formLiveId > 0 ? 'Salvar alterações' : 'Salvar live';
 ?>
@@ -319,6 +323,17 @@ include base_path('templates/partials/creator_topbar.php');
                         <div class="mt-2 text-sm font-bold text-slate-700"><?= luacoin_amount_html((int) ($selected['price_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></div>
                     </div>
                     <div class="rounded-2xl bg-[#f5f3f5] p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Darkroom</p>
+                        <div class="mt-2 text-sm font-bold text-slate-700">
+                            <?php if ((int) ($selected['darkroom_price_tokens'] ?? 0) > 0 && (int) ($selected['darkroom_duration_minutes'] ?? 0) > 0): ?>
+                                <?= luacoin_amount_html((int) ($selected['darkroom_price_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?>
+                                <span class="ml-2 text-slate-500">/ <?= e((string) ((int) ($selected['darkroom_duration_minutes'] ?? 0))) ?> min</span>
+                            <?php else: ?>
+                                Desativado
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] p-4">
                         <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Viewers</p>
                         <p class="mt-2 text-sm font-bold text-slate-700"><?= e((string) $viewerCount) ?></p>
                     </div>
@@ -441,6 +456,11 @@ include base_path('templates/partials/creator_topbar.php');
             </div>
 
             <textarea class="min-h-[92px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="pinned_notice" placeholder="Aviso fixado"><?= e((string) ($formLive['pinned_notice'] ?? '')) ?></textarea>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="darkroom_price_luacoins" placeholder="Darkroom em LuaCoins" type="number" value="<?= e($formDarkroomPriceValue) ?>">
+                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="darkroom_duration_minutes" placeholder="Darkroom em minutos" type="number" value="<?= e($formDarkroomDurationValue) ?>">
+            </div>
 
             <input name="max_bitrate_kbps" type="hidden" value="<?= e((string) ((int) ($formLive['max_bitrate_kbps'] ?? 800))) ?>">
             <input name="video_width" type="hidden" value="<?= e((string) ((int) ($formLive['video_width'] ?? 854))) ?>">

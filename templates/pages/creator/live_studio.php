@@ -297,6 +297,15 @@ include base_path('templates/partials/creator_topbar.php');
                             <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-sm text-slate-500">A gravação automática da live está desabilitada neste ambiente para preservar espaço na VPS.</div>
                         </div>
 
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Darkroom em LuaCoins</span>
+                            <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" min="0" name="darkroom_price_luacoins" placeholder="Ex.: 80" type="number" value="<?= e((string) ((int) ($selected['darkroom_price_tokens'] ?? 0) > 0 ? (int) ($selected['darkroom_price_tokens'] ?? 0) : '')) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Darkroom em minutos</span>
+                            <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" min="0" name="darkroom_duration_minutes" placeholder="Ex.: 5" type="number" value="<?= e((string) ((int) ($selected['darkroom_duration_minutes'] ?? 0) > 0 ? (int) ($selected['darkroom_duration_minutes'] ?? 0) : '')) ?>">
+                        </label>
+                        <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-sm text-slate-500">Quando o darkroom estiver ativo, a live fica exclusiva para quem pagou durante o periodo configurado.</div>
                         <div class="flex flex-wrap gap-3">
                             <button class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Salvar sala</button>
                         </div>

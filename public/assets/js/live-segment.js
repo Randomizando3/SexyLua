@@ -5,9 +5,7 @@
     const mode = root.dataset.liveRtcMode || 'viewer'
     const liveId = Number(root.dataset.liveId || 0)
     const csrf = root.dataset.csrf || ''
-    const canWatch = root.dataset.canWatch !== '0'
     const canBroadcast = root.dataset.canBroadcast === '1'
-    const accessMessage = root.dataset.accessMessage || ''
     const joinUrl = root.dataset.joinUrl || '/live/rtc/join'
     const startUrl = root.dataset.startUrl || '/live/rtc/start'
     const stopUrl = root.dataset.stopUrl || '/live/rtc/stop'
@@ -73,6 +71,10 @@
         priorityAlertTimer: null,
         audioContext: null,
         previewEmbedUrl: '',
+        canWatch: root.dataset.canWatch !== '0',
+        canChat: false,
+        canTip: false,
+        accessMessage: root.dataset.accessMessage || '',
     }
 
     const video = () => mode === 'creator' ? el.previewVideo : el.remoteVideo
@@ -482,9 +484,9 @@
             return
         }
 
-        if (!canWatch) {
+        if (!state.canWatch) {
             destroyPlayer()
-            setWaiting(accessMessage || 'Entre para assistir esta live.')
+            setWaiting(state.accessMessage || 'Entre para assistir esta live.')
             return
         }
 
@@ -495,7 +497,7 @@
         }
 
         destroyPlayer()
-        setWaiting(status === 'ended' ? 'A live foi encerrada. Obrigado por assistir.' : (accessMessage || 'Aguardando o criador iniciar a live.'))
+        setWaiting(status === 'ended' ? 'A live foi encerrada. Obrigado por assistir.' : (state.accessMessage || 'Aguardando o criador iniciar a live.'))
     }
 
     const applyPayload = (payload) => {
@@ -505,6 +507,10 @@
             return
         }
         showError('')
+        state.canWatch = payload.can_watch !== undefined ? Boolean(payload.can_watch) : state.canWatch
+        state.canChat = payload.can_chat !== undefined ? Boolean(payload.can_chat) : state.canChat
+        state.canTip = payload.can_tip !== undefined ? Boolean(payload.can_tip) : state.canTip
+        state.accessMessage = String(payload.access_message || state.accessMessage || '')
         renderChat(payload.chat_messages || [])
         renderTips(payload.recent_tips || [])
         renderSupporters(payload.top_supporters || [])
@@ -540,7 +546,7 @@
         if (state.joining) return state.joining
         state.joining = (async () => {
             if (liveId <= 0) return false
-            if (mode === 'viewer' && !canWatch) return false
+            if (mode === 'viewer' && !state.canWatch) return false
             const payload = await postForm(joinUrl, { _token: csrf, live_id: liveId, role: mode === 'creator' ? 'creator' : 'viewer' })
             if (!payload.ok) {
                 showError(payload.message || 'Nao foi possivel entrar na live.')

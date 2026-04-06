@@ -19,11 +19,21 @@ $requiresSubscription = (bool) ($data['requires_subscription'] ?? false);
 $requiresVipUnlock = (bool) ($data['requires_vip_unlock'] ?? false);
 $vipUnlocked = (bool) ($data['vip_unlocked'] ?? false);
 $vipUnlockPrice = (int) ($data['vip_unlock_price'] ?? $live['price_tokens'] ?? 0);
+$darkroomAvailable = (bool) ($data['darkroom_available'] ?? false);
+$darkroomActive = (bool) ($data['darkroom_active'] ?? false);
+$requiresDarkroomWait = (bool) ($data['requires_darkroom_wait'] ?? false);
+$darkroomIsOwner = (bool) ($data['darkroom_is_owner'] ?? false);
+$darkroomPrice = (int) ($data['darkroom_price_tokens'] ?? $live['darkroom_price_tokens'] ?? 0);
+$darkroomDurationMinutes = (int) ($data['darkroom_duration_minutes'] ?? $live['darkroom_duration_minutes'] ?? 0);
+$darkroomRemainingSeconds = (int) ($data['darkroom_remaining_seconds'] ?? 0);
+$darkroomOwnerName = (string) ($data['darkroom_owner_name'] ?? '');
+$darkroomEndsAt = (string) ($data['darkroom_ends_at'] ?? '');
 $canChat = (bool) ($data['can_chat'] ?? false);
 $canTip = (bool) ($data['can_tip'] ?? false);
-$visibleMessages = ($requiresVipUnlock && ! $canWatch) ? [] : $messages;
-$visibleRecentTips = ($requiresVipUnlock && ! $canWatch) ? [] : $recentTips;
-$visibleTopSupporters = ($requiresVipUnlock && ! $canWatch) ? [] : $topSupporters;
+$isRoomLocked = ! $canWatch && ($requiresVipUnlock || $requiresDarkroomWait);
+$visibleMessages = $isRoomLocked ? [] : $messages;
+$visibleRecentTips = $isRoomLocked ? [] : $recentTips;
+$visibleTopSupporters = $isRoomLocked ? [] : $topSupporters;
 $cover = media_url((string) ($live['cover_url'] ?? ''));
 $segmentDurationSeconds = (int) ($live['segment_duration_seconds'] ?? $stream['segment_duration_seconds'] ?? 10);
 $iceServers = base64_encode((string) json_encode($app->config['app']['rtc_ice_servers'] ?? [], JSON_UNESCAPED_SLASHES));
@@ -84,15 +94,10 @@ $accessModeLabel = match ((string) ($live['access_mode'] ?? 'public')) {
     default => 'Publico',
 };
 
-$accessMessage = $canWatch
-    ? 'Aguardando o criador iniciar a live.'
-    : ($requiresLogin
-        ? 'Entre para assistir esta live exclusiva.'
-        : ($requiresSubscription
-            ? 'Esta live e exclusiva para assinantes ativos.'
-            : ($requiresVipUnlock
-                ? 'Desbloqueie esta Live VIP para assistir agora.'
-                : 'A live ainda nao esta disponivel.')));
+$accessMessage = (string) ($data['access_message'] ?? '');
+if ($accessMessage === '') {
+    $accessMessage = $canWatch ? 'Aguardando o criador iniciar a live.' : 'A live ainda nao esta disponivel.';
+}
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -167,6 +172,11 @@ $accessMessage = $canWatch
                             <p class="mt-3 text-sm text-white/75" data-live-waiting-text><?= e($accessMessage) ?></p>
                             <?php if ($requiresLogin): ?>
                                 <a class="signature-glow mt-5 inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-bold text-white shadow-lg" href="/login">Entrar para assistir</a>
+                            <?php elseif ($requiresDarkroomWait): ?>
+                                <div class="mt-5 rounded-3xl bg-white/10 p-4 backdrop-blur-md">
+                                    <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-white/70">Darkroom ativo</p>
+                                    <p class="mt-2 text-sm text-white/80"><?= e($accessMessage) ?></p>
+                                </div>
                             <?php elseif ($requiresVipUnlock): ?>
                                 <div class="mt-5 rounded-3xl bg-white/10 p-4 backdrop-blur-md">
                                     <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-white/70">Live VIP</p>
@@ -231,17 +241,48 @@ $accessMessage = $canWatch
                                                 <label class="block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Mensagem da gorjeta</label>
                                                 <input class="mt-2 w-full rounded-full border-none bg-[#f5f3f5] px-5 py-3 text-sm text-slate-800 shadow-sm focus:ring-2 focus:ring-[#ab1155]/20" maxlength="180" name="message" placeholder="Edite a mensagem que vai aparecer sobre o player" type="text" value="<?= e($defaultTipMessage !== '' ? $defaultTipMessage : 'Mensagem em destaque de ' . $defaultTipAmount . ' LuaCoins.') ?>">
                                             </div>
-                                            <div class="flex items-center justify-between gap-3">
-                                                <div class="rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-                                                    Valor selecionado:
-                                                    <span class="ml-1 text-[#ab1155]" data-live-tip-amount-label><?= e((string) $defaultTipAmount) ?></span>
-                                                    <img alt="LuaCoin" class="ml-1 inline h-3.5 w-3.5" src="<?= e(asset('img/luacoin.png')) ?>">
-                                                </div>
-                                                <button class="signature-glow rounded-full px-8 py-3 text-sm font-bold text-white shadow-lg" data-prototype-skip="1" type="submit">Enviar gorjeta</button>
-                                            </div>
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+                                            Valor selecionado:
+                                            <span class="ml-1 text-[#ab1155]" data-live-tip-amount-label><?= e((string) $defaultTipAmount) ?></span>
+                                            <img alt="LuaCoin" class="ml-1 inline h-3.5 w-3.5" src="<?= e(asset('img/luacoin.png')) ?>">
+                                        </div>
+                                        <button class="signature-glow rounded-full px-8 py-3 text-sm font-bold text-white shadow-lg" data-prototype-skip="1" type="submit">Enviar gorjeta</button>
+                                    </div>
                                         </form>
+                                        <?php if ($darkroomAvailable): ?>
+                                            <div class="rounded-3xl bg-white p-3 shadow-sm">
+                                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                                    <div>
+                                                        <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Darkroom</p>
+                                                        <?php if ($darkroomActive): ?>
+                                                            <p class="mt-2 text-sm font-semibold text-slate-700"><?= e($darkroomIsOwner ? 'Seu darkroom esta ativo agora.' : $accessMessage) ?></p>
+                                                            <p class="mt-1 text-xs text-slate-500"><?= e($darkroomIsOwner ? ('Duracao de ' . $darkroomDurationMinutes . ' minuto(s).') : 'A live volta automaticamente ao fim deste periodo.') ?></p>
+                                                        <?php else: ?>
+                                                            <p class="mt-2 text-sm font-semibold text-slate-700">Ative a sala privada por <?= luacoin_amount_html($darkroomPrice, 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?> durante <?= e((string) $darkroomDurationMinutes) ?> min.</p>
+                                                            <p class="mt-1 text-xs text-slate-500">Quando ativado, a live fica exclusiva para voce neste periodo.</p>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <?php if (! $darkroomActive): ?>
+                                                        <form action="/live/darkroom" method="post">
+                                                            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                                            <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
+                                                            <input name="redirect" type="hidden" value="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
+                                                            <button class="rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Ativar darkroom</button>
+                                                        </form>
+                                                    <?php else: ?>
+                                                        <span class="rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500"><?= e($darkroomIsOwner ? 'Darkroom ativo' : 'Darkroom em andamento') ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
                                     <?php elseif ($requiresLogin): ?>
                                         <a class="signature-glow rounded-full px-8 py-3 text-center text-sm font-bold text-white shadow-lg" href="/login">Entrar para assistir</a>
+                                    <?php elseif ($requiresDarkroomWait): ?>
+                                        <div class="rounded-3xl bg-white p-4 shadow-sm">
+                                            <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Darkroom ativo</p>
+                                            <p class="mt-2 text-sm font-semibold text-slate-700"><?= e($accessMessage) ?></p>
+                                        </div>
                                     <?php elseif ($requiresSubscription): ?>
                                         <a class="signature-glow rounded-full px-8 py-3 text-center text-sm font-bold text-white shadow-lg" href="<?= e($profileUrl) ?>">Assinar para liberar</a>
                                     <?php elseif ($requiresVipUnlock): ?>
@@ -366,6 +407,8 @@ $accessMessage = $canWatch
                             <span class="material-symbols-outlined text-[20px]">send</span>
                         </button>
                     </form>
+                <?php elseif ($requiresDarkroomWait): ?>
+                    <p class="text-sm text-slate-500"><?= e($accessMessage) ?></p>
                 <?php elseif ($requiresLogin): ?>
                     <a class="signature-glow block w-full rounded-full px-5 py-4 text-center text-sm font-bold text-white" href="/login">Entrar para falar no chat</a>
                 <?php elseif ($requiresSubscription): ?>
