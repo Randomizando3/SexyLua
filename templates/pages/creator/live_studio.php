@@ -298,11 +298,11 @@ include base_path('templates/partials/creator_topbar.php');
                         </div>
 
                         <label class="block space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Darkroom em LuaCoins</span>
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Valor para tornar a sala DarkRoom</span>
                             <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" min="0" name="darkroom_price_luacoins" placeholder="Ex.: 80" type="number" value="<?= e((string) ((int) ($selected['darkroom_price_tokens'] ?? 0) > 0 ? (int) ($selected['darkroom_price_tokens'] ?? 0) : '')) ?>">
                         </label>
                         <label class="block space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Darkroom em minutos</span>
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Duração da Sala DarkRoom</span>
                             <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 font-semibold text-slate-700" min="0" name="darkroom_duration_minutes" placeholder="Ex.: 5" type="number" value="<?= e((string) ((int) ($selected['darkroom_duration_minutes'] ?? 0) > 0 ? (int) ($selected['darkroom_duration_minutes'] ?? 0) : '')) ?>">
                         </label>
                         <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-sm text-slate-500">Quando o darkroom estiver ativo, a live fica exclusiva para quem pagou durante o periodo configurado.</div>
