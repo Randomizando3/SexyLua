@@ -34,6 +34,9 @@
         inlineAlert: document.querySelector('[data-live-inline-alert]'),
         inlineAlertText: document.querySelector('[data-live-inline-alert-text]'),
         inlineAlertKicker: document.querySelector('[data-live-inline-alert-kicker]'),
+        darkroomBanner: document.querySelector('[data-live-darkroom-banner]'),
+        darkroomBannerText: document.querySelector('[data-live-darkroom-banner-text]'),
+        darkroomBannerKicker: document.querySelector('[data-live-darkroom-banner-kicker]'),
         viewerCounts: Array.from(document.querySelectorAll('[data-live-viewer-count]')),
         startButton: document.querySelector('[data-live-start]'),
         stopButton: document.querySelector('[data-live-stop]'),
@@ -160,6 +163,19 @@
         if (el.waitBox) el.waitBox.classList.add('hidden')
     }
 
+    const syncDarkroomBanner = () => {
+        if (!el.darkroomBanner || !el.darkroomBannerText) return
+        if (!state.darkroomActive) {
+            el.darkroomBanner.classList.add('hidden')
+            return
+        }
+        el.darkroomBanner.classList.remove('hidden')
+        el.darkroomBannerText.textContent = String(state.accessMessage || (state.darkroomIsOwner ? 'Seu darkroom esta ativo agora.' : 'A live entrou em darkroom temporariamente.'))
+        if (el.darkroomBannerKicker) {
+            el.darkroomBannerKicker.textContent = state.darkroomIsOwner ? 'Darkroom ativo para voce' : 'Darkroom ativo'
+        }
+    }
+
     const syncDarkroomUi = () => {
         if (el.darkroomButton) {
             const locked = state.darkroomActive
@@ -175,6 +191,7 @@
                 el.darkroomStatus.textContent = 'Disponivel para espectadores'
             }
         }
+        syncDarkroomBanner()
     }
 
     const postForm = async (url, payload) => {

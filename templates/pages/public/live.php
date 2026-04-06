@@ -177,6 +177,17 @@ if ($accessMessage === '') {
                             </div>
                         </div>
                     </div>
+                    <div class="<?= $darkroomActive ? '' : 'hidden ' ?>absolute left-1/2 top-24 z-[5] w-[min(92%,42rem)] -translate-x-1/2 rounded-3xl border border-white/20 bg-slate-950/80 px-5 py-4 text-white shadow-2xl backdrop-blur-md" data-live-darkroom-banner>
+                        <div class="flex items-center gap-4">
+                            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/10">
+                                <span class="material-symbols-outlined text-[30px] text-white">visibility_lock</span>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-white/70" data-live-darkroom-banner-kicker><?= e($darkroomIsOwner ? 'Darkroom ativo para voce' : 'Darkroom ativo') ?></p>
+                                <p class="mt-1 text-sm font-semibold text-white" data-live-darkroom-banner-text><?= e($accessMessage) ?></p>
+                            </div>
+                        </div>
+                    </div>
                     <div class="absolute left-6 right-6 top-6 flex items-start justify-between gap-4 text-white">
                         <div class="flex items-center gap-3">
                             <span class="signature-glow rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-status-text><?= e($liveStatusLabel) ?></span>
@@ -184,7 +195,7 @@ if ($accessMessage === '') {
                         </div>
                         <span class="rounded-full bg-black/35 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.25em]" data-live-stream-state><?= e($liveStatusLabel) ?></span>
                     </div>
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/55 px-6 text-center text-white" data-live-waiting>
+                    <div class="absolute inset-0 z-[3] flex items-center justify-center bg-black/55 px-6 text-center text-white backdrop-blur-sm" data-live-waiting>
                         <div class="max-w-md">
                             <p class="headline text-4xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
                             <p class="mt-3 text-sm text-white/75" data-live-waiting-text><?= e($accessMessage) ?></p>
