@@ -418,6 +418,25 @@ final class PublicController extends Controller
 
         $result = $this->app->repository->tipCreator((int) $this->user()['id'], $creatorId, $amount, 'Gorjeta enviada ao criador', $liveId, $message);
 
+        if (! (bool) ($result['ok'] ?? false) && str_contains(mb_strtolower((string) ($result['message'] ?? '')), 'saldo insuficiente')) {
+            $role = (string) ($this->user()['role'] ?? 'subscriber');
+            $walletUrl = match ($role) {
+                'creator' => '/creator/wallet',
+                'admin' => '/admin/finance',
+                default => '/subscriber/wallet',
+            };
+
+            if ($expectsJson) {
+                $this->json([
+                    'ok' => false,
+                    'message' => 'Voce nao tem LuaCoins suficientes para enviar essa gorjeta. Recarregue sua carteira para continuar.',
+                    'wallet_url' => $walletUrl,
+                ], 422);
+            }
+
+            $this->redirect($walletUrl, 'Voce nao tem LuaCoins suficientes para enviar essa gorjeta. Recarregue sua carteira para continuar.', 'error');
+        }
+
         if ($expectsJson) {
             $this->json($result, (bool) ($result['ok'] ?? false) ? 200 : 422);
         }

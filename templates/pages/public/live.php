@@ -501,6 +501,25 @@ if ($accessMessage === '') {
     </div>
 </main>
 
+<div class="hidden fixed inset-0 z-[90] items-center justify-center bg-slate-950/55 px-4 py-6" data-live-wallet-modal>
+    <div class="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-[0px_30px_80px_rgba(27,28,29,0.28)]">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-[#ab1155]">Saldo insuficiente</p>
+                <h3 class="headline mt-2 text-2xl font-extrabold text-slate-900">Voce precisa de mais LuaCoins</h3>
+            </div>
+            <button class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#f5f3f5] text-slate-500" data-live-wallet-modal-close type="button">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <p class="mt-4 text-sm leading-6 text-slate-500" data-live-wallet-modal-text>Voce nao tem saldo suficiente para concluir essa acao.</p>
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button class="rounded-full bg-[#f5f3f5] px-6 py-3 text-sm font-bold text-slate-600" data-live-wallet-modal-stay type="button">Permanecer na sala</button>
+            <button class="signature-glow rounded-full px-6 py-3 text-sm font-bold text-white shadow-lg" data-live-wallet-modal-go type="button">Adicionar LuaCoins</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <script src="<?= e(asset('js/live-segment.js')) ?>"></script>
 </body>

@@ -60,6 +60,11 @@
         tipTotal: document.querySelector('[data-live-tip-total]'),
         liveStartedAt: document.querySelector('[data-live-started-at]'),
         liveElapsed: document.querySelector('[data-live-elapsed]'),
+        walletModal: document.querySelector('[data-live-wallet-modal]'),
+        walletModalText: document.querySelector('[data-live-wallet-modal-text]'),
+        walletModalGo: document.querySelector('[data-live-wallet-modal-go]'),
+        walletModalStay: document.querySelector('[data-live-wallet-modal-stay]'),
+        walletModalClose: document.querySelector('[data-live-wallet-modal-close]'),
     }
 
     const state = {
@@ -96,6 +101,7 @@
         darkroomBannerTimer: null,
         darkroomBannerTimerFor: '',
         darkroomOwnerBannerDismissedFor: '',
+        walletModalUrl: '',
     }
 
     const video = () => mode === 'creator' ? el.previewVideo : el.remoteVideo
@@ -145,6 +151,26 @@
         state.inlineAlertTimer = window.setTimeout(() => {
             if (el.inlineAlert) el.inlineAlert.classList.add('hidden')
         }, Math.max(1200, Number(durationMs || 6500)))
+    }
+
+    const closeWalletModal = () => {
+        if (!el.walletModal) return
+        el.walletModal.classList.add('hidden')
+        el.walletModal.classList.remove('flex')
+        state.walletModalUrl = ''
+    }
+
+    const openWalletModal = (message = '', walletUrl = '') => {
+        if (!el.walletModal) {
+            if (walletUrl) window.location.assign(String(walletUrl))
+            return
+        }
+        state.walletModalUrl = String(walletUrl || '')
+        if (el.walletModalText) {
+            el.walletModalText.textContent = String(message || 'Voce nao tem saldo suficiente para concluir essa acao.')
+        }
+        el.walletModal.classList.remove('hidden')
+        el.walletModal.classList.add('flex')
     }
 
     const payloadNeedsRejoin = (payload) => {
@@ -795,6 +821,10 @@
         formData.set('amount', String(amount))
         const payload = await postForm(el.tipForm.action, Object.fromEntries(formData.entries()))
         if (!payload.ok) {
+            if (payload.wallet_url) {
+                openWalletModal(payload.message || 'Voce nao tem LuaCoins suficientes para enviar essa gorjeta.', String(payload.wallet_url))
+                return
+            }
             showError(payload.message || 'Nao foi possivel enviar a gorjeta.')
             return
         }
@@ -808,7 +838,7 @@
         const payload = await postForm(el.darkroomForm.action, Object.fromEntries(new FormData(el.darkroomForm).entries()))
         if (!payload.ok) {
             if (payload.wallet_url) {
-                window.location.assign(String(payload.wallet_url))
+                openWalletModal(payload.message || 'Voce nao tem LuaCoins suficientes para ativar o darkroom.', String(payload.wallet_url))
                 return
             }
             showError(payload.message || 'Nao foi possivel ativar o darkroom.')
@@ -824,6 +854,16 @@
     if (el.chatForm) el.chatForm.addEventListener('submit', sendChat)
     if (el.tipForm) el.tipForm.addEventListener('submit', sendTip)
     if (el.darkroomForm) el.darkroomForm.addEventListener('submit', sendDarkroom)
+    if (el.walletModalStay) el.walletModalStay.addEventListener('click', closeWalletModal)
+    if (el.walletModalClose) el.walletModalClose.addEventListener('click', closeWalletModal)
+    if (el.walletModalGo) el.walletModalGo.addEventListener('click', () => {
+        const nextUrl = String(state.walletModalUrl || '')
+        closeWalletModal()
+        if (nextUrl) window.location.assign(nextUrl)
+    })
+    if (el.walletModal) el.walletModal.addEventListener('click', (event) => {
+        if (event.target === el.walletModal) closeWalletModal()
+    })
     tipPresetButtons().forEach((button) => {
         button.addEventListener('click', () => {
             applyTipPreset(button.dataset.liveTipPreset || '1', button.dataset.liveTipMessage || '')
