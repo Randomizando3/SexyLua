@@ -394,7 +394,14 @@ final class PublicController extends Controller
             $this->redirect('/login', 'Entre para enviar gorjetas.', 'error');
         }
 
-        $this->app->auth->requireRole('subscriber');
+        if (! $this->app->auth->hasRole('subscriber')) {
+            if ($expectsJson) {
+                $this->json(['ok' => false, 'message' => 'Apenas assinantes podem enviar gorjetas nesta sala.'], 403);
+            }
+
+            $this->redirect($this->app->auth->homeForRole((string) ($this->user()['role'] ?? 'subscriber')), 'Apenas assinantes podem enviar gorjetas nesta sala.', 'error');
+        }
+
         $creatorId = (int) $request->input('creator_id', 0);
         $liveId = (int) $request->input('live_id', 0);
         $amount = (int) $request->input('amount', 0);

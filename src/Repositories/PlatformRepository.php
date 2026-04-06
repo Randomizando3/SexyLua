@@ -462,7 +462,9 @@ final class PlatformRepository
             'darkroom_ends_at' => (string) ($access['darkroom_ends_at'] ?? ''),
             'access_message' => (string) ($access['access_message'] ?? ''),
             'can_chat' => $this->canUserChatInLive($decoratedLive, $viewerId),
-            'can_tip' => $viewerId !== null && (bool) ($access['granted'] ?? false),
+            'can_tip' => $viewerId !== null
+                && (bool) ($access['granted'] ?? false)
+                && (string) (($this->findUserById($viewerId)['role'] ?? '')) === 'subscriber',
             'stream' => $stream,
             'priority_tip_tiers' => $this->priorityTipTiersForLive($decoratedLive),
             'priority_tip_messages' => $this->priorityTipMessagesForLive($decoratedLive),
@@ -3212,7 +3214,9 @@ final class PlatformRepository
             'viewer_count' => $this->activeViewerCountForLive($liveId),
             'can_watch' => (bool) ($access['granted'] ?? false),
             'can_chat' => $this->canUserChatInLive($decoratedLive, $userId),
-            'can_tip' => $userId !== null && (bool) ($access['granted'] ?? false),
+            'can_tip' => $userId !== null
+                && (bool) ($access['granted'] ?? false)
+                && (string) (($this->findUserById($userId)['role'] ?? '')) === 'subscriber',
             'chat_audience' => (string) ($decoratedLive['chat_audience'] ?? 'all'),
             'requires_login' => (bool) ($access['requires_login'] ?? false),
             'requires_subscription' => (bool) ($access['requires_subscription'] ?? false),
