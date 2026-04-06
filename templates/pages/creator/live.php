@@ -3,12 +3,19 @@
 declare(strict_types=1);
 
 $creator = $data['creator'] ?? [];
-$lives = $data['filtered_lives'] ?? $data['lives'] ?? [];
+$lives = $data['paginated_lives'] ?? $data['filtered_lives'] ?? $data['lives'] ?? [];
 $selected = $data['selected_live'] ?? null;
 $filters = $data['filters'] ?? [];
+$pagination = $data['pagination'] ?? ['page' => 1, 'per_page' => 15, 'total' => count($lives), 'total_pages' => 1];
 $summary = $data['summary'] ?? [];
 $openForm = (bool) ($open_form ?? false);
 $formMode = (string) ($form_mode ?? '');
+[$pageStart, $pageEnd] = $lives === []
+    ? [0, 0]
+    : [
+        (((int) ($pagination['page'] ?? 1)) - 1) * ((int) ($pagination['per_page'] ?? 15)) + 1,
+        (((int) ($pagination['page'] ?? 1)) - 1) * ((int) ($pagination['per_page'] ?? 15)) + count($lives),
+    ];
 
 $selectedLiveId = (int) ($selected['id'] ?? 0);
 $selectedStatus = (string) ($selected['status'] ?? 'scheduled');
@@ -56,10 +63,10 @@ $statusTabs = [
 
 $newLiveUrl = path_with_query('/creator/live', ['status' => $filters['status'] ?? 'scheduled', 'q' => $filters['q'] ?? '', 'open_form' => 1, 'form_mode' => 'new']);
 $editLiveUrl = $selectedLiveId > 0
-    ? path_with_query('/creator/live', ['status' => $selectedStatusBucket, 'q' => $filters['q'] ?? '', 'live' => $selectedLiveId, 'open_form' => 1, 'form_mode' => 'edit'])
+    ? path_with_query('/creator/live', ['status' => $selectedStatusBucket, 'q' => $filters['q'] ?? '', 'page' => (int) ($filters['page'] ?? 1), 'live' => $selectedLiveId, 'open_form' => 1, 'form_mode' => 'edit'])
     : '';
 $selectedStudioUrl = $selectedLiveId > 0 ? path_with_query('/creator/live/studio', ['live' => $selectedLiveId]) : '';
-$closeModalUrl = path_with_query('/creator/live', ['status' => $filters['status'] ?? 'scheduled', 'q' => $filters['q'] ?? '', 'live' => $selectedLiveId > 0 ? $selectedLiveId : null]);
+$closeModalUrl = path_with_query('/creator/live', ['status' => $filters['status'] ?? 'scheduled', 'q' => $filters['q'] ?? '', 'page' => (int) ($filters['page'] ?? 1), 'live' => $selectedLiveId > 0 ? $selectedLiveId : null]);
 $formLive = ($openForm && $formMode === 'new') ? null : $selected;
 $formLiveId = (int) ($formLive['id'] ?? 0);
 $formLiveType = (string) ($formLive['live_type'] ?? 'scheduled');
@@ -148,7 +155,7 @@ include base_path('templates/partials/creator_topbar.php');
                     'expired' => 'Expirada',
                     default => 'Agendada',
                 };
-                $selectUrl = path_with_query('/creator/live', ['status' => (string) ($live['status_bucket'] ?? 'scheduled'), 'q' => $filters['q'] ?? '', 'live' => $liveId]);
+                $selectUrl = path_with_query('/creator/live', ['status' => (string) ($live['status_bucket'] ?? 'scheduled'), 'q' => $filters['q'] ?? '', 'page' => (int) ($filters['page'] ?? 1), 'live' => $liveId]);
                 ?>
                 <a class="<?= $isSelected ? 'ring-2 ring-[#D81B60]' : 'ring-1 ring-[#f0e8ee]' ?> overflow-hidden rounded-3xl bg-[#fbf9fb] transition-transform hover:-translate-y-1" href="<?= e($selectUrl) ?>">
                     <div class="p-5">
@@ -180,6 +187,25 @@ include base_path('templates/partials/creator_topbar.php');
                 </div>
             <?php endif; ?>
         </div>
+
+        <?php if ((int) ($pagination['total_pages'] ?? 1) > 1): ?>
+            <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm text-slate-500">Mostrando <?= e((string) $pageStart) ?>-<?= e((string) $pageEnd) ?> de <?= e((string) ((int) ($pagination['total'] ?? count($lives)))) ?> lives</p>
+                <div class="flex flex-wrap gap-2">
+                    <?php for ($pageIndex = 1; $pageIndex <= (int) ($pagination['total_pages'] ?? 1); $pageIndex++): ?>
+                        <?php
+                        $pageUrl = path_with_query('/creator/live', [
+                            'status' => $filters['status'] ?? 'scheduled',
+                            'q' => $filters['q'] ?? '',
+                            'page' => $pageIndex,
+                            'live' => $selectedLiveId > 0 ? $selectedLiveId : null,
+                        ]);
+                        ?>
+                        <a class="<?= $pageIndex === (int) ($pagination['page'] ?? 1) ? 'signature-glow text-white' : 'bg-[#f7f4f7] text-slate-600' ?> inline-flex h-11 min-w-[44px] items-center justify-center rounded-full px-4 text-sm font-bold" href="<?= e($pageUrl) ?>"><?= e((string) $pageIndex) ?></a>
+                    <?php endfor; ?>
+                </div>
+            </div>
+        <?php endif; ?>
     </section>
 
     <section class="mt-8" data-live-details>

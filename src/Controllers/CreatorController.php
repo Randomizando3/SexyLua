@@ -113,6 +113,7 @@ final class CreatorController extends Controller
                 'q' => (string) $request->query('q', ''),
                 'status' => (string) $request->query('status', ''),
                 'live' => (int) $request->query('live', 0),
+                'page' => (int) $request->query('page', 1),
             ]),
             'open_form' => $request->query('open_form', '') === '1',
             'form_mode' => (string) $request->query('form_mode', ''),

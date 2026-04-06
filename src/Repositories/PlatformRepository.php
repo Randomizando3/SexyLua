@@ -2495,6 +2495,8 @@ final class PlatformRepository
         $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
         $status = trim((string) ($filters['status'] ?? 'scheduled'));
         $selectedId = (int) ($filters['live'] ?? 0);
+        $page = max(1, (int) ($filters['page'] ?? 1));
+        $perPage = 15;
 
         $filtered = array_values(array_filter($lives, static function (array $live) use ($query, $status): bool {
             if ($status !== '' && (string) ($live['status_bucket'] ?? '') !== $status) {
@@ -2511,6 +2513,11 @@ final class PlatformRepository
         }));
         $filtered = $this->sortCreatorLives($filtered, $status);
         $allSorted = $this->sortCreatorLives($lives, $status);
+        $filteredTotal = count($filtered);
+        $totalPages = max(1, (int) ceil($filteredTotal / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+        $paginated = array_values(array_slice($filtered, $offset, $perPage));
 
         $selectedLive = null;
         if ($selectedId > 0) {
@@ -2539,6 +2546,7 @@ final class PlatformRepository
             'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
             'lives' => $allSorted,
             'filtered_lives' => $filtered,
+            'paginated_lives' => $paginated,
             'selected_live' => $selectedLive,
             'active_live' => array_values(array_filter($allSorted, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'live'))[0] ?? null,
             'messages' => $selectedMessages,
@@ -2547,6 +2555,13 @@ final class PlatformRepository
             'filters' => [
                 'q' => $query,
                 'status' => $status,
+                'page' => $page,
+            ],
+            'pagination' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $filteredTotal,
+                'total_pages' => $totalPages,
             ],
             'summary' => [
                 'scheduled' => count(array_filter($allSorted, static fn (array $live): bool => (string) ($live['status_bucket'] ?? '') === 'scheduled')),
