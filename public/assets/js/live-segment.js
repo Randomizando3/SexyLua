@@ -46,6 +46,8 @@
         supportersEmpty: document.querySelector('[data-live-top-supporters-empty]'),
         chatForm: document.querySelector('[data-live-chat-form]'),
         tipForm: document.querySelector('[data-live-tip-form]'),
+        darkroomButton: document.querySelector('[data-live-darkroom-button]'),
+        darkroomStatus: document.querySelector('[data-live-darkroom-status]'),
         tipAmountLabel: document.querySelector('[data-live-tip-amount-label]'),
         tipTotal: document.querySelector('[data-live-tip-total]'),
         liveStartedAt: document.querySelector('[data-live-started-at]'),
@@ -75,6 +77,9 @@
         canChat: false,
         canTip: false,
         accessMessage: root.dataset.accessMessage || '',
+        darkroomActive: false,
+        darkroomIsOwner: false,
+        requiresDarkroomWait: false,
     }
 
     const video = () => mode === 'creator' ? el.previewVideo : el.remoteVideo
@@ -135,6 +140,23 @@
 
     const hideWaiting = () => {
         if (el.waitBox) el.waitBox.classList.add('hidden')
+    }
+
+    const syncDarkroomUi = () => {
+        if (el.darkroomButton) {
+            const locked = state.darkroomActive
+            el.darkroomButton.disabled = locked
+            el.darkroomButton.classList.toggle('opacity-50', locked)
+            el.darkroomButton.classList.toggle('cursor-not-allowed', locked)
+            el.darkroomButton.textContent = locked ? 'Darkroom em andamento' : 'Ativar darkroom'
+        }
+        if (el.darkroomStatus) {
+            if (state.darkroomActive) {
+                el.darkroomStatus.textContent = state.darkroomIsOwner ? 'Darkroom ativo para voce' : 'Darkroom indisponivel no momento'
+            } else {
+                el.darkroomStatus.textContent = 'Disponivel para espectadores'
+            }
+        }
     }
 
     const postForm = async (url, payload) => {
@@ -511,6 +533,10 @@
         state.canChat = payload.can_chat !== undefined ? Boolean(payload.can_chat) : state.canChat
         state.canTip = payload.can_tip !== undefined ? Boolean(payload.can_tip) : state.canTip
         state.accessMessage = String(payload.access_message || state.accessMessage || '')
+        state.darkroomActive = payload.darkroom_active !== undefined ? Boolean(payload.darkroom_active) : state.darkroomActive
+        state.darkroomIsOwner = payload.darkroom_is_owner !== undefined ? Boolean(payload.darkroom_is_owner) : state.darkroomIsOwner
+        state.requiresDarkroomWait = payload.requires_darkroom_wait !== undefined ? Boolean(payload.requires_darkroom_wait) : state.requiresDarkroomWait
+        syncDarkroomUi()
         renderChat(payload.chat_messages || [])
         renderTips(payload.recent_tips || [])
         renderSupporters(payload.top_supporters || [])

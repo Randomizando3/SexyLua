@@ -6853,6 +6853,9 @@ final class PlatformRepository
 
     private function liveAccessMessage(array $live, array $access): string
     {
+        $creator = $this->findUserById((int) ($live['creator_id'] ?? 0));
+        $creatorName = trim((string) ($creator['name'] ?? 'o criador'));
+
         if ((bool) ($access['requires_login'] ?? false)) {
             return (bool) ($access['requires_vip_unlock'] ?? false)
                 ? 'Entre para desbloquear esta Live VIP.'
@@ -6871,16 +6874,16 @@ final class PlatformRepository
             $ownerName = trim((string) ($access['darkroom_owner_name'] ?? ''));
             $remainingSeconds = max(0, (int) ($access['darkroom_remaining_seconds'] ?? 0));
             $remainingLabel = $remainingSeconds > 0 ? $this->formatLiveDuration($remainingSeconds) : 'alguns instantes';
-            $prefix = $ownerName !== '' ? $ownerName . ' ativou o darkroom.' : 'O darkroom esta ativo.';
+            $ownerLabel = $ownerName !== '' ? $ownerName : 'um assinante';
 
-            return $prefix . ' A live volta para os demais em ' . $remainingLabel . '.';
+            return 'O criador ' . $creatorName . ' esta numa darkroom com o assinante ' . $ownerLabel . '. Aguarde ' . $remainingLabel . ' para a live retornar.';
         }
 
         if ((bool) ($access['darkroom_active'] ?? false) && (bool) ($access['darkroom_is_owner'] ?? false)) {
             $remainingSeconds = max(0, (int) ($access['darkroom_remaining_seconds'] ?? 0));
             $remainingLabel = $remainingSeconds > 0 ? $this->formatLiveDuration($remainingSeconds) : 'alguns instantes';
 
-            return 'Darkroom ativo para voce. Aproveite a sala privada por ' . $remainingLabel . '.';
+            return 'Voce esta numa darkroom com ' . $creatorName . '. Aproveite a sala privada por ' . $remainingLabel . '.';
         }
 
         return 'Aguardando o criador iniciar a live.';

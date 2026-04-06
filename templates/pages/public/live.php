@@ -266,16 +266,16 @@ if ($accessMessage === '') {
                                                         <?php endif; ?>
                                                     </div>
                                                     <?php if ($darkroomActive): ?>
-                                                        <span class="inline-flex w-fit rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500"><?= e($darkroomIsOwner ? 'Darkroom ativo' : 'Darkroom em andamento') ?></span>
+                                                        <span class="inline-flex w-fit rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500" data-live-darkroom-status><?= e($darkroomIsOwner ? 'Darkroom ativo para voce' : 'Darkroom indisponivel no momento') ?></span>
                                                     <?php elseif ($darkroomCanActivate): ?>
                                                         <form action="/live/darkroom" method="post">
                                                             <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                                             <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
                                                             <input name="redirect" type="hidden" value="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
-                                                            <button class="rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Ativar darkroom</button>
+                                                            <button class="rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white" data-live-darkroom-button data-prototype-skip="1" type="submit">Ativar darkroom</button>
                                                         </form>
                                                     <?php else: ?>
-                                                        <span class="inline-flex w-fit rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Disponivel para espectadores</span>
+                                                        <span class="inline-flex w-fit rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500" data-live-darkroom-status>Disponivel para espectadores</span>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
