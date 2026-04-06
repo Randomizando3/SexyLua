@@ -94,6 +94,7 @@ include base_path('templates/partials/creator_topbar.php');
             data-csrf="<?= e($app->csrf->token()) ?>"
             data-can-broadcast="<?= $canBroadcast ? '1' : '0' ?>"
             data-join-url="/live/rtc/join"
+            data-state-url="/live/state"
             data-start-url="/live/rtc/start"
             data-stop-url="/live/rtc/stop"
             data-poll-url="/live/rtc/poll"
@@ -314,22 +315,21 @@ include base_path('templates/partials/creator_topbar.php');
                             <button class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Salvar sala</button>
                         </div>
                     </form>
-                    <div class="mt-6 rounded-3xl bg-[#f8f4f7] p-5">
+                    <div class="mt-6 rounded-3xl bg-[#f8f4f7] p-5" data-live-studio-darkroom-panel>
                         <div class="flex flex-wrap items-start justify-between gap-4">
                             <div>
                                 <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Controle imediato do DarkRoom</p>
                                 <h3 class="headline mt-2 text-xl font-extrabold">Abra ou encerre uma sala privada sem sair do estudio</h3>
                                 <p class="mt-2 text-sm text-slate-500">Escolha um espectador ao vivo ou um assinante para iniciar uma darkroom manual. Se precisar, voce tambem pode encerrar a atual na hora.</p>
                             </div>
-                            <?php if ($studioDarkroom !== null): ?>
-                                <form action="/creator/live/darkroom/cancel" method="post">
-                                    <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                                    <input name="live_id" type="hidden" value="<?= e((string) $selectedLiveId) ?>">
-                                    <button class="rounded-full bg-rose-500 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Cancelar darkroom atual</button>
-                                </form>
-                            <?php endif; ?>
+                            <form action="/creator/live/darkroom/cancel" class="<?= $studioDarkroom !== null ? '' : 'hidden ' ?>" data-live-studio-darkroom-cancel-form method="post">
+                                <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                <input name="live_id" type="hidden" value="<?= e((string) $selectedLiveId) ?>">
+                                <button class="rounded-full bg-rose-500 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Cancelar darkroom atual</button>
+                            </form>
                         </div>
 
+                        <div data-live-studio-darkroom-body>
                         <?php if ($studioDarkroom !== null): ?>
                             <div class="mt-5 rounded-3xl bg-white p-4 shadow-sm">
                                 <div class="flex items-center gap-4">
@@ -404,6 +404,7 @@ include base_path('templates/partials/creator_topbar.php');
                                 <?php endif; ?>
                             </div>
                         </details>
+                        </div>
                     </div>
                 </section>
 
@@ -478,29 +479,36 @@ include base_path('templates/partials/creator_topbar.php');
         })
     })
 
-    document.querySelectorAll('[data-darkroom-user-search]').forEach((input) => {
-        const select = input.closest('form')?.querySelector('[data-darkroom-user-select]')
-        if (!select) return
+    window.sexyluaBindDarkroomSearch = (scope = document) => {
+        scope.querySelectorAll('[data-darkroom-user-search]').forEach((input) => {
+            if (input.dataset.darkroomBound === '1') return
 
-        const filterOptions = () => {
-            const query = (input.value || '').trim().toLowerCase()
-            let firstVisible = null
+            const select = input.closest('form')?.querySelector('[data-darkroom-user-select]')
+            if (!select) return
 
-            Array.from(select.options).forEach((option) => {
-                const haystack = String(option.dataset.search || option.textContent || '').toLowerCase()
-                const matches = query === '' || haystack.includes(query)
-                option.hidden = !matches
-                if (matches && firstVisible === null) firstVisible = option
-            })
+            const filterOptions = () => {
+                const query = (input.value || '').trim().toLowerCase()
+                let firstVisible = null
 
-            if (firstVisible) {
-                select.value = firstVisible.value
+                Array.from(select.options).forEach((option) => {
+                    const haystack = String(option.dataset.search || option.textContent || '').toLowerCase()
+                    const matches = query === '' || haystack.includes(query)
+                    option.hidden = !matches
+                    if (matches && firstVisible === null) firstVisible = option
+                })
+
+                if (firstVisible) {
+                    select.value = firstVisible.value
+                }
             }
-        }
 
-        input.addEventListener('input', filterOptions)
-        filterOptions()
-    })
+            input.addEventListener('input', filterOptions)
+            input.dataset.darkroomBound = '1'
+            filterOptions()
+        })
+    }
+
+    window.sexyluaBindDarkroomSearch(document)
 </script>
 </body>
 </html>

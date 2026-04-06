@@ -429,6 +429,10 @@ final class PlatformRepository
         $related = array_values(array_filter($this->livesWithCreators(), static fn (array $item): bool => (int) ($item['id'] ?? 0) !== $liveId));
         $engagement = $this->liveEngagementData($decoratedLive);
         $stream = $this->publicLiveStreamState($liveId);
+        $viewer = $viewerId !== null ? $this->findUserById($viewerId) : null;
+        $isCreatorOwner = $viewerId !== null
+            && (int) ($live['creator_id'] ?? 0) === $viewerId
+            && (string) (($viewer['role'] ?? '')) === 'creator';
         $shouldHideRoomData = ! (bool) ($access['granted'] ?? false)
             && ((bool) ($access['requires_vip_unlock'] ?? false) || (bool) ($access['requires_darkroom_wait'] ?? false));
 
@@ -464,11 +468,13 @@ final class PlatformRepository
             'can_chat' => $this->canUserChatInLive($decoratedLive, $viewerId),
             'can_tip' => $viewerId !== null
                 && (bool) ($access['granted'] ?? false)
-                && (string) (($this->findUserById($viewerId)['role'] ?? '')) === 'subscriber',
+                && (string) (($viewer['role'] ?? '')) === 'subscriber',
             'stream' => $stream,
             'priority_tip_tiers' => $this->priorityTipTiersForLive($decoratedLive),
             'priority_tip_messages' => $this->priorityTipMessagesForLive($decoratedLive),
             'priority_alert' => $this->latestPriorityAlertForLive($liveId),
+            'active_darkroom' => $isCreatorOwner ? $this->activeDarkroomSummaryForCreator($viewerId, $liveId) : null,
+            'darkroom_candidates' => $isCreatorOwner ? $this->darkroomCandidatesForCreatorLive($viewerId, $liveId) : [],
         ];
     }
 

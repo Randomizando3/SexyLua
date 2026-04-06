@@ -167,6 +167,8 @@ final class PublicController extends Controller
             'darkroom_started_at' => (string) ($data['darkroom_started_at'] ?? ''),
             'darkroom_ends_at' => (string) ($data['darkroom_ends_at'] ?? ''),
             'access_message' => (string) ($data['access_message'] ?? ''),
+            'active_darkroom' => is_array($data['active_darkroom'] ?? null) ? $data['active_darkroom'] : null,
+            'darkroom_candidates' => is_array($data['darkroom_candidates'] ?? null) ? array_values($data['darkroom_candidates']) : [],
         ], 200);
     }
 
