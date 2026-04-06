@@ -268,11 +268,6 @@ if ($accessMessage === '') {
                                         </form>
                                     <?php elseif ($requiresLogin): ?>
                                         <a class="signature-glow rounded-3xl px-8 py-4 text-center text-sm font-bold text-white shadow-lg xl:col-span-2" href="/login">Entrar para assistir</a>
-                                    <?php elseif ($requiresDarkroomWait): ?>
-                                        <div class="rounded-3xl bg-white p-4 shadow-sm xl:col-span-2">
-                                            <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Darkroom ativo</p>
-                                            <p class="mt-2 text-sm font-semibold text-slate-700"><?= e($accessMessage) ?></p>
-                                        </div>
                                     <?php elseif ($requiresSubscription): ?>
                                         <a class="signature-glow rounded-3xl px-8 py-4 text-center text-sm font-bold text-white shadow-lg xl:col-span-2" href="<?= e($profileUrl) ?>">Assinar para liberar</a>
                                     <?php elseif ($requiresVipUnlock): ?>

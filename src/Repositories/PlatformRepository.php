@@ -6816,15 +6816,11 @@ final class PlatformRepository
         $darkroomAvailable = $darkroomPriceTokens > 0 && $darkroomDurationMinutes > 0;
         $activeDarkroom = $darkroomAvailable ? $this->activeDarkroomForLive((int) ($live['id'] ?? 0)) : null;
         $user = $userId !== null ? $this->findUserById($userId) : null;
-        $isPrivilegedViewer = $userId !== null
-            && (
-                (int) ($live['creator_id'] ?? 0) === $userId
-                || (string) ($user['role'] ?? '') === 'admin'
-            );
+        $isCreatorViewer = $userId !== null && (int) ($live['creator_id'] ?? 0) === $userId;
         $isDarkroomOwner = $activeDarkroom !== null && $userId !== null && (int) ($activeDarkroom['user_id'] ?? 0) === $userId;
         $requiresDarkroomWait = false;
 
-        if ((bool) ($base['granted'] ?? false) && $activeDarkroom !== null && ! $isPrivilegedViewer && ! $isDarkroomOwner) {
+        if ((bool) ($base['granted'] ?? false) && $activeDarkroom !== null && ! $isDarkroomOwner) {
             $base['granted'] = false;
             $requiresDarkroomWait = true;
         }
@@ -6845,6 +6841,7 @@ final class PlatformRepository
             'darkroom_owner_name' => $ownerName,
             'darkroom_started_at' => (string) ($activeDarkroom['started_at'] ?? ''),
             'darkroom_ends_at' => (string) ($activeDarkroom['ends_at'] ?? ''),
+            'darkroom_viewer_is_creator' => $isCreatorViewer,
         ];
         $access['access_message'] = $this->liveAccessMessage($live, $access);
 
@@ -6875,6 +6872,10 @@ final class PlatformRepository
             $remainingSeconds = max(0, (int) ($access['darkroom_remaining_seconds'] ?? 0));
             $remainingLabel = $remainingSeconds > 0 ? $this->formatLiveDuration($remainingSeconds) : 'alguns instantes';
             $ownerLabel = $ownerName !== '' ? $ownerName : 'um assinante';
+
+            if ((bool) ($access['darkroom_viewer_is_creator'] ?? false)) {
+                return 'Voce esta numa darkroom com o assinante ' . $ownerLabel . '. A sala publica retorna em ' . $remainingLabel . '.';
+            }
 
             return 'O criador ' . $creatorName . ' esta numa darkroom com o assinante ' . $ownerLabel . '. Aguarde ' . $remainingLabel . ' para a live retornar.';
         }
