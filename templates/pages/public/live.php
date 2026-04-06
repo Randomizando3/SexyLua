@@ -266,34 +266,6 @@ if ($accessMessage === '') {
                                         <button class="signature-glow rounded-full px-8 py-3 text-sm font-bold text-white shadow-lg" data-prototype-skip="1" type="submit">Enviar gorjeta</button>
                                     </div>
                                         </form>
-                                        <?php if ($darkroomAvailable): ?>
-                                            <div class="rounded-3xl bg-white p-4 shadow-sm">
-                                                <div class="flex h-full flex-col justify-between gap-4">
-                                                    <div>
-                                                        <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Darkroom</p>
-                                                        <?php if ($darkroomActive): ?>
-                                                            <p class="mt-2 text-sm font-semibold text-slate-700"><?= e($darkroomIsOwner ? 'Seu darkroom esta ativo agora.' : $accessMessage) ?></p>
-                                                            <p class="mt-2 text-xs text-slate-500"><?= e($darkroomIsOwner ? ('Duracao de ' . $darkroomDurationMinutes . ' minuto(s).') : 'A live volta automaticamente ao fim deste periodo.') ?></p>
-                                                        <?php else: ?>
-                                                            <p class="mt-2 text-sm font-semibold text-slate-700">Ative a sala privada por <?= luacoin_amount_html($darkroomPrice, 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?> durante <?= e((string) $darkroomDurationMinutes) ?> min.</p>
-                                                            <p class="mt-2 text-xs text-slate-500">Quando ativado, a live fica exclusiva para voce neste periodo.</p>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                    <?php if ($darkroomActive): ?>
-                                                        <span class="inline-flex w-fit rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500" data-live-darkroom-status><?= e($darkroomIsOwner ? 'Darkroom ativo para voce' : 'Darkroom indisponivel no momento') ?></span>
-                                                    <?php elseif ($darkroomCanActivate): ?>
-                                                        <form action="/live/darkroom" data-live-darkroom-form method="post">
-                                                            <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                                                            <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
-                                                            <input name="redirect" type="hidden" value="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
-                                                            <button class="rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white" data-live-darkroom-button data-prototype-skip="1" type="submit">Ativar darkroom</button>
-                                                        </form>
-                                                    <?php else: ?>
-                                                        <span class="inline-flex w-fit rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500" data-live-darkroom-status>Disponivel para espectadores</span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </div>
-                                        <?php endif; ?>
                                     <?php elseif ($requiresLogin): ?>
                                         <a class="signature-glow rounded-3xl px-8 py-4 text-center text-sm font-bold text-white shadow-lg xl:col-span-2" href="/login">Entrar para assistir</a>
                                     <?php elseif ($requiresDarkroomWait): ?>
@@ -314,6 +286,51 @@ if ($accessMessage === '') {
                                             </div>
                                             <button class="signature-glow w-fit rounded-full px-8 py-3 text-sm font-bold text-white shadow-lg" data-prototype-skip="1" type="submit">Desbloquear live VIP</button>
                                         </form>
+                                    <?php endif; ?>
+
+                                    <?php if ($darkroomAvailable): ?>
+                                        <div class="rounded-3xl bg-white p-4 shadow-sm">
+                                            <div class="flex h-full flex-col justify-between gap-4">
+                                                <div>
+                                                    <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Darkroom</p>
+                                                    <?php if ($darkroomActive): ?>
+                                                        <p class="mt-2 text-sm font-semibold text-slate-700"><?= e($darkroomIsOwner ? 'Seu darkroom esta ativo agora.' : $accessMessage) ?></p>
+                                                        <p class="mt-2 text-xs text-slate-500"><?= e($darkroomIsOwner ? ('Duracao de ' . $darkroomDurationMinutes . ' minuto(s).') : 'A live volta automaticamente ao fim deste periodo.') ?></p>
+                                                    <?php elseif ($darkroomCanActivate): ?>
+                                                        <p class="mt-2 text-sm font-semibold text-slate-700">Ative a sala privada por <?= luacoin_amount_html($darkroomPrice, 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?> durante <?= e((string) $darkroomDurationMinutes) ?> min.</p>
+                                                        <p class="mt-2 text-xs text-slate-500">Quando ativado, a live fica exclusiva para voce neste periodo.</p>
+                                                    <?php elseif ($requiresLogin): ?>
+                                                        <p class="mt-2 text-sm font-semibold text-slate-700">Entre na sua conta para ativar o darkroom desta live.</p>
+                                                        <p class="mt-2 text-xs text-slate-500">Depois do login, voce podera desbloquear a sala privada usando LuaCoins.</p>
+                                                    <?php elseif ($requiresVipUnlock): ?>
+                                                        <p class="mt-2 text-sm font-semibold text-slate-700">Desbloqueie a Live VIP antes de ativar o darkroom.</p>
+                                                        <p class="mt-2 text-xs text-slate-500">O darkroom funciona como uma camada extra sobre o acesso base desta live.</p>
+                                                    <?php elseif ($requiresSubscription): ?>
+                                                        <p class="mt-2 text-sm font-semibold text-slate-700">Assine este perfil para poder ativar o darkroom.</p>
+                                                        <p class="mt-2 text-xs text-slate-500">Apos liberar o acesso da live, o darkroom pode ser ativado por tempo limitado.</p>
+                                                    <?php else: ?>
+                                                        <p class="mt-2 text-sm font-semibold text-slate-700">Darkroom disponivel para espectadores elegiveis.</p>
+                                                        <p class="mt-2 text-xs text-slate-500">Assim que a live estiver liberada para voce, sera possivel ativar a sala privada.</p>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php if ($darkroomActive): ?>
+                                                    <span class="inline-flex w-fit rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500" data-live-darkroom-status><?= e($darkroomIsOwner ? 'Darkroom ativo para voce' : 'Darkroom indisponivel no momento') ?></span>
+                                                <?php elseif ($darkroomCanActivate): ?>
+                                                    <form action="/live/darkroom" data-live-darkroom-form method="post">
+                                                        <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                                                        <input name="live_id" type="hidden" value="<?= e((string) ((int) ($live['id'] ?? 0))) ?>">
+                                                        <input name="redirect" type="hidden" value="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
+                                                        <button class="rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white" data-live-darkroom-button data-prototype-skip="1" type="submit">Ativar darkroom</button>
+                                                    </form>
+                                                <?php elseif ($requiresLogin): ?>
+                                                    <a class="inline-flex w-fit items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white" href="/login">Entrar para ativar</a>
+                                                <?php elseif ($requiresSubscription): ?>
+                                                    <a class="inline-flex w-fit items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-bold text-white" href="<?= e($profileUrl) ?>">Assinar perfil</a>
+                                                <?php else: ?>
+                                                    <span class="inline-flex w-fit rounded-full bg-[#f5f3f5] px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500" data-live-darkroom-status>Disponivel para espectadores</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                             </div>
