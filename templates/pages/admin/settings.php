@@ -13,6 +13,7 @@ $seoLogoColorPreview = media_url((string) ($settings['seo_logo_color_url'] ?? ''
 $homeBannerPreview = media_url((string) ($settings['home_banner_background_url'] ?? '')) ?: home_banner_default_image_url();
 $homeBannerMobilePreview = media_url((string) ($settings['home_banner_background_mobile_url'] ?? '')) ?: $homeBannerPreview;
 $homeBannerCountdownTargetAt = trim((string) ($settings['home_banner_countdown_target_at'] ?? ''));
+$googleRedirectUrl = rtrim($siteBaseUrl !== '' ? $siteBaseUrl : app_base_url($app->config, $settings), '/') . '/auth/google/callback';
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -266,6 +267,32 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                         <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Announcement</span>
                         <textarea class="min-h-40 w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="announcement"><?= e((string) ($settings['announcement'] ?? '')) ?></textarea>
                     </label>
+                </div>
+                <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
+                    <div class="mb-6">
+                        <p class="settings-kicker">Autenticacao</p>
+                        <h3 class="text-2xl font-extrabold">Google Login</h3>
+                        <p class="mt-2 text-sm text-on-surface-variant">Permita entrada e cadastro rapido com Google. Se o e-mail ja existir, a conta e vinculada; se nao existir, o perfil e criado e segue para completar o cadastro.</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                        <label class="flex items-center gap-3 rounded-2xl bg-surface-container-low px-4 py-3 text-sm font-semibold text-on-surface md:col-span-2">
+                            <input class="rounded border-none text-primary focus:ring-primary/20" name="google_oauth_enabled" type="checkbox" value="1" <?= !empty($settings['google_oauth_enabled']) ? 'checked' : '' ?>>
+                            Exibir Google Login nas telas de login e registro
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Client ID Google</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="google_client_id" type="text" value="<?= e((string) ($settings['google_client_id'] ?? '')) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Client Secret Google</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="google_client_secret" type="text" value="<?= e((string) ($settings['google_client_secret'] ?? '')) ?>">
+                        </label>
+                        <label class="block space-y-2 md:col-span-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Redirect URI para o Google Cloud</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface-variant shadow-sm" readonly type="text" value="<?= e($googleRedirectUrl) ?>">
+                            <span class="block text-xs text-on-surface-variant">Cadastre exatamente esta URL nas credenciais OAuth 2.0 do Google.</span>
+                        </label>
+                    </div>
                 </div>
                 <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm" id="seo">
                     <div class="mb-6">

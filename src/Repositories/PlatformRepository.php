@@ -114,6 +114,23 @@ final class PlatformRepository
         return null;
     }
 
+    public function findUserByGoogleId(string $googleId): ?array
+    {
+        $googleId = trim($googleId);
+
+        if ($googleId === '') {
+            return null;
+        }
+
+        foreach ($this->users() as $user) {
+            if (trim((string) ($user['oauth_google_sub'] ?? '')) === $googleId) {
+                return $user;
+            }
+        }
+
+        return null;
+    }
+
     public function findUserByLogin(string $login): ?array
     {
         $login = trim($login);
@@ -226,6 +243,148 @@ final class PlatformRepository
         }
 
         return $this->sanitizeUser($user);
+    }
+
+    public function registerGoogleUser(array $data): array
+    {
+        $users = $this->users();
+        $userId = $this->store->nextId($users);
+        $role = in_array(($data['role'] ?? 'subscriber'), ['subscriber', 'creator'], true) ? $data['role'] : 'subscriber';
+        $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
+        $name = trim((string) ($data['name'] ?? ''));
+        $googleId = trim((string) ($data['google_sub'] ?? ''));
+        $avatarUrl = trim((string) ($data['avatar_url'] ?? ''));
+        $usernameSeed = (string) ($data['username'] ?? '');
+
+        if ($name === '') {
+            $name = trim((string) ($data['given_name'] ?? ''));
+        }
+
+        if ($name === '' && $email !== '') {
+            $name = strstr($email, '@', true) ?: $email;
+        }
+
+        if ($name === '') {
+            $name = 'Novo Usuario';
+        }
+
+        if ($usernameSeed === '' && $email !== '') {
+            $usernameSeed = strstr($email, '@', true) ?: $email;
+        }
+
+        if ($usernameSeed === '') {
+            $usernameSeed = $name;
+        }
+
+        $user = [
+            'id' => $userId,
+            'name' => $name,
+            'username' => $this->uniqueUsername($usernameSeed, null, $email !== '' ? $email : $name),
+            'email' => $email,
+            'password' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+            'role' => $role,
+            'status' => 'active',
+            'headline' => $role === 'creator' ? 'Novo criador em fase de estreia.' : 'Novo assinante da comunidade SexyLua.',
+            'bio' => $role === 'creator' ? 'Perfil criado para publicar conteudo, planos e lives.' : 'Perfil criado para acompanhar criadores, salvar colecoes e conversar.',
+            'city' => trim((string) ($data['city'] ?? 'Brasil')),
+            'age' => max(18, (int) ($data['age'] ?? 18)),
+            'created_at' => date('Y-m-d H:i:s'),
+            'terms_accepted_at' => trim((string) ($data['terms_accepted_at'] ?? date('Y-m-d H:i:s'))),
+            'terms_version' => trim((string) ($data['terms_version'] ?? '2026-04')),
+            'identity_document' => null,
+            'verification_status' => 'pending',
+            'verification_note' => '',
+            'verification_requested_at' => date('Y-m-d H:i:s'),
+            'verification_reviewed_at' => null,
+            'oauth_google_sub' => $googleId,
+            'oauth_google_connected_at' => date('Y-m-d H:i:s'),
+            'oauth_provider' => 'google',
+        ];
+
+        if ($avatarUrl !== '') {
+            $user['avatar_url'] = $avatarUrl;
+        }
+
+        $users[] = $user;
+        $this->save('users', $users);
+
+        if ($role === 'creator') {
+            $profiles = $this->creatorProfiles();
+            $profiles[] = [
+                'user_id' => $userId,
+                'slug' => $this->uniqueSlug($user['name']),
+                'mood' => 'Lua Nova',
+                'cover_style' => 'rose-dawn',
+                'featured' => false,
+                'followers' => 0,
+                'rating' => 5.0,
+            ];
+            $this->save('creator_profiles', $profiles);
+
+            $plans = $this->plans();
+            $plans[] = [
+                'id' => $this->store->nextId($plans),
+                'creator_id' => $userId,
+                'name' => 'Plano Inicial',
+                'description' => 'Assinatura base criada automaticamente.',
+                'price_tokens' => 39,
+                'active' => true,
+                'perks' => ['Conteudo exclusivo', 'Mensagens diretas', 'Acesso antecipado'],
+            ];
+            $this->save('plans', $plans);
+        } else {
+            $settings = $this->settings();
+            $signupBonusEnabled = (bool) ($settings['subscriber_signup_bonus_enabled'] ?? true);
+            $signupBonusAmount = max(0, (int) ($settings['subscriber_signup_bonus_luacoins'] ?? 10));
+
+            if ($signupBonusEnabled && $signupBonusAmount > 0) {
+                $transactions = $this->walletTransactions();
+                $transactions[] = [
+                    'id' => $this->store->nextId($transactions),
+                    'user_id' => $userId,
+                    'type' => 'welcome_bonus',
+                    'direction' => 'in',
+                    'amount' => $signupBonusAmount,
+                    'note' => 'Bonus de boas-vindas',
+                    'created_at' => date('Y-m-d H:i:s'),
+                ];
+                $this->save('wallet_transactions', $transactions);
+            }
+        }
+
+        return $this->sanitizeUser($user);
+    }
+
+    public function linkGoogleIdentity(int $userId, string $googleId, string $avatarUrl = ''): ?array
+    {
+        $users = $this->users();
+        $changed = false;
+
+        foreach ($users as &$user) {
+            if ((int) ($user['id'] ?? 0) !== $userId) {
+                continue;
+            }
+
+            $user['oauth_google_sub'] = trim($googleId);
+            $user['oauth_google_connected_at'] = date('Y-m-d H:i:s');
+            $user['oauth_provider'] = 'google';
+
+            if ($avatarUrl !== '' && trim((string) ($user['avatar_url'] ?? '')) === '') {
+                $user['avatar_url'] = $avatarUrl;
+            }
+
+            $changed = true;
+            break;
+        }
+        unset($user);
+
+        if (! $changed) {
+            return null;
+        }
+
+        $this->save('users', $users);
+
+        return $this->findUserById($userId);
     }
 
     public function homepageData(array $filters = []): array
@@ -5080,6 +5239,9 @@ final class PlatformRepository
         $settings['syncpay_api_key'] = trim((string) ($data['syncpay_api_key'] ?? $settings['syncpay_api_key'] ?? ''));
         $settings['syncpay_webhook_token'] = trim((string) ($data['syncpay_webhook_token'] ?? $settings['syncpay_webhook_token'] ?? ''));
         $settings['syncpay_pix_expires_in_days'] = max(1, (int) ($data['syncpay_pix_expires_in_days'] ?? $settings['syncpay_pix_expires_in_days'] ?? 2));
+        $settings['google_oauth_enabled'] = ($data['google_oauth_enabled'] ?? '0') === '1';
+        $settings['google_client_id'] = trim((string) ($data['google_client_id'] ?? $settings['google_client_id'] ?? ''));
+        $settings['google_client_secret'] = trim((string) ($data['google_client_secret'] ?? $settings['google_client_secret'] ?? ''));
         $settings['syncpay_webhook_url'] = webhook_url($this->config, $settings, '/webhook/syncpay');
         $settings['token_price_brl'] = $settings['luacoin_price_brl'];
         $settings['deposit_min_tokens'] = $settings['deposit_min_luacoins'];
@@ -5490,7 +5652,7 @@ final class PlatformRepository
         return false;
     }
 
-    private function usernameInUse(string $username, int $exceptUserId = 0): bool
+    private function usernameInUse(string $username, ?int $exceptUserId = null): bool
     {
         $username = $this->normalizeUsername($username);
 
@@ -5499,7 +5661,7 @@ final class PlatformRepository
         }
 
         foreach ($this->users() as $user) {
-            if ((int) ($user['id'] ?? 0) === $exceptUserId) {
+            if ($exceptUserId !== null && (int) ($user['id'] ?? 0) === $exceptUserId) {
                 continue;
             }
 
@@ -6191,6 +6353,9 @@ final class PlatformRepository
         $normalized['syncpay_api_key'] = trim((string) ($normalized['syncpay_api_key'] ?? ''));
         $normalized['syncpay_webhook_token'] = trim((string) ($normalized['syncpay_webhook_token'] ?? ''));
         $normalized['syncpay_pix_expires_in_days'] = max(1, (int) ($normalized['syncpay_pix_expires_in_days'] ?? 2));
+        $normalized['google_oauth_enabled'] = (bool) ($normalized['google_oauth_enabled'] ?? true);
+        $normalized['google_client_id'] = trim((string) ($normalized['google_client_id'] ?? (getenv('SEXYLUA_GOOGLE_CLIENT_ID') ?: '')));
+        $normalized['google_client_secret'] = trim((string) ($normalized['google_client_secret'] ?? (getenv('SEXYLUA_GOOGLE_CLIENT_SECRET') ?: '')));
         $normalized['syncpay_webhook_url'] = webhook_url($this->config, $normalized, '/webhook/syncpay');
         $normalized['token_price_brl'] = $normalized['luacoin_price_brl'];
         $normalized['deposit_min_tokens'] = $normalized['deposit_min_luacoins'];
@@ -6242,12 +6407,15 @@ final class PlatformRepository
             'home_banner_background_mobile_url' => '',
             'syncpay_api_base_url' => 'https://api.syncpayments.com.br',
             'syncpay_client_id' => '',
-            'syncpay_client_secret' => '',
-            'syncpay_api_key' => '',
-            'syncpay_webhook_token' => '',
-            'syncpay_pix_expires_in_days' => 2,
-        ];
-    }
+              'syncpay_client_secret' => '',
+              'syncpay_api_key' => '',
+              'syncpay_webhook_token' => '',
+              'syncpay_pix_expires_in_days' => 2,
+              'google_oauth_enabled' => true,
+              'google_client_id' => trim((string) (getenv('SEXYLUA_GOOGLE_CLIENT_ID') ?: '')),
+              'google_client_secret' => trim((string) (getenv('SEXYLUA_GOOGLE_CLIENT_SECRET') ?: '')),
+          ];
+      }
 
     private function conversationList(int $subscriberId): array
     {
