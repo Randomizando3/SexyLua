@@ -5073,6 +5073,7 @@ final class PlatformRepository
             $settings['home_banner_countdown_target_at'] = '';
         }
         $settings['home_banner_background_url'] = trim((string) ($data['home_banner_background_url'] ?? $settings['home_banner_background_url'] ?? ''));
+        $settings['home_banner_background_mobile_url'] = trim((string) ($data['home_banner_background_mobile_url'] ?? $settings['home_banner_background_mobile_url'] ?? ''));
         $settings['syncpay_api_base_url'] = rtrim(trim((string) ($data['syncpay_api_base_url'] ?? $settings['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $settings['syncpay_client_id'] = trim((string) ($data['syncpay_client_id'] ?? $settings['syncpay_client_id'] ?? ''));
         $settings['syncpay_client_secret'] = trim((string) ($data['syncpay_client_secret'] ?? $settings['syncpay_client_secret'] ?? ''));
@@ -6183,6 +6184,7 @@ final class PlatformRepository
             $normalized['home_banner_countdown_target_at'] = '';
         }
         $normalized['home_banner_background_url'] = trim((string) ($normalized['home_banner_background_url'] ?? ''));
+        $normalized['home_banner_background_mobile_url'] = trim((string) ($normalized['home_banner_background_mobile_url'] ?? ''));
         $normalized['syncpay_api_base_url'] = rtrim(trim((string) ($normalized['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $normalized['syncpay_client_id'] = trim((string) ($normalized['syncpay_client_id'] ?? ''));
         $normalized['syncpay_client_secret'] = trim((string) ($normalized['syncpay_client_secret'] ?? ''));
@@ -6237,6 +6239,7 @@ final class PlatformRepository
             'home_banner_countdown_seconds' => 172800,
             'home_banner_countdown_target_at' => '',
             'home_banner_background_url' => '',
+            'home_banner_background_mobile_url' => '',
             'syncpay_api_base_url' => 'https://api.syncpayments.com.br',
             'syncpay_client_id' => '',
             'syncpay_client_secret' => '',

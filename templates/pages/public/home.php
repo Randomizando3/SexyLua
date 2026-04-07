@@ -19,6 +19,8 @@ $liveSectionDescription = $liveNow !== []
 $bannerEnabled = !empty($settings['home_banner_enabled']);
 $bannerBackground = media_url((string) ($settings['home_banner_background_url'] ?? ''));
 $bannerBackground = $bannerBackground !== '' ? $bannerBackground : home_banner_default_image_url();
+$bannerMobileBackground = media_url((string) ($settings['home_banner_background_mobile_url'] ?? ''));
+$bannerMobileBackground = $bannerMobileBackground !== '' ? $bannerMobileBackground : $bannerBackground;
 $bannerTitle = (string) ($settings['home_banner_title'] ?? 'Cadastre-se hoje e ganhe 10 LuaCoins gratis');
 $bannerSubtitle = (string) ($settings['home_banner_subtitle'] ?? 'Crie sua conta agora, receba 10 LuaCoins no cadastro e aproveite bonus extra em cada deposito para entrar na SexyLua com mais liberdade.');
 $bannerPrimaryText = (string) ($settings['home_banner_primary_text'] ?? 'Explorar agora');
@@ -62,7 +64,10 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
         <section class="relative overflow-hidden px-4 pt-6 sm:px-8">
             <div class="mx-auto max-w-7xl overflow-hidden rounded-[2.25rem] bg-slate-950 shadow-[0px_24px_56px_rgba(27,28,29,0.16)]">
                 <div class="relative min-h-[340px] md:min-h-[390px]">
-                    <img alt="Banner SexyLua" class="absolute inset-0 h-full w-full object-cover" src="<?= e($bannerBackground) ?>">
+                    <picture class="absolute inset-0 block h-full w-full">
+                        <source media="(max-width: 767px)" srcset="<?= e($bannerMobileBackground) ?>">
+                        <img alt="Banner SexyLua" class="h-full w-full object-cover" src="<?= e($bannerBackground) ?>">
+                    </picture>
                     <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(33,7,20,0.88)_0%,rgba(33,7,20,0.55)_42%,rgba(33,7,20,0.2)_100%)]"></div>
                     <div class="relative z-10 flex min-h-[340px] flex-col justify-between gap-8 px-6 py-7 md:min-h-[390px] md:px-10 md:py-9">
                         <div class="flex flex-wrap items-center gap-3">
@@ -99,7 +104,7 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
         </section>
     <?php endif; ?>
 
-    <section class="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(216,27,96,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(171,17,85,0.12),_transparent_35%),linear-gradient(180deg,#fff5f8_0%,#fbf9fb_100%)] px-8 py-20">
+    <section class="relative overflow-hidden px-8 py-20">
         <div class="mx-auto max-w-5xl text-center">
             <div class="flex justify-center">
                 <div class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60] shadow-sm">

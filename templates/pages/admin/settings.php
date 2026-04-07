@@ -11,6 +11,7 @@ $syncPayWebhookUrl = (string) ($settings['syncpay_webhook_url'] ?? webhook_url($
 $seoLogoWhitePreview = media_url((string) ($settings['seo_logo_white_url'] ?? '')) ?: asset('img/sexylualogobranco.png');
 $seoLogoColorPreview = media_url((string) ($settings['seo_logo_color_url'] ?? '')) ?: asset('img/sexylualogomagenta.png');
 $homeBannerPreview = media_url((string) ($settings['home_banner_background_url'] ?? '')) ?: home_banner_default_image_url();
+$homeBannerMobilePreview = media_url((string) ($settings['home_banner_background_mobile_url'] ?? '')) ?: $homeBannerPreview;
 $homeBannerCountdownTargetAt = trim((string) ($settings['home_banner_countdown_target_at'] ?? ''));
 ?>
 <!DOCTYPE html>
@@ -365,24 +366,45 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                     <label class="block space-y-2"><span class="settings-mini-label">Upload da imagem do banner</span><input accept=".png,.jpg,.jpeg,.webp,.gif" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_file" type="file"></label>
                                 </div>
                                 <div class="space-y-4">
-                                    <div class="settings-preview-tile overflow-hidden">
-                                        <img alt="Preview do banner da home" class="h-56 w-full object-cover" src="<?= e($homeBannerPreview) ?>">
-                                        <div class="space-y-3 p-5">
-                                            <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
-                                                <span class="rounded-full bg-[#f5f3f5] px-3 py-1">Preview</span>
-                                                <?php if (!empty($settings['home_banner_countdown_enabled'])): ?>
-                                                    <span class="rounded-full bg-primary/10 px-3 py-1 text-primary">Contador ativo</span>
-                                                <?php endif; ?>
+                                    <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                                        <div class="settings-preview-tile overflow-hidden">
+                                            <img alt="Preview desktop do banner da home" class="h-56 w-full object-cover" src="<?= e($homeBannerPreview) ?>">
+                                            <div class="space-y-3 p-5">
+                                                <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
+                                                    <span class="rounded-full bg-[#f5f3f5] px-3 py-1">Preview desktop</span>
+                                                    <?php if (!empty($settings['home_banner_countdown_enabled'])): ?>
+                                                        <span class="rounded-full bg-primary/10 px-3 py-1 text-primary">Contador ativo</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <p class="text-2xl font-extrabold text-on-surface"><?= e((string) ($settings['home_banner_title'] ?? 'SexyLua')) ?></p>
+                                                <p class="text-sm leading-6 text-on-surface-variant"><?= e((string) ($settings['home_banner_subtitle'] ?? 'Configure titulo, subtitulo, botoes e fundo para destacar a campanha principal da home.')) ?></p>
+                                                <div class="flex flex-wrap gap-3 pt-1">
+                                                    <span class="rounded-full bg-primary px-4 py-2 text-xs font-bold text-white"><?= e((string) ($settings['home_banner_primary_text'] ?? 'Botao principal')) ?></span>
+                                                    <span class="rounded-full border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600"><?= e((string) ($settings['home_banner_secondary_text'] ?? 'Botao secundario')) ?></span>
+                                                </div>
                                             </div>
-                                            <p class="text-2xl font-extrabold text-on-surface"><?= e((string) ($settings['home_banner_title'] ?? 'SexyLua')) ?></p>
-                                            <p class="text-sm leading-6 text-on-surface-variant"><?= e((string) ($settings['home_banner_subtitle'] ?? 'Configure titulo, subtitulo, botoes e fundo para destacar a campanha principal da home.')) ?></p>
-                                            <div class="flex flex-wrap gap-3 pt-1">
-                                                <span class="rounded-full bg-primary px-4 py-2 text-xs font-bold text-white"><?= e((string) ($settings['home_banner_primary_text'] ?? 'Botao principal')) ?></span>
-                                                <span class="rounded-full border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600"><?= e((string) ($settings['home_banner_secondary_text'] ?? 'Botao secundario')) ?></span>
+                                        </div>
+                                        <div class="settings-preview-tile overflow-hidden">
+                                            <div class="mx-auto flex max-w-[260px] justify-center bg-[#f5f3f5] p-4">
+                                                <img alt="Preview mobile do banner da home" class="h-[360px] w-full rounded-[2rem] object-cover" src="<?= e($homeBannerMobilePreview) ?>">
+                                            </div>
+                                            <div class="space-y-3 p-5">
+                                                <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
+                                                    <span class="rounded-full bg-[#f5f3f5] px-3 py-1">Preview mobile</span>
+                                                    <?php if ((string) ($settings['home_banner_background_mobile_url'] ?? '') === ''): ?>
+                                                        <span class="rounded-full bg-slate-100 px-3 py-1 text-slate-500">Usando fundo desktop</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <p class="text-sm leading-6 text-on-surface-variant">Use uma arte mais vertical para o celular. Se nada for enviado aqui, a home continua usando o banner desktop como fallback.</p>
+                                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Recomendacao: 1080 x 1440 px</p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <label class="block space-y-2"><span class="settings-mini-label">Imagem do banner mobile URL</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_mobile_url" type="text" value="<?= e((string) ($settings['home_banner_background_mobile_url'] ?? '')) ?>"></label>
+                                <label class="block space-y-2"><span class="settings-mini-label">Upload da imagem do banner mobile</span><input accept=".png,.jpg,.jpeg,.webp,.gif" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_mobile_file" type="file"></label>
                             </div>
                         </section>
                     </div>

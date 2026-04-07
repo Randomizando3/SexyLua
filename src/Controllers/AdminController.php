@@ -225,6 +225,13 @@ final class AdminController extends Controller
             }
         }
 
+        if ($request->hasFile('home_banner_background_mobile_file')) {
+            $bannerMobilePath = store_uploaded_file($request->file('home_banner_background_mobile_file'), 'admin/branding', ['png', 'jpg', 'jpeg', 'webp', 'gif']);
+            if ($bannerMobilePath !== null) {
+                $payload['home_banner_background_mobile_url'] = $bannerMobilePath;
+            }
+        }
+
         $this->app->repository->updateSettings($payload);
 
         $this->redirect('/admin/settings', 'Configuracoes salvas.');
