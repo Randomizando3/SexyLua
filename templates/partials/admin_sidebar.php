@@ -29,9 +29,4 @@ $adminSidebarLinks = [
             </a>
         <?php endforeach; ?>
     </nav>
-    <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
-        <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary"><?= e($adminSidebarMetricTitle) ?></p>
-        <h3 class="mt-3 text-3xl font-extrabold"><?= e($adminSidebarMetricValue) ?></h3>
-        <p class="mt-2 text-sm text-on-surface-variant"><?= e($adminSidebarMetricDescription) ?></p>
-    </div>
 </aside>
