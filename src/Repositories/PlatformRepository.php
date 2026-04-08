@@ -560,6 +560,7 @@ final class PlatformRepository
 
         $plans = array_values(array_filter($this->plansWithCreators(), static fn (array $plan): bool => (int) $plan['creator_id'] === $creatorId && (bool) $plan['active']));
         $content = array_values(array_filter($this->contentsWithCreators(), fn (array $item): bool => (int) $item['creator_id'] === $creatorId && $item['status'] === 'approved' && ! $this->contentIsExpired($item) && $this->matchesAudienceCategory($category, (string) ($item['category'] ?? 'todos'))));
+        $content = $this->sortByDate($content, 'created_at');
         $content = array_map(function (array $item) use ($viewerId): array {
             $item['viewer_has_unlock'] = $viewerId !== null && $viewerId > 0
                 ? $this->hasContentUnlock((int) ($item['id'] ?? 0), $viewerId)
@@ -5604,6 +5605,17 @@ final class PlatformRepository
         }
 
         $packItems = $this->decoratePackItems((array) ($item['pack_items'] ?? []));
+        $previewMediaUrl = (string) ($item['media_url'] ?? '');
+        $previewThumbnailUrl = (string) ($item['thumbnail_url'] ?? '');
+        if ((string) ($item['kind'] ?? '') === 'pack' && $packItems !== []) {
+            $previewItem = $packItems[0];
+            if ($previewMediaUrl === '') {
+                $previewMediaUrl = (string) ($previewItem['url'] ?? '');
+            }
+            if ($previewThumbnailUrl === '') {
+                $previewThumbnailUrl = (string) ($previewItem['thumbnail_url'] ?? $previewItem['url'] ?? '');
+            }
+        }
 
         return $item + [
             'category' => $this->normalizeAudienceCategory((string) ($item['category'] ?? 'todos')),
@@ -5612,6 +5624,8 @@ final class PlatformRepository
             'plan' => $plan,
             'is_expired' => $this->contentIsExpired($item),
             'unlock_price_tokens' => max(0, (int) ($item['unlock_price_tokens'] ?? 0)),
+            'media_url' => $previewMediaUrl,
+            'thumbnail_url' => $previewThumbnailUrl,
             'pack_items' => $packItems,
             'pack_count' => (int) ($item['pack_count'] ?? count($packItems)),
         ];
@@ -5680,6 +5694,17 @@ final class PlatformRepository
     public function findPublicContentById(int $contentId): ?array
     {
         return $this->findContentWithCreator($contentId);
+    }
+
+    public function findCreatorContentById(int $creatorId, int $contentId): ?array
+    {
+        foreach ($this->contentItems() as $item) {
+            if ((int) ($item['id'] ?? 0) === $contentId && (int) ($item['creator_id'] ?? 0) === $creatorId) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 
     private function findPlanById(int $planId): ?array
