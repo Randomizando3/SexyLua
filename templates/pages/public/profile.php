@@ -269,7 +269,7 @@ if ($requestedContentId > 0) {
                         </div>
                     </div>
                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <?php foreach (array_slice($content, 0, 6) as $item): ?>
+                        <?php foreach ($content as $item): ?>
                             <?php
                             $itemId = (int) ($item['id'] ?? 0);
                             $kind = (string) ($item['kind'] ?? 'gallery');
