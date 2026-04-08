@@ -23,6 +23,7 @@ $router->post('/help/contact', [PublicController::class, 'submitHelp']);
 $router->post('/audience-gate', [PublicController::class, 'storeAudienceGate']);
 $router->post('/live/chat', [PublicController::class, 'postLiveMessage']);
 $router->post('/messages/unlock', [PublicController::class, 'unlockMessage']);
+$router->post('/profile/content/unlock', [PublicController::class, 'unlockContent']);
 $router->post('/live/unlock', [PublicController::class, 'unlockLive']);
 $router->post('/live/darkroom', [PublicController::class, 'activateDarkroom']);
 $router->get('/live/rtc/poll', [LiveRtcController::class, 'poll']);

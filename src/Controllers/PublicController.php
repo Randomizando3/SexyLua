@@ -378,6 +378,28 @@ final class PublicController extends Controller
         $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel desbloquear este conteudo.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
     }
 
+    public function unlockContent(Request $request): void
+    {
+        if ($this->app->auth->guest()) {
+            $this->redirect('/login', 'Entre para desbloquear este pack.', 'error');
+        }
+
+        $this->app->auth->requireRole('subscriber');
+        $contentId = (int) $request->input('content_id', 0);
+        $content = $this->app->repository->findPublicContentById($contentId);
+        $creator = is_array($content['creator'] ?? null) ? $content['creator'] : null;
+        $defaultRedirect = $creator ? creator_public_url($creator, ['content' => $contentId]) : '/explore';
+        $redirect = (string) $request->input('redirect', $defaultRedirect);
+        $this->validateCsrf($request, $redirect);
+        $result = $this->app->repository->unlockContentAccess($contentId, (int) ($this->user()['id'] ?? 0));
+
+        if (! (bool) ($result['ok'] ?? false) && str_contains(mb_strtolower((string) ($result['message'] ?? '')), 'saldo insuficiente')) {
+            $this->redirect('/subscriber/wallet', 'Voce nao tem LuaCoins suficientes para desbloquear este pack. Recarregue sua carteira para continuar.', 'error');
+        }
+
+        $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel desbloquear este pack.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
+    }
+
     public function unlockLive(Request $request): void
     {
         if ($this->app->auth->guest()) {

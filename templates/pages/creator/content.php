@@ -67,6 +67,7 @@ if ($formItem) {
         'excerpt' => (string) ($formItem['excerpt'] ?? ''),
         'body' => (string) ($formItem['body'] ?? ''),
         'plan_id' => (int) ($formItem['plan_id'] ?? 0),
+        'unlock_price_tokens' => (int) ($formItem['unlock_price_tokens'] ?? 0),
         'pack_count' => (int) ($formItem['pack_count'] ?? 0),
     ];
 }
@@ -206,6 +207,7 @@ include base_path('templates/partials/creator_topbar.php');
                     'excerpt' => (string) ($item['excerpt'] ?? ''),
                     'body' => (string) ($item['body'] ?? ''),
                     'plan_id' => (int) ($item['plan_id'] ?? 0),
+                    'unlock_price_tokens' => (int) ($item['unlock_price_tokens'] ?? 0),
                     'pack_count' => (int) ($item['pack_count'] ?? 0),
                 ];
                 $archiveStatus = $status === 'archived' ? 'approved' : 'archived';
@@ -262,6 +264,9 @@ include base_path('templates/partials/creator_topbar.php');
                             <?php endif; ?>
                             <?php if ($isPack): ?>
                                 <span class="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500"><?= e((string) max(1, (int) ($item['pack_count'] ?? 0))) ?> midias</span>
+                                <?php if ((int) ($item['unlock_price_tokens'] ?? 0) > 0): ?>
+                                    <span class="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-amber-700">Avulso <?= e(luacoin_value((int) ($item['unlock_price_tokens'] ?? 0))) ?></span>
+                                <?php endif; ?>
                             <?php endif; ?>
                             <span class="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500"><?= e((string) ($item['saved_count'] ?? 0)) ?> salvos</span>
                         </div>
@@ -370,12 +375,20 @@ include base_path('templates/partials/creator_topbar.php');
             </div>
 
             <div class="hidden rounded-2xl bg-[#f5f3f5] p-4" data-content-pack-fields>
-                <label class="block space-y-2">
-                    <span class="text-sm font-semibold text-slate-700">Arquivos do pack</span>
-                    <p class="text-xs text-slate-500">Envie varias fotos e/ou videos para montar um pack. A primeira midia vira a capa do card publico.</p>
-                    <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm" class="w-full rounded-2xl border-none bg-white px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" multiple name="pack_files[]" type="file">
-                    <span class="block text-xs text-slate-500">Se voce editar um pack e enviar novos arquivos, a composicao atual sera substituida pela nova selecao.</span>
-                </label>
+                <div class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                    <label class="block space-y-2">
+                        <span class="text-sm font-semibold text-slate-700">Arquivos do pack</span>
+                        <p class="text-xs text-slate-500">Envie varias fotos e/ou videos para montar um pack. A primeira midia vira a capa do card publico.</p>
+                        <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm" class="w-full rounded-2xl border-none bg-white px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" multiple name="pack_files[]" type="file">
+                        <span class="block text-xs text-slate-500">Se voce editar um pack e enviar novos arquivos, a composicao atual sera substituida pela nova selecao.</span>
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-sm font-semibold text-slate-700">Compra avulsa permanente</span>
+                        <p class="text-xs text-slate-500">Opcional. Defina quantos LuaCoins liberam este pack para sempre, mesmo sem assinatura ativa.</p>
+                        <input class="w-full rounded-2xl border-none bg-white px-5 py-4" data-content-field="unlock_price_tokens" min="0" name="unlock_price_tokens" placeholder="0" type="number" value="<?= e((string) ((int) ($formItem['unlock_price_tokens'] ?? 0))) ?>">
+                        <span class="block text-xs text-slate-500">Se deixar em 0, o pack segue apenas pelas regras de assinatura e plano.</span>
+                    </label>
+                </div>
             </div>
 
             <div class="rounded-2xl bg-[#f5f3f5] p-4 text-sm text-slate-600">
@@ -414,6 +427,7 @@ include base_path('templates/partials/creator_topbar.php');
             excerpt: '',
             body: '',
             plan_id: '',
+            unlock_price_tokens: '',
             pack_count: 0,
         };
         const fields = {
@@ -428,6 +442,7 @@ include base_path('templates/partials/creator_topbar.php');
             excerpt: form.querySelector('[data-content-field="excerpt"]'),
             body: form.querySelector('[data-content-field="body"]'),
             plan_id: form.querySelector('[data-content-field="plan_id"]'),
+            unlock_price_tokens: form.querySelector('[data-content-field="unlock_price_tokens"]'),
         };
         const packFieldsWrap = modal.querySelector('[data-content-pack-fields]');
 

@@ -39,6 +39,10 @@ $canAccessContent = static function (array $item) use ($creatorId, $viewerId, $v
         return true;
     }
 
+    if ((bool) ($item['viewer_has_unlock'] ?? false)) {
+        return true;
+    }
+
     return $isSubscribed;
 };
 $lockedMessageForContent = static function (array $item) use ($guestPreviewLocked): string {
@@ -47,6 +51,12 @@ $lockedMessageForContent = static function (array $item) use ($guestPreviewLocke
     }
 
     $visibility = (string) ($item['visibility'] ?? 'subscriber');
+    $unlockPrice = max(0, (int) ($item['unlock_price_tokens'] ?? 0));
+    if ((string) ($item['kind'] ?? '') === 'pack' && $unlockPrice > 0) {
+        return $visibility === 'premium'
+            ? 'Este pack exige um plano ativo, mas voce tambem pode comprar avulso por ' . luacoin_value($unlockPrice) . ' LuaCoins e manter acesso permanente.'
+            : 'Este pack e exclusivo para assinantes, mas voce tambem pode comprar avulso por ' . luacoin_value($unlockPrice) . ' LuaCoins e manter acesso permanente.';
+    }
     return $visibility === 'premium'
         ? 'Este conteúdo exige um plano ativo para ser desbloqueado.'
         : 'Este conteúdo é exclusivo para assinantes.';
@@ -70,15 +80,18 @@ if ($requestedContentId > 0) {
                 'body' => (string) ($candidate['body'] ?? ''),
                 'duration' => (string) ($candidate['duration'] ?? ''),
                 'visibility' => (string) ($candidate['visibility'] ?? 'public'),
-                'plan_name' => (string) ($candidatePlan['name'] ?? ''),
+                'plan_name' => (string) ($candidatePlan['name'] ?? ($primaryPlan['name'] ?? '')),
                 'pack_items' => array_values((array) ($candidate['pack_items'] ?? [])),
             ];
         } else {
             $selectedLockedPayload = [
                 'id' => (int) ($candidate['id'] ?? 0),
                 'title' => (string) ($candidate['title'] ?? 'Conteúdo exclusivo'),
+                'kind' => (string) ($candidate['kind'] ?? 'gallery'),
                 'visibility' => (string) ($candidate['visibility'] ?? 'subscriber'),
+                'plan_id' => (int) ($candidatePlan['id'] ?? ($primaryPlan['id'] ?? 0)),
                 'plan_name' => (string) ($candidatePlan['name'] ?? ''),
+                'unlock_price_tokens' => max(0, (int) ($candidate['unlock_price_tokens'] ?? 0)),
                 'message' => $lockedMessageForContent($candidate),
             ];
         }
@@ -278,15 +291,18 @@ if ($requestedContentId > 0) {
                                     'body' => (string) ($item['body'] ?? ''),
                                     'duration' => (string) ($item['duration'] ?? ''),
                                     'visibility' => (string) ($item['visibility'] ?? 'public'),
-                                    'plan_name' => (string) ($itemPlan['name'] ?? ''),
+                                    'plan_name' => (string) ($itemPlan['name'] ?? ($primaryPlan['name'] ?? '')),
                                     'pack_items' => array_values((array) ($item['pack_items'] ?? [])),
                                 ];
                             } else {
                                 $lockedPayload = [
                                     'id' => $itemId,
                                     'title' => (string) ($item['title'] ?? 'Conteúdo exclusivo'),
+                                    'kind' => $kind,
                                     'visibility' => (string) ($item['visibility'] ?? 'subscriber'),
+                                    'plan_id' => (int) ($itemPlan['id'] ?? ($primaryPlan['id'] ?? 0)),
                                     'plan_name' => (string) ($itemPlan['name'] ?? ''),
+                                    'unlock_price_tokens' => max(0, (int) ($item['unlock_price_tokens'] ?? 0)),
                                     'message' => $lockedMessageForContent($item),
                                 ];
                             }
@@ -350,6 +366,9 @@ if ($requestedContentId > 0) {
                                         <span><?= e((string) ($item['kind'] ?? 'conteúdo')) ?></span>
                                         <?php if ($itemPlan): ?>
                                             <span class="rounded-full bg-white px-3 py-1 text-[10px] text-[#ab1155]"><?= e((string) ($itemPlan['name'] ?? 'Plano')) ?></span>
+                                        <?php endif; ?>
+                                        <?php if ((string) ($item['kind'] ?? '') === 'pack' && (int) ($item['unlock_price_tokens'] ?? 0) > 0): ?>
+                                            <span class="rounded-full bg-amber-50 px-3 py-1 text-[10px] text-amber-700">Avulso <?= e(luacoin_value((int) ($item['unlock_price_tokens'] ?? 0))) ?></span>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -531,21 +550,27 @@ if ($requestedContentId > 0) {
                         <p class="text-sm font-bold uppercase tracking-[0.22em] text-slate-400" data-profile-locked-visibility>Assinantes</p>
                         <p class="mt-2 text-base leading-relaxed text-slate-600" data-profile-locked-message>Assine para liberar este conteúdo.</p>
                         <p class="mt-3 text-sm font-semibold text-[#ab1155]" data-profile-locked-plan></p>
+                        <p class="mt-2 hidden text-sm font-semibold text-amber-700" data-profile-locked-price></p>
                     </div>
                 </div>
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
                 <?php if (! $currentUser): ?>
-                    <a class="rounded-full bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white" href="/login">Entrar para assinar</a>
-                <?php elseif ($canInteractAsSubscriber && $primaryPlan && ! $isSubscribed): ?>
-                    <form action="/profile/subscribe" method="post">
+                    <a class="rounded-full bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white" href="/login">Entrar para continuar</a>
+                <?php elseif ($canInteractAsSubscriber): ?>
+                    <form action="/profile/subscribe" class="hidden" data-profile-locked-subscribe-form method="post">
                         <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                        <input name="plan_id" type="hidden" value="<?= e((string) ((int) ($primaryPlan['id'] ?? 0))) ?>">
+                        <input data-profile-locked-plan-id name="plan_id" type="hidden" value="">
                         <button class="signature-glow rounded-full px-6 py-4 text-sm font-bold text-white" type="submit">Adquirir plano</button>
                     </form>
-                <?php elseif ($isSubscribed): ?>
-                    <span class="rounded-full bg-emerald-50 px-6 py-4 text-center text-sm font-bold text-emerald-700">Seu plano já está ativo</span>
+                    <form action="/profile/content/unlock" class="hidden" data-profile-locked-buy-form method="post">
+                        <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                        <input data-profile-locked-content-id name="content_id" type="hidden" value="">
+                        <input data-profile-locked-redirect name="redirect" type="hidden" value="<?= e($profileUrl) ?>">
+                        <button class="rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-profile-locked-buy-button type="submit">Comprar pack</button>
+                    </form>
+                    <span class="hidden rounded-full bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white" data-profile-locked-empty>Este conteúdo não tem compra avulsa disponível agora.</span>
                 <?php else: ?>
                     <span class="rounded-full bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white">Acesse com uma conta de assinante</span>
                 <?php endif; ?>
@@ -600,6 +625,14 @@ if ($requestedContentId > 0) {
         const lockedVisibilityNode = lockedModal.querySelector('[data-profile-locked-visibility]');
         const lockedMessageNode = lockedModal.querySelector('[data-profile-locked-message]');
         const lockedPlanNode = lockedModal.querySelector('[data-profile-locked-plan]');
+        const lockedPriceNode = lockedModal.querySelector('[data-profile-locked-price]');
+        const lockedSubscribeForm = lockedModal.querySelector('[data-profile-locked-subscribe-form]');
+        const lockedPlanIdInput = lockedModal.querySelector('[data-profile-locked-plan-id]');
+        const lockedBuyForm = lockedModal.querySelector('[data-profile-locked-buy-form]');
+        const lockedBuyButton = lockedModal.querySelector('[data-profile-locked-buy-button]');
+        const lockedContentIdInput = lockedModal.querySelector('[data-profile-locked-content-id]');
+        const lockedRedirectInput = lockedModal.querySelector('[data-profile-locked-redirect]');
+        const lockedEmptyNode = lockedModal.querySelector('[data-profile-locked-empty]');
         const labels = {
             gallery: 'Galeria',
             video: 'Video',
@@ -760,6 +793,32 @@ if ($requestedContentId > 0) {
             lockedVisibilityNode.textContent = visibilityLabels[payload.visibility] || 'Assinantes';
             lockedMessageNode.textContent = payload.message || 'Adquira um plano para visualizar este conteúdo.';
             lockedPlanNode.textContent = payload.plan_name ? `Plano sugerido: ${payload.plan_name}` : '';
+            if (lockedPriceNode) {
+                const unlockPrice = Number(payload.unlock_price_tokens || 0);
+                lockedPriceNode.textContent = unlockPrice > 0 ? `Compra avulsa permanente: ${unlockPrice} LuaCoins` : '';
+                lockedPriceNode.classList.toggle('hidden', unlockPrice <= 0);
+            }
+            if (lockedSubscribeForm && lockedPlanIdInput) {
+                const planId = Number(payload.plan_id || 0);
+                lockedPlanIdInput.value = planId > 0 ? String(planId) : '';
+                lockedSubscribeForm.classList.toggle('hidden', planId <= 0);
+            }
+            if (lockedBuyForm && lockedContentIdInput && lockedRedirectInput) {
+                const unlockPrice = Number(payload.unlock_price_tokens || 0);
+                lockedContentIdInput.value = String(payload.id || '');
+                const nextUrl = new URL(window.location.href);
+                nextUrl.searchParams.set('content', String(payload.id || ''));
+                lockedRedirectInput.value = `${nextUrl.pathname}${nextUrl.search}`;
+                lockedBuyForm.classList.toggle('hidden', unlockPrice <= 0);
+                if (lockedBuyButton) {
+                    lockedBuyButton.textContent = unlockPrice > 0 ? `Comprar pack por ${unlockPrice} LuaCoins` : 'Comprar pack';
+                }
+            }
+            if (lockedEmptyNode) {
+                const planId = Number(payload.plan_id || 0);
+                const unlockPrice = Number(payload.unlock_price_tokens || 0);
+                lockedEmptyNode.classList.toggle('hidden', planId > 0 || unlockPrice > 0);
+            }
             lockedModal.classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
             const nextUrl = new URL(window.location.href);

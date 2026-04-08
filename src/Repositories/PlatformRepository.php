@@ -34,6 +34,7 @@ final class PlatformRepository
         'messages',
         'message_unlocks',
         'live_unlocks',
+        'content_unlocks',
         'live_darkrooms',
         'notifications',
         'announcements',
@@ -559,6 +560,13 @@ final class PlatformRepository
 
         $plans = array_values(array_filter($this->plansWithCreators(), static fn (array $plan): bool => (int) $plan['creator_id'] === $creatorId && (bool) $plan['active']));
         $content = array_values(array_filter($this->contentsWithCreators(), fn (array $item): bool => (int) $item['creator_id'] === $creatorId && $item['status'] === 'approved' && ! $this->contentIsExpired($item) && $this->matchesAudienceCategory($category, (string) ($item['category'] ?? 'todos'))));
+        $content = array_map(function (array $item) use ($viewerId): array {
+            $item['viewer_has_unlock'] = $viewerId !== null && $viewerId > 0
+                ? $this->hasContentUnlock((int) ($item['id'] ?? 0), $viewerId)
+                : false;
+
+            return $item;
+        }, $content);
         $relatedCreators = array_values(array_filter($this->creators(), static fn (array $item): bool => (int) $item['id'] !== $creatorId));
         $upcomingLives = array_values(array_filter(
             $this->livesWithCreators(),
@@ -1914,6 +1922,72 @@ final class PlatformRepository
         return ['ok' => true, 'message' => 'Live VIP desbloqueada com sucesso.'];
     }
 
+    public function unlockContentAccess(int $contentId, int $userId): array
+    {
+        $content = $this->findContentWithCreator($contentId);
+
+        if ($content === null || (string) ($content['status'] ?? '') !== 'approved' || $this->contentIsExpired($content)) {
+            return ['ok' => false, 'message' => 'Pack nao encontrado.'];
+        }
+
+        if ((string) ($content['kind'] ?? '') !== 'pack') {
+            return ['ok' => false, 'message' => 'A compra avulsa esta disponivel apenas para packs.'];
+        }
+
+        $unlockPrice = max(0, (int) ($content['unlock_price_tokens'] ?? 0));
+        if ($unlockPrice <= 0) {
+            return ['ok' => false, 'message' => 'Este pack nao possui compra avulsa disponivel.'];
+        }
+
+        if ($this->hasContentUnlock($contentId, $userId)) {
+            return ['ok' => true, 'message' => 'Pack ja desbloqueado para sua conta.'];
+        }
+
+        $user = $this->findUserById($userId);
+        if ($user === null || (string) ($user['status'] ?? 'active') !== 'active') {
+            return ['ok' => false, 'message' => 'Sua conta nao pode desbloquear este pack agora.'];
+        }
+
+        $creatorId = (int) ($content['creator_id'] ?? 0);
+        if ($creatorId <= 0) {
+            return ['ok' => false, 'message' => 'Criador nao encontrado para este pack.'];
+        }
+
+        if ($this->walletBalance($userId) < $unlockPrice) {
+            return ['ok' => false, 'message' => 'Saldo insuficiente para desbloquear este pack.'];
+        }
+
+        $title = trim((string) ($content['title'] ?? 'Pack exclusivo'));
+        $this->chargeSubscriberAndCreditCreator($userId, $creatorId, $unlockPrice, 'instant_content', 'Compra avulsa do pack ' . $title);
+
+        $unlocks = $this->contentUnlocks();
+        $unlocks[] = [
+            'id' => $this->store->nextId($unlocks),
+            'content_id' => $contentId,
+            'user_id' => $userId,
+            'amount' => $unlockPrice,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        $this->save('content_unlocks', $unlocks);
+
+        $buyer = $this->findUserById($userId);
+        $creator = $this->findCreatorBySlugOrId(null, $creatorId);
+        $this->notifyUser(
+            $creatorId,
+            'sale',
+            'Pack desbloqueado',
+            user_handle($buyer, 'assinante') . ' comprou seu pack por ' . $unlockPrice . ' LuaCoins.',
+            creator_public_url($creator, ['content' => $contentId]),
+            [
+                'content_id' => $contentId,
+                'amount' => $unlockPrice,
+                'buyer_id' => $userId,
+            ]
+        );
+
+        return ['ok' => true, 'message' => 'Pack desbloqueado com acesso permanente.'];
+    }
+
     public function activateLiveDarkroom(int $liveId, int $userId): array
     {
         $live = $this->findLiveById($liveId);
@@ -2331,6 +2405,7 @@ final class PlatformRepository
         $packItems = array_key_exists('pack_items', $data) ? $this->normalizePackItems((array) ($data['pack_items'] ?? [])) : null;
         $planId = max(0, (int) ($data['plan_id'] ?? 0));
         $plan = $planId > 0 ? $this->findPlanById($planId) : null;
+        $unlockPriceTokens = max(0, (int) ($data['unlock_price_tokens'] ?? $data['unlock_price'] ?? 0));
 
         if (! $plan || (int) ($plan['creator_id'] ?? 0) !== $creatorId) {
             $planId = 0;
@@ -2348,6 +2423,7 @@ final class PlatformRepository
             'duration' => trim((string) ($data['duration'] ?? '')),
             'plan_id' => $planId,
             'price_tokens' => $plan ? (int) ($plan['price_tokens'] ?? 0) : max(0, (int) ($data['price_tokens'] ?? $data['price_luacoins'] ?? 0)),
+            'unlock_price_tokens' => $kind === 'pack' ? $unlockPriceTokens : 0,
             'media_url' => $mediaUrl,
             'thumbnail_url' => $thumbnailUrl,
             'media_bytes' => max(0, (int) ($data['media_bytes'] ?? ($mediaUrl !== '' ? \public_media_file_bytes($mediaUrl) : 0))),
@@ -2478,6 +2554,8 @@ final class PlatformRepository
         $this->save('content_items', $items);
         $savedItems = array_values(array_filter($this->savedItems(), static fn (array $saved): bool => (int) ($saved['content_id'] ?? 0) !== $contentId));
         $this->save('saved_items', $savedItems);
+        $contentUnlocks = array_values(array_filter($this->contentUnlocks(), static fn (array $unlock): bool => (int) ($unlock['content_id'] ?? 0) !== $contentId));
+        $this->save('content_unlocks', $contentUnlocks);
         if (is_array($removed)) {
             $this->deletePublicMediaFile((string) ($removed['media_url'] ?? ''));
             $this->deletePublicMediaFile((string) ($removed['thumbnail_url'] ?? ''));
@@ -5016,6 +5094,8 @@ final class PlatformRepository
         $this->save('content_items', $items);
         $savedItems = array_values(array_filter($this->savedItems(), static fn (array $saved): bool => (int) ($saved['content_id'] ?? 0) !== $contentId));
         $this->save('saved_items', $savedItems);
+        $contentUnlocks = array_values(array_filter($this->contentUnlocks(), static fn (array $unlock): bool => (int) ($unlock['content_id'] ?? 0) !== $contentId));
+        $this->save('content_unlocks', $contentUnlocks);
         if (is_array($removed)) {
             $this->deletePublicMediaFile((string) ($removed['media_url'] ?? ''));
             $this->deletePublicMediaFile((string) ($removed['thumbnail_url'] ?? ''));
@@ -5382,6 +5462,11 @@ final class PlatformRepository
         return $this->readCollection('message_unlocks');
     }
 
+    private function contentUnlocks(): array
+    {
+        return $this->readCollection('content_unlocks');
+    }
+
     private function liveUnlocks(): array
     {
         return $this->readCollection('live_unlocks');
@@ -5526,6 +5611,7 @@ final class PlatformRepository
             'creator' => $this->findCreatorBySlugOrId(null, (int) $item['creator_id']),
             'plan' => $plan,
             'is_expired' => $this->contentIsExpired($item),
+            'unlock_price_tokens' => max(0, (int) ($item['unlock_price_tokens'] ?? 0)),
             'pack_items' => $packItems,
             'pack_count' => (int) ($item['pack_count'] ?? count($packItems)),
         ];
@@ -5589,6 +5675,11 @@ final class PlatformRepository
         }
 
         return null;
+    }
+
+    public function findPublicContentById(int $contentId): ?array
+    {
+        return $this->findContentWithCreator($contentId);
     }
 
     private function findPlanById(int $planId): ?array
@@ -6732,6 +6823,17 @@ final class PlatformRepository
     {
         foreach ($this->liveUnlocks() as $unlock) {
             if ((int) ($unlock['live_id'] ?? 0) === $liveId && (int) ($unlock['user_id'] ?? 0) === $userId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasContentUnlock(int $contentId, int $userId): bool
+    {
+        foreach ($this->contentUnlocks() as $unlock) {
+            if ((int) ($unlock['content_id'] ?? 0) === $contentId && (int) ($unlock['user_id'] ?? 0) === $userId) {
                 return true;
             }
         }
