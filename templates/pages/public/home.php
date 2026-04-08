@@ -134,57 +134,6 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
         </div>
     </section>
 
-    <section class="mx-auto max-w-7xl px-8 py-16">
-        <div class="mb-8 flex items-end justify-between gap-6">
-            <div>
-                <h2 class="headline text-3xl font-extrabold"><?= e($liveSectionTitle) ?></h2>
-                <p class="mt-2 text-sm text-slate-500"><?= e($liveSectionDescription) ?></p>
-            </div>
-            <a class="text-sm font-bold text-[#ab1155] underline" href="<?= e(path_with_query('/explore', ['category' => $audienceCategory])) ?>">Ver tudo</a>
-        </div>
-        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-            <?php foreach (array_slice($liveShowcase, 0, 4) as $live): ?>
-                <?php $cover = media_url((string) ($live['cover_url'] ?? '')); ?>
-                <?php $coverIsVideo = media_is_video($cover); ?>
-                <a class="group overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)] transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
-                    <div class="relative aspect-[3/4] bg-slate-900">
-                        <?php if ($cover !== ''): ?>
-                            <?php if ($coverIsVideo): ?>
-                                <video autoplay class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" loop muted playsinline src="<?= e($cover) ?>"></video>
-                            <?php else: ?>
-                                <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" src="<?= e($cover) ?>">
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
-                                <span class="headline text-2xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
-                            </div>
-                        <?php endif; ?>
-                        <?php if ($guestPreviewLocked): ?>
-                            <div class="absolute inset-0 bg-slate-950/45 backdrop-blur-[4px]"></div>
-                        <?php endif; ?>
-                        <div class="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-white">Ao vivo</div>
-                        <div class="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]"><?= e((string) ($live['category_label'] ?? 'Todos')) ?></div>
-                        <?php if ($guestPreviewLocked): ?>
-                            <div class="absolute inset-x-4 bottom-4 rounded-full bg-white/90 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]">
-                                Entre para liberar
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="space-y-2 p-5">
-                        <p class="headline truncate text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
-                        <p class="text-sm text-slate-500"><?= e(user_handle($live['creator'] ?? [], 'criador')) ?></p>
-                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(number_format((int) ($live['viewer_count'] ?? 0), 0, ',', '.')) ?> viewers</p>
-                    </div>
-                </a>
-            <?php endforeach; ?>
-            <?php if ($liveShowcase === []): ?>
-                <div class="col-span-full rounded-3xl bg-white p-8 text-sm text-slate-500 shadow-sm">
-                    Nenhuma live ao vivo neste momento para a categoria <?= e($audienceLabel) ?>. Explore criadores e acompanhe as proximas salas pelo explorar.
-                </div>
-            <?php endif; ?>
-        </div>
-    </section>
-
     <section class="bg-[#fff6f8] py-16">
         <div class="mx-auto max-w-7xl px-8">
             <div class="mb-8 flex items-end justify-between gap-6">
@@ -266,6 +215,57 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
             <?php if ($featuredContent === []): ?>
                 <div class="col-span-full rounded-3xl bg-white p-8 text-sm text-slate-500 shadow-sm">
                     Ainda nao ha conteudos aprovados para a categoria <?= e($audienceLabel) ?>.
+                </div>
+            <?php endif; ?>
+        </div>
+    </section>
+
+    <section class="mx-auto max-w-7xl px-8 py-16">
+        <div class="mb-8 flex items-end justify-between gap-6">
+            <div>
+                <h2 class="headline text-3xl font-extrabold"><?= e($liveSectionTitle) ?></h2>
+                <p class="mt-2 text-sm text-slate-500"><?= e($liveSectionDescription) ?></p>
+            </div>
+            <a class="text-sm font-bold text-[#ab1155] underline" href="<?= e(path_with_query('/explore', ['category' => $audienceCategory])) ?>">Ver tudo</a>
+        </div>
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <?php foreach (array_slice($liveShowcase, 0, 4) as $live): ?>
+                <?php $cover = media_url((string) ($live['cover_url'] ?? '')); ?>
+                <?php $coverIsVideo = media_is_video($cover); ?>
+                <a class="group overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)] transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
+                    <div class="relative aspect-[3/4] bg-slate-900">
+                        <?php if ($cover !== ''): ?>
+                            <?php if ($coverIsVideo): ?>
+                                <video autoplay class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" loop muted playsinline src="<?= e($cover) ?>"></video>
+                            <?php else: ?>
+                                <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" src="<?= e($cover) ?>">
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
+                                <span class="headline text-2xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($guestPreviewLocked): ?>
+                            <div class="absolute inset-0 bg-slate-950/45 backdrop-blur-[4px]"></div>
+                        <?php endif; ?>
+                        <div class="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-white">Ao vivo</div>
+                        <div class="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]"><?= e((string) ($live['category_label'] ?? 'Todos')) ?></div>
+                        <?php if ($guestPreviewLocked): ?>
+                            <div class="absolute inset-x-4 bottom-4 rounded-full bg-white/90 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]">
+                                Entre para liberar
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="space-y-2 p-5">
+                        <p class="headline truncate text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
+                        <p class="text-sm text-slate-500"><?= e(user_handle($live['creator'] ?? [], 'criador')) ?></p>
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(number_format((int) ($live['viewer_count'] ?? 0), 0, ',', '.')) ?> viewers</p>
+                    </div>
+                </a>
+            <?php endforeach; ?>
+            <?php if ($liveShowcase === []): ?>
+                <div class="col-span-full rounded-3xl bg-white p-8 text-sm text-slate-500 shadow-sm">
+                    Nenhuma live ao vivo neste momento para a categoria <?= e($audienceLabel) ?>. Explore criadores e acompanhe as proximas salas pelo explorar.
                 </div>
             <?php endif; ?>
         </div>
