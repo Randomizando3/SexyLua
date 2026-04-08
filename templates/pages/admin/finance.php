@@ -85,7 +85,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
     </nav>
     <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
         <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Resultado da plataforma</p>
-        <div class="mt-3 text-3xl font-extrabold"><?= luacoin_brl_pair_html((int) ($summary['platform_result'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center gap-2 whitespace-nowrap text-primary', 'text-sm font-bold text-slate-500') ?></div>
+        <div class="mt-3 text-3xl font-extrabold"><?= luacoin_brl_pair_html((int) ($summary['platform_result'] ?? 0), $luacoinPriceBrl, 'inline-flex flex-col items-start gap-1 leading-tight', 'inline-flex items-center gap-2 whitespace-nowrap text-primary', 'block text-sm font-bold leading-tight text-slate-500') ?></div>
         <p class="mt-2 text-sm text-on-surface-variant">Margem liquida aproximada entre consumo dos assinantes e repasse aos criadores.</p>
     </div>
 </aside>
@@ -98,9 +98,9 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
             <p class="mt-4 max-w-2xl text-on-surface-variant">Acompanhe volume bruto, repasses, recargas, ajuste carteiras manualmente e opere o funil financeiro completo com mais seguranca.</p>
         </div>
         <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Volume</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['gross_volume'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-primary', 'text-xs font-bold text-slate-500') ?></div></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Repasse</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['creator_income'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-emerald-600', 'text-xs font-bold text-slate-500') ?></div></article>
-            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Resultado</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['platform_result'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-primary', 'text-xs font-bold text-slate-500') ?></div></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Volume</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['gross_volume'] ?? 0), $luacoinPriceBrl, 'inline-flex flex-col items-center gap-1 leading-tight', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-primary', 'block text-xs font-bold leading-tight text-slate-500') ?></div></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Repasse</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['creator_income'] ?? 0), $luacoinPriceBrl, 'inline-flex flex-col items-center gap-1 leading-tight', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-emerald-600', 'block text-xs font-bold leading-tight text-slate-500') ?></div></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Resultado</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['platform_result'] ?? 0), $luacoinPriceBrl, 'inline-flex flex-col items-center gap-1 leading-tight', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-primary', 'block text-xs font-bold leading-tight text-slate-500') ?></div></article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Recargas</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['top_ups'] ?? 0)) ?></p></article>
             <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Saques pendentes</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-amber-600 md:text-3xl"><?= e((string) ($summary['pending_payout_count'] ?? 0)) ?></p></article>
         </div>
@@ -170,7 +170,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                         <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" min="1" name="luacoins" step="1" type="number" value="50">
                     </label>
                     <label class="block space-y-2">
-                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota interna</span>
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota</span>
                         <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="note" type="text" value="Ajuste manual do admin">
                     </label>
                     <button class="rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white xl:col-span-3" data-prototype-skip="1" type="submit">Aplicar ajuste</button>
@@ -220,7 +220,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($transaction['user']['email'] ?? '')) ?></p>
                                     <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['provider'] ?? 'checkout')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
                                 </div>
-                                <div class="text-right"><?= luacoin_brl_pair_html((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center gap-2 whitespace-nowrap text-2xl font-extrabold text-primary', 'text-xs font-bold text-slate-500') ?></div>
+                                <div class="text-right"><?= luacoin_brl_pair_html((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl, 'inline-flex flex-col items-end gap-1 leading-tight', 'inline-flex items-center gap-2 whitespace-nowrap text-2xl font-extrabold text-primary', 'block text-xs font-bold leading-tight text-slate-500') ?></div>
                             </div>
                             <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[0.45fr_1fr]">
                                 <label class="block space-y-2">
@@ -231,7 +231,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                     </select>
                                 </label>
                                 <label class="block space-y-2">
-                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota interna</span>
+                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota</span>
                                     <textarea class="min-h-24 w-full rounded-3xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="admin_note" placeholder="Ex.: comprovante validado manualmente."><?= e((string) ($transaction['admin_note'] ?? '')) ?></textarea>
                                 </label>
                             </div>
@@ -245,7 +245,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
             <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
                 <div class="mb-6 flex items-center justify-between">
                     <h3 class="text-2xl font-extrabold">Saques aguardando revisao</h3>
-                    <span class="text-sm font-bold text-primary"><?= luacoin_brl_pair_html((int) ($summary['pending_payout_tokens'] ?? 0), $luacoinPriceBrl, 'space-y-0.5', 'inline-flex items-center gap-1.5 whitespace-nowrap text-primary', 'text-[11px] font-bold text-slate-500') ?></span>
+                    <span class="text-sm font-bold text-primary"><?= luacoin_brl_pair_html((int) ($summary['pending_payout_tokens'] ?? 0), $luacoinPriceBrl, 'inline-flex flex-col items-end gap-0.5 leading-tight', 'inline-flex items-center gap-1.5 whitespace-nowrap text-primary', 'block text-[11px] font-bold leading-tight text-slate-500') ?></span>
                 </div>
                 <div class="space-y-4">
                     <?php foreach ($pendingPayouts as $transaction): ?>
@@ -258,7 +258,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($transaction['user']['email'] ?? '')) ?></p>
                                     <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e((string) ($transaction['payout_method'] ?? 'pix')) ?> • <?= e(format_datetime((string) ($transaction['created_at'] ?? ''), 'd/m/Y H:i')) ?></p>
                                 </div>
-                                <div class="text-right"><?= luacoin_brl_pair_html((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center gap-2 whitespace-nowrap text-2xl font-extrabold text-primary', 'text-xs font-bold text-slate-500') ?></div>
+                                <div class="text-right"><?= luacoin_brl_pair_html((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl, 'inline-flex flex-col items-end gap-1 leading-tight', 'inline-flex items-center gap-2 whitespace-nowrap text-2xl font-extrabold text-primary', 'block text-xs font-bold leading-tight text-slate-500') ?></div>
                             </div>
                             <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[0.45fr_1fr]">
                                 <label class="block space-y-2">
@@ -270,7 +270,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                     </select>
                                 </label>
                                 <label class="block space-y-2">
-                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota interna</span>
+                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota</span>
                                     <textarea class="min-h-24 w-full rounded-3xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="admin_note" placeholder="Ex.: PIX confirmado, aguardando comprovante ou saque devolvido."><?= e((string) ($transaction['admin_note'] ?? '')) ?></textarea>
                                 </label>
                             </div>
@@ -353,7 +353,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                         <p class="mt-3 text-sm text-slate-500"><?= e((string) ($transaction['admin_note'] ?? '')) ?></p>
                                     <?php endif; ?>
                                 </div>
-                                <div class="text-right"><?= luacoin_brl_pair_html((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl, 'space-y-1', 'inline-flex items-center gap-2 whitespace-nowrap text-xl font-extrabold text-primary', 'text-xs font-bold text-slate-500') ?></div>
+                                <div class="text-right"><?= luacoin_brl_pair_html((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl, 'inline-flex flex-col items-end gap-1 leading-tight', 'inline-flex items-center gap-2 whitespace-nowrap text-xl font-extrabold text-primary', 'block text-xs font-bold leading-tight text-slate-500') ?></div>
                             </div>
                             <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[0.45fr_1fr]">
                                 <label class="block space-y-2">
@@ -366,7 +366,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                     </select>
                                 </label>
                                 <label class="block space-y-2">
-                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota interna</span>
+                                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nota</span>
                                     <textarea class="min-h-24 w-full rounded-3xl border-none bg-white px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="admin_note" placeholder="Ex.: comprovante enviado, pago em lote ou devolvido."><?= e((string) ($transaction['admin_note'] ?? '')) ?></textarea>
                                 </label>
                             </div>
