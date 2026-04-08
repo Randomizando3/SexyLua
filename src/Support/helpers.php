@@ -699,6 +699,36 @@ function store_uploaded_file(?array $file, string $folder, array $allowedExtensi
     return '/' . str_replace('\\', '/', $relativeDir . '/' . $filename);
 }
 
+function normalize_uploaded_files(?array $file): array
+{
+    if (! is_array($file) || ! isset($file['name'])) {
+        return [];
+    }
+
+    if (! is_array($file['name'])) {
+        return [$file];
+    }
+
+    $normalized = [];
+    $count = count($file['name']);
+
+    for ($index = 0; $index < $count; $index++) {
+        $candidate = [
+            'name' => $file['name'][$index] ?? '',
+            'type' => $file['type'][$index] ?? '',
+            'tmp_name' => $file['tmp_name'][$index] ?? '',
+            'error' => $file['error'][$index] ?? UPLOAD_ERR_NO_FILE,
+            'size' => $file['size'][$index] ?? 0,
+        ];
+
+        if ((int) ($candidate['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+            $normalized[] = $candidate;
+        }
+    }
+
+    return $normalized;
+}
+
 function shell_command_path(string $command): ?string
 {
     static $cache = [];

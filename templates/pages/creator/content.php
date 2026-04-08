@@ -45,6 +45,7 @@ $kindLabels = [
     'audio' => 'Áudio',
     'article' => 'Artigo',
     'live_teaser' => 'Live',
+    'pack' => 'Pack',
 ];
 $categoryLabels = audience_category_options();
 $storageUsedBytes = (int) ($summary['storage_used_bytes'] ?? 0);
@@ -66,6 +67,7 @@ if ($formItem) {
         'excerpt' => (string) ($formItem['excerpt'] ?? ''),
         'body' => (string) ($formItem['body'] ?? ''),
         'plan_id' => (int) ($formItem['plan_id'] ?? 0),
+        'pack_count' => (int) ($formItem['pack_count'] ?? 0),
     ];
 }
 ?>
@@ -204,8 +206,10 @@ include base_path('templates/partials/creator_topbar.php');
                     'excerpt' => (string) ($item['excerpt'] ?? ''),
                     'body' => (string) ($item['body'] ?? ''),
                     'plan_id' => (int) ($item['plan_id'] ?? 0),
+                    'pack_count' => (int) ($item['pack_count'] ?? 0),
                 ];
                 $archiveStatus = $status === 'archived' ? 'approved' : 'archived';
+                $isPack = $kind === 'pack';
                 ?>
                 <article class="overflow-hidden rounded-3xl bg-[#fbf9fb] shadow-sm ring-1 ring-[#f0e8ee] transition-transform hover:-translate-y-1">
                     <div class="relative aspect-[4/5] bg-slate-950">
@@ -230,6 +234,11 @@ include base_path('templates/partials/creator_topbar.php');
                                     <span class="material-symbols-outlined text-3xl">play_arrow</span>
                                 </span>
                             </div>
+                        <?php elseif ($isPack): ?>
+                            <div class="pointer-events-none absolute left-4 top-14 z-10 inline-flex items-center gap-2 rounded-full bg-black/55 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-white shadow-lg">
+                                <span class="material-symbols-outlined text-[18px]">collections</span>
+                                <?= e((string) max(1, (int) ($item['pack_count'] ?? 0))) ?> itens
+                            </div>
                         <?php endif; ?>
                         <?php if ((bool) ($item['auto_generated'] ?? false) && $mediaUrl !== ''): ?>
                             <a class="absolute right-4 top-14 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#ab1155] shadow-lg" href="<?= e($mediaUrl) ?>" target="_blank" title="Assistir replay">
@@ -250,6 +259,9 @@ include base_path('templates/partials/creator_topbar.php');
                         <div class="flex min-h-[2rem] flex-wrap items-center gap-2">
                             <?php if ($plan): ?>
                                 <span class="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-[#ab1155]"><?= e((string) ($plan['name'] ?? 'Plano')) ?></span>
+                            <?php endif; ?>
+                            <?php if ($isPack): ?>
+                                <span class="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500"><?= e((string) max(1, (int) ($item['pack_count'] ?? 0))) ?> midias</span>
                             <?php endif; ?>
                             <span class="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500"><?= e((string) ($item['saved_count'] ?? 0)) ?> salvos</span>
                         </div>
@@ -293,7 +305,7 @@ include base_path('templates/partials/creator_topbar.php');
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <h3 class="headline text-2xl font-extrabold" data-content-modal-title><?= e($modalTitle) ?></h3>
-                <p class="mt-2 text-sm text-slate-500">Cadastre galerias, v&iacute;deos, &aacute;udios e artigos da sua &aacute;rea de criador.</p>
+                <p class="mt-2 text-sm text-slate-500">Cadastre galerias, v&iacute;deos, &aacute;udios, artigos e packs da sua &aacute;rea de criador.</p>
             </div>
             <button class="rounded-full bg-[#f5f3f5] px-5 py-3 text-sm font-bold text-slate-600" data-content-close type="button">Fechar</button>
         </div>
@@ -357,6 +369,15 @@ include base_path('templates/partials/creator_topbar.php');
                 </label>
             </div>
 
+            <div class="hidden rounded-2xl bg-[#f5f3f5] p-4" data-content-pack-fields>
+                <label class="block space-y-2">
+                    <span class="text-sm font-semibold text-slate-700">Arquivos do pack</span>
+                    <p class="text-xs text-slate-500">Envie varias fotos e/ou videos para montar um pack. A primeira midia vira a capa do card publico.</p>
+                    <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm" class="w-full rounded-2xl border-none bg-white px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" multiple name="pack_files[]" type="file">
+                    <span class="block text-xs text-slate-500">Se voce editar um pack e enviar novos arquivos, a composicao atual sera substituida pela nova selecao.</span>
+                </label>
+            </div>
+
             <div class="rounded-2xl bg-[#f5f3f5] p-4 text-sm text-slate-600">
                 <p class="font-bold text-slate-800">Espa&ccedil;o restante</p>
                 <p class="mt-2">Voc&ecirc; tem <?= e(human_file_size($storageRemainingBytes)) ?> livres de <?= e(human_file_size($storageLimitBytes, 0)) ?> para publicar novos arquivos.</p>
@@ -393,6 +414,7 @@ include base_path('templates/partials/creator_topbar.php');
             excerpt: '',
             body: '',
             plan_id: '',
+            pack_count: 0,
         };
         const fields = {
             id: form.querySelector('[data-content-field="id"]'),
@@ -407,6 +429,12 @@ include base_path('templates/partials/creator_topbar.php');
             body: form.querySelector('[data-content-field="body"]'),
             plan_id: form.querySelector('[data-content-field="plan_id"]'),
         };
+        const packFieldsWrap = modal.querySelector('[data-content-pack-fields]');
+
+        const syncPackFields = (kind) => {
+            if (!packFieldsWrap) return;
+            packFieldsWrap.classList.toggle('hidden', kind !== 'pack');
+        };
 
         const applyContent = (content) => {
             const payload = { ...emptyContent, ...(content || {}) };
@@ -415,6 +443,7 @@ include base_path('templates/partials/creator_topbar.php');
                 field.value = payload[key] ?? '';
             });
             titleNode.textContent = payload.id ? 'Editar conte\u00fado' : 'Novo conte\u00fado';
+            syncPackFields(String(payload.kind || 'gallery'));
         };
 
         const openModal = (content) => {
@@ -444,6 +473,12 @@ include base_path('templates/partials/creator_topbar.php');
                 openModal(emptyContent);
             });
         });
+
+        if (fields.kind) {
+            fields.kind.addEventListener('change', () => {
+                syncPackFields(fields.kind.value || 'gallery');
+            });
+        }
 
         modal.querySelectorAll('[data-content-close]').forEach((button) => button.addEventListener('click', closeModal));
         modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });

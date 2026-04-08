@@ -71,6 +71,7 @@ if ($requestedContentId > 0) {
                 'duration' => (string) ($candidate['duration'] ?? ''),
                 'visibility' => (string) ($candidate['visibility'] ?? 'public'),
                 'plan_name' => (string) ($candidatePlan['name'] ?? ''),
+                'pack_items' => array_values((array) ($candidate['pack_items'] ?? [])),
             ];
         } else {
             $selectedLockedPayload = [
@@ -278,6 +279,7 @@ if ($requestedContentId > 0) {
                                     'duration' => (string) ($item['duration'] ?? ''),
                                     'visibility' => (string) ($item['visibility'] ?? 'public'),
                                     'plan_name' => (string) ($itemPlan['name'] ?? ''),
+                                    'pack_items' => array_values((array) ($item['pack_items'] ?? [])),
                                 ];
                             } else {
                                 $lockedPayload = [
@@ -462,6 +464,15 @@ if ($requestedContentId > 0) {
                 <div class="hidden aspect-video h-full w-full" data-profile-modal-image-wrap>
                     <img alt="" class="h-full w-full object-contain" data-profile-modal-image src="">
                 </div>
+                <div class="hidden h-full min-h-[320px] w-full bg-slate-950 p-4" data-profile-modal-pack-wrap>
+                    <div class="grid h-full grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                        <div class="flex min-h-[320px] items-center justify-center rounded-[1.75rem] bg-black/35 p-4" data-profile-pack-stage></div>
+                        <div class="overflow-hidden rounded-[1.75rem] bg-white/5">
+                            <div class="border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.25em] text-white/70">Itens do pack</div>
+                            <div class="max-h-[420px] space-y-2 overflow-y-auto p-3" data-profile-pack-index></div>
+                        </div>
+                    </div>
+                </div>
                 <div class="hidden flex h-full min-h-[320px] items-start justify-center bg-white p-8" data-profile-modal-article-wrap>
                     <article class="prose max-w-none text-slate-700">
                         <p data-profile-modal-article></p>
@@ -580,6 +591,9 @@ if ($requestedContentId > 0) {
         const audio = modal.querySelector('[data-profile-modal-audio]');
         const imageWrap = modal.querySelector('[data-profile-modal-image-wrap]');
         const image = modal.querySelector('[data-profile-modal-image]');
+        const packWrap = modal.querySelector('[data-profile-modal-pack-wrap]');
+        const packStage = modal.querySelector('[data-profile-pack-stage]');
+        const packIndex = modal.querySelector('[data-profile-pack-index]');
         const articleWrap = modal.querySelector('[data-profile-modal-article-wrap]');
         const article = modal.querySelector('[data-profile-modal-article]');
         const lockedTitleNode = lockedModal.querySelector('[data-profile-locked-title]');
@@ -592,6 +606,7 @@ if ($requestedContentId > 0) {
             audio: 'Audio',
             article: 'Artigo',
             live_teaser: 'Live',
+            pack: 'Pack',
         };
         const visibilityLabels = {
             public: 'Publico',
@@ -600,7 +615,7 @@ if ($requestedContentId > 0) {
         };
 
         const resetMedia = () => {
-            [videoWrap, audioWrap, imageWrap, articleWrap].forEach((node) => node.classList.add('hidden'));
+            [videoWrap, audioWrap, imageWrap, packWrap, articleWrap].forEach((node) => node.classList.add('hidden'));
             video.pause();
             video.removeAttribute('src');
             video.load();
@@ -608,7 +623,82 @@ if ($requestedContentId > 0) {
             audio.removeAttribute('src');
             audio.load();
             image.setAttribute('src', '');
+            if (packStage) {
+                packStage.innerHTML = '';
+            }
+            if (packIndex) {
+                packIndex.innerHTML = '';
+            }
             article.textContent = '';
+        };
+
+        const renderPackStage = (item) => {
+            if (!packStage) return;
+            packStage.innerHTML = '';
+            if (!item) return;
+
+            if (item.kind === 'video') {
+                const videoNode = document.createElement('video');
+                videoNode.className = 'h-full max-h-[520px] w-full rounded-[1.5rem] bg-black object-contain';
+                videoNode.controls = true;
+                videoNode.playsInline = true;
+                videoNode.src = item.url || item.thumbnail_url || '';
+                packStage.appendChild(videoNode);
+                videoNode.play().catch(() => {});
+                return;
+            }
+
+            const imageNode = document.createElement('img');
+            imageNode.className = 'h-full max-h-[520px] w-full rounded-[1.5rem] object-contain';
+            imageNode.alt = item.title || 'Item do pack';
+            imageNode.src = item.url || item.thumbnail_url || '';
+            packStage.appendChild(imageNode);
+        };
+
+        const renderPack = (items) => {
+            if (!packWrap || !packStage || !packIndex) return;
+            const normalizedItems = Array.isArray(items) ? items.filter(Boolean) : [];
+            packWrap.classList.remove('hidden');
+            packIndex.innerHTML = '';
+            renderPackStage(normalizedItems[0] || null);
+
+            normalizedItems.forEach((item, index) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'flex w-full items-center gap-3 rounded-2xl bg-white/8 px-3 py-3 text-left text-white transition hover:bg-white/12';
+
+                const thumbWrap = document.createElement('div');
+                thumbWrap.className = 'flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/10';
+
+                if (item.kind === 'video') {
+                    const icon = document.createElement('span');
+                    icon.className = 'material-symbols-outlined text-2xl';
+                    icon.textContent = 'play_circle';
+                    thumbWrap.appendChild(icon);
+                } else if (item.thumbnail_url || item.url) {
+                    const img = document.createElement('img');
+                    img.className = 'h-full w-full object-cover';
+                    img.alt = item.title || `Item ${index + 1}`;
+                    img.src = item.thumbnail_url || item.url || '';
+                    thumbWrap.appendChild(img);
+                }
+
+                const textWrap = document.createElement('div');
+                textWrap.className = 'min-w-0';
+                const title = document.createElement('p');
+                title.className = 'truncate text-sm font-bold';
+                title.textContent = item.title || `Item ${index + 1}`;
+                const meta = document.createElement('p');
+                meta.className = 'mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/60';
+                meta.textContent = item.kind === 'video' ? 'Video' : 'Imagem';
+                textWrap.appendChild(title);
+                textWrap.appendChild(meta);
+
+                button.appendChild(thumbWrap);
+                button.appendChild(textWrap);
+                button.addEventListener('click', () => renderPackStage(item));
+                packIndex.appendChild(button);
+            });
         };
 
         const closeLockedModal = () => {
@@ -634,6 +724,8 @@ if ($requestedContentId > 0) {
                 videoWrap.classList.remove('hidden');
                 video.src = payload.media_url || payload.thumbnail_url || '';
                 video.play().catch(() => {});
+            } else if (payload.kind === 'pack') {
+                renderPack(payload.pack_items || []);
             } else if (payload.kind === 'audio') {
                 audioWrap.classList.remove('hidden');
                 audio.src = payload.media_url || '';

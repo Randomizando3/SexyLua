@@ -202,11 +202,38 @@ final class CreatorController extends Controller
             }
         }
 
+        $packUploads = normalize_uploaded_files($request->file('pack_files'));
+        if ($packUploads !== []) {
+            $packItems = [];
+            foreach ($packUploads as $index => $packFile) {
+                $packPath = store_uploaded_file($packFile, 'creator/content/packs', ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm']);
+                if ($packPath === null) {
+                    continue;
+                }
+
+                $packItems[] = [
+                    'id' => 'pack-' . ($index + 1),
+                    'title' => trim((string) (($packFile['name'] ?? '') !== '' ? pathinfo((string) $packFile['name'], PATHINFO_FILENAME) : ('Item ' . ($index + 1)))),
+                    'url' => $packPath,
+                    'thumbnail_url' => media_is_video($packPath) ? '' : $packPath,
+                    'kind' => media_is_video($packPath) ? 'video' : 'image',
+                    'bytes' => max(0, (int) ($packFile['size'] ?? public_media_file_bytes($packPath))),
+                ];
+            }
+            $payload['pack_items'] = $packItems;
+        }
+
         $result = $this->app->repository->saveContent((int) $this->user()['id'], $payload);
 
         if (! (bool) ($result['ok'] ?? false)) {
             delete_public_media_file((string) ($payload['media_url'] ?? ''));
             delete_public_media_file((string) ($payload['thumbnail_url'] ?? ''));
+            foreach ((array) ($payload['pack_items'] ?? []) as $packItem) {
+                if (is_array($packItem)) {
+                    delete_public_media_file((string) ($packItem['url'] ?? ''));
+                    delete_public_media_file((string) ($packItem['thumbnail_url'] ?? ''));
+                }
+            }
             $this->redirect('/creator/content', (string) ($result['message'] ?? 'Não foi possível salvar o conteúdo.'), 'error');
         }
 

@@ -148,6 +148,34 @@ final class AdminController extends Controller
         ], null);
     }
 
+    public function integrations(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+
+        $this->render('pages/admin/integrations', [
+            'title' => 'Integracoes do Sistema',
+            'data' => $this->app->repository->settings(),
+            'sidebar_role' => 'admin',
+            'prototype' => [
+                'page' => 'admin.integrations',
+            ],
+        ], null);
+    }
+
+    public function seo(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+
+        $this->render('pages/admin/seo', [
+            'title' => 'SEO e Branding',
+            'data' => $this->app->repository->settings(),
+            'sidebar_role' => 'admin',
+            'prototype' => [
+                'page' => 'admin.seo',
+            ],
+        ], null);
+    }
+
     public function updateUser(Request $request): void
     {
         $this->app->auth->requireRole('admin');
@@ -201,7 +229,8 @@ final class AdminController extends Controller
     public function updateSettings(Request $request): void
     {
         $this->app->auth->requireRole('admin');
-        $this->validateCsrf($request, '/admin/settings');
+        $returnTo = (string) $request->input('return_to', '/admin/settings');
+        $this->validateCsrf($request, $returnTo);
         $payload = $request->all();
 
         if ($request->hasFile('seo_logo_white_file')) {
@@ -223,7 +252,7 @@ final class AdminController extends Controller
             if (is_array($bannerUpload) && (bool) ($bannerUpload['ok'] ?? false)) {
                 $payload['home_banner_background_url'] = (string) ($bannerUpload['path'] ?? '');
             } elseif (is_array($bannerUpload) && trim((string) ($bannerUpload['error'] ?? '')) !== '') {
-                $this->redirect('/admin/settings#seo', (string) $bannerUpload['error'], 'error');
+                $this->redirect($returnTo, (string) $bannerUpload['error'], 'error');
             }
         }
 
@@ -232,13 +261,13 @@ final class AdminController extends Controller
             if (is_array($bannerMobileUpload) && (bool) ($bannerMobileUpload['ok'] ?? false)) {
                 $payload['home_banner_background_mobile_url'] = (string) ($bannerMobileUpload['path'] ?? '');
             } elseif (is_array($bannerMobileUpload) && trim((string) ($bannerMobileUpload['error'] ?? '')) !== '') {
-                $this->redirect('/admin/settings#seo', (string) $bannerMobileUpload['error'], 'error');
+                $this->redirect($returnTo, (string) $bannerMobileUpload['error'], 'error');
             }
         }
 
         $this->app->repository->updateSettings($payload);
 
-        $this->redirect('/admin/settings', 'Configuracoes salvas.');
+        $this->redirect($returnTo, 'Configuracoes salvas.');
     }
 
     public function updateProfile(Request $request): void

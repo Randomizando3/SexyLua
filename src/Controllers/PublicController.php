@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Request;
+use App\Services\SmtpMailer;
 
 final class PublicController extends Controller
 {
@@ -253,7 +254,35 @@ final class PublicController extends Controller
     {
         $this->render('pages/public/help', [
             'title' => 'Ajuda',
+            'data' => [
+                'settings' => $this->app->repository->settings(),
+            ],
         ], null);
+    }
+
+    public function submitHelp(Request $request): void
+    {
+        $this->validateCsrf($request, '/help');
+
+        $name = trim((string) $request->input('name', ''));
+        $email = trim((string) $request->input('email', ''));
+        $message = trim((string) $request->input('message', ''));
+
+        if ($name === '' || $email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL) || $message === '') {
+            $this->redirect('/help', 'Preencha nome, e-mail valido e mensagem para enviar seu pedido.', 'error');
+        }
+
+        $mailer = new SmtpMailer($this->app->repository->settings());
+        $result = $mailer->sendSupportMessage([
+            'name' => $name,
+            'email' => $email,
+            'subject' => (string) $request->input('subject', 'Contato pela ajuda'),
+            'category' => (string) $request->input('category', 'geral'),
+            'role' => (string) $request->input('role', 'visitante'),
+            'message' => $message,
+        ]);
+
+        $this->redirect('/help', (string) ($result['message'] ?? 'Nao foi possivel enviar sua mensagem agora.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
     }
 
     public function terms(Request $request): void

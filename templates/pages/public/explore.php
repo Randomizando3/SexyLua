@@ -18,6 +18,14 @@ $liveSectionTitle = $liveOnly ? 'Explorando lives' : 'Lives em destaque';
 $liveSectionDescription = $includeScheduled
     ? 'Salas ao vivo primeiro, com as proximas transmissoes agendadas logo em seguida.'
     : 'Apenas as salas que ja estao ao vivo agora.';
+$contentKindLabels = [
+    'gallery' => 'Galeria',
+    'video' => 'Video',
+    'audio' => 'Audio',
+    'article' => 'Artigo',
+    'live_teaser' => 'Teaser',
+    'pack' => 'Pack',
+];
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -55,6 +63,7 @@ $liveSectionDescription = $includeScheduled
                 <option value="audio" <?= $kind === 'audio' ? 'selected' : '' ?>>Audio</option>
                 <option value="article" <?= $kind === 'article' ? 'selected' : '' ?>>Artigo</option>
                 <option value="live_teaser" <?= $kind === 'live_teaser' ? 'selected' : '' ?>>Teaser de live</option>
+                <option value="pack" <?= $kind === 'pack' ? 'selected' : '' ?>>Pack</option>
             </select>
             <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="category">
                 <?php foreach ($categoryOptions as $categoryValue => $categoryLabel): ?>
@@ -172,7 +181,7 @@ $liveSectionDescription = $includeScheduled
                                 <img alt="<?= e((string) ($item['title'] ?? 'Conteudo')) ?>" class="h-full w-full object-cover <?= $guestPreviewLocked ? 'scale-105 blur-[22px] brightness-85' : '' ?>" src="<?= e($thumbnail) ?>">
                             <?php else: ?>
                                 <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
-                                    <span class="headline text-2xl font-extrabold"><?= e((string) strtoupper((string) ($item['kind'] ?? 'conteudo'))) ?></span>
+                                    <span class="headline text-2xl font-extrabold"><?= e((string) strtoupper((string) ($contentKindLabels[(string) ($item['kind'] ?? '')] ?? 'CONTEUDO'))) ?></span>
                                 </div>
                             <?php endif; ?>
                             <?php if ($guestPreviewLocked): ?>
@@ -186,7 +195,7 @@ $liveSectionDescription = $includeScheduled
                         <div class="space-y-2 p-5">
                             <div class="flex items-center justify-between gap-3">
                                 <p class="headline truncate text-xl font-extrabold"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></p>
-                                <span class="rounded-full bg-[#f8e8ef] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]"><?= e((string) ($item['kind'] ?? 'conteudo')) ?></span>
+                                <span class="rounded-full bg-[#f8e8ef] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]"><?= e((string) ($contentKindLabels[(string) ($item['kind'] ?? '')] ?? 'Conteudo')) ?></span>
                             </div>
                             <p class="line-clamp-2 min-h-[2.75rem] text-sm text-slate-500"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 110)) ?></p>
                             <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">

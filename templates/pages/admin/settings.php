@@ -102,22 +102,13 @@ $googleRedirectUrl = rtrim($siteBaseUrl !== '' ? $siteBaseUrl : app_base_url($ap
 $adminTopbarUser = $admin;
 require BASE_PATH . '/templates/partials/admin_topbar.php';
 ?>
-<aside class="fixed left-0 top-16 hidden h-[calc(100vh-64px)] w-64 flex-col bg-[#f5f3f5] p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:flex">
-    <nav class="space-y-2">
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin"><span class="material-symbols-outlined">dashboard</span><span>Painel</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/users"><span class="material-symbols-outlined">group</span><span>Usuarios</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/moderation"><span class="material-symbols-outlined">gavel</span><span>Moderacao</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/finance"><span class="material-symbols-outlined">payments</span><span>Financeiro</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/operations"><span class="material-symbols-outlined">manufacturing</span><span>Operacoes</span></a>
-        <a class="flex items-center gap-4 rounded-full bg-white px-4 py-3 font-bold text-primary" href="/admin/settings"><span class="material-symbols-outlined">settings</span><span>Configuracoes</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/settings#seo"><span class="material-symbols-outlined">travel_explore</span><span>SEO</span></a>
-    </nav>
-    <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
-        <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">LuaCoin hoje</p>
-        <h3 class="mt-3 text-3xl font-extrabold"><?= e(brl_amount((float) ($settings['luacoin_price_brl'] ?? 0.07))) ?></h3>
-        <p class="mt-2 text-sm text-on-surface-variant">Valor de referencia usado para leitura rapida no financeiro do admin.</p>
-    </div>
-</aside>
+<?php
+$adminSidebarCurrent = 'settings';
+$adminSidebarMetricTitle = 'LuaCoin hoje';
+$adminSidebarMetricValue = brl_amount((float) ($settings['luacoin_price_brl'] ?? 0.07));
+$adminSidebarMetricDescription = 'Valor de referencia usado para leitura rapida no financeiro do admin.';
+require BASE_PATH . '/templates/partials/admin_sidebar.php';
+?>
 <main class="min-h-screen px-6 pb-10 pt-24 lg:ml-64 lg:px-10">
     <section class="mb-8">
         <p class="text-xs font-bold uppercase tracking-[0.3em] text-primary">Regras da plataforma</p>
@@ -182,6 +173,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
 
     <form action="/admin/settings/update" class="settings-form space-y-6" enctype="multipart/form-data" method="post">
         <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+        <input name="return_to" type="hidden" value="/admin/settings">
         <section class="sticky top-20 z-20 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-[0px_18px_40px_rgba(27,28,29,0.08)] backdrop-blur">
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>

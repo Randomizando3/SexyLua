@@ -2324,10 +2324,11 @@ final class PlatformRepository
         $contentId = isset($data['id']) ? (int) $data['id'] : 0;
         $status = in_array(($data['status'] ?? 'draft'), ['draft', 'pending', 'approved', 'rejected', 'archived'], true) ? $data['status'] : 'draft';
         $visibility = in_array(($data['visibility'] ?? 'public'), ['public', 'subscriber', 'premium'], true) ? $data['visibility'] : 'public';
-        $kind = in_array(($data['kind'] ?? 'gallery'), ['gallery', 'video', 'audio', 'article', 'live_teaser'], true) ? $data['kind'] : 'gallery';
+        $kind = in_array(($data['kind'] ?? 'gallery'), ['gallery', 'video', 'audio', 'article', 'live_teaser', 'pack'], true) ? $data['kind'] : 'gallery';
         $category = $this->normalizeAudienceCategory((string) ($data['category'] ?? 'todos'));
         $mediaUrl = trim((string) ($data['media_url'] ?? ''));
         $thumbnailUrl = trim((string) ($data['thumbnail_url'] ?? ''));
+        $packItems = array_key_exists('pack_items', $data) ? $this->normalizePackItems((array) ($data['pack_items'] ?? [])) : null;
         $planId = max(0, (int) ($data['plan_id'] ?? 0));
         $plan = $planId > 0 ? $this->findPlanById($planId) : null;
 
@@ -2353,6 +2354,28 @@ final class PlatformRepository
             'thumbnail_bytes' => max(0, (int) ($data['thumbnail_bytes'] ?? ($thumbnailUrl !== '' ? \public_media_file_bytes($thumbnailUrl) : 0))),
             'updated_at' => date('Y-m-d H:i:s'),
         ];
+
+        if ($kind === 'pack') {
+            if ($packItems !== null && $packItems === []) {
+                return [
+                    'ok' => false,
+                    'message' => 'Envie pelo menos um arquivo para montar o pack.',
+                ];
+            }
+
+            if ($packItems !== null) {
+                $previewItem = $packItems[0] ?? [];
+                $payload['pack_items'] = $packItems;
+                $payload['pack_count'] = count($packItems);
+                $payload['media_url'] = trim((string) ($previewItem['url'] ?? ''));
+                $payload['thumbnail_url'] = trim((string) ($previewItem['thumbnail_url'] ?? $previewItem['url'] ?? ''));
+                $payload['media_bytes'] = array_sum(array_map(static fn (array $item): int => max(0, (int) ($item['bytes'] ?? 0)), $packItems));
+                $payload['thumbnail_bytes'] = 0;
+            }
+        } else {
+            $payload['pack_items'] = [];
+            $payload['pack_count'] = 0;
+        }
 
         $currentItem = null;
         if ($contentId > 0) {
@@ -2458,6 +2481,10 @@ final class PlatformRepository
         if (is_array($removed)) {
             $this->deletePublicMediaFile((string) ($removed['media_url'] ?? ''));
             $this->deletePublicMediaFile((string) ($removed['thumbnail_url'] ?? ''));
+            foreach ($this->normalizePackItems((array) ($removed['pack_items'] ?? [])) as $packItem) {
+                $this->deletePublicMediaFile((string) ($packItem['url'] ?? ''));
+                $this->deletePublicMediaFile((string) ($packItem['thumbnail_url'] ?? ''));
+            }
             $this->clearReplayReferenceForContent($creatorId, $removed);
         }
 
@@ -4947,7 +4974,7 @@ final class PlatformRepository
             $item['excerpt'] = trim((string) ($data['excerpt'] ?? $item['excerpt']));
             $item['body'] = trim((string) ($data['body'] ?? $item['body']));
             $item['visibility'] = in_array(($data['visibility'] ?? $item['visibility']), ['public', 'subscriber', 'premium'], true) ? (string) ($data['visibility'] ?? $item['visibility']) : (string) $item['visibility'];
-            $item['kind'] = in_array(($data['kind'] ?? $item['kind']), ['gallery', 'video', 'audio', 'article', 'live_teaser'], true) ? (string) ($data['kind'] ?? $item['kind']) : (string) $item['kind'];
+            $item['kind'] = in_array(($data['kind'] ?? $item['kind']), ['gallery', 'video', 'audio', 'article', 'live_teaser', 'pack'], true) ? (string) ($data['kind'] ?? $item['kind']) : (string) $item['kind'];
             $item['status'] = in_array(($data['status'] ?? $item['status']), ['draft', 'pending', 'approved', 'rejected', 'archived'], true) ? (string) ($data['status'] ?? $item['status']) : (string) $item['status'];
             $item['category'] = $this->normalizeAudienceCategory((string) ($data['category'] ?? $item['category'] ?? 'todos'));
             $item['duration'] = trim((string) ($data['duration'] ?? $item['duration'] ?? ''));
@@ -4972,7 +4999,15 @@ final class PlatformRepository
     {
         $items = $this->contentItems();
         $before = count($items);
-        $items = array_values(array_filter($items, static fn (array $item): bool => (int) ($item['id'] ?? 0) !== $contentId));
+        $removed = null;
+        $items = array_values(array_filter($items, static function (array $item) use ($contentId, &$removed): bool {
+            $match = (int) ($item['id'] ?? 0) === $contentId;
+            if ($match) {
+                $removed = $item;
+            }
+
+            return ! $match;
+        }));
 
         if (count($items) === $before) {
             return false;
@@ -4981,6 +5016,14 @@ final class PlatformRepository
         $this->save('content_items', $items);
         $savedItems = array_values(array_filter($this->savedItems(), static fn (array $saved): bool => (int) ($saved['content_id'] ?? 0) !== $contentId));
         $this->save('saved_items', $savedItems);
+        if (is_array($removed)) {
+            $this->deletePublicMediaFile((string) ($removed['media_url'] ?? ''));
+            $this->deletePublicMediaFile((string) ($removed['thumbnail_url'] ?? ''));
+            foreach ($this->normalizePackItems((array) ($removed['pack_items'] ?? [])) as $packItem) {
+                $this->deletePublicMediaFile((string) ($packItem['url'] ?? ''));
+                $this->deletePublicMediaFile((string) ($packItem['thumbnail_url'] ?? ''));
+            }
+        }
 
         return true;
     }
@@ -5246,6 +5289,18 @@ final class PlatformRepository
         $settings['google_oauth_enabled'] = ($data['google_oauth_enabled'] ?? '0') === '1';
         $settings['google_client_id'] = trim((string) ($data['google_client_id'] ?? $settings['google_client_id'] ?? ''));
         $settings['google_client_secret'] = trim((string) ($data['google_client_secret'] ?? $settings['google_client_secret'] ?? ''));
+        $settings['support_recipient_name'] = trim((string) ($data['support_recipient_name'] ?? $settings['support_recipient_name'] ?? 'SexyLua'));
+        $settings['support_recipient_email'] = trim((string) ($data['support_recipient_email'] ?? $settings['support_recipient_email'] ?? ''));
+        $settings['smtp_host'] = trim((string) ($data['smtp_host'] ?? $settings['smtp_host'] ?? ''));
+        $settings['smtp_port'] = max(1, (int) ($data['smtp_port'] ?? $settings['smtp_port'] ?? 587));
+        $settings['smtp_encryption'] = in_array(($data['smtp_encryption'] ?? $settings['smtp_encryption'] ?? 'tls'), ['none', 'tls', 'ssl'], true)
+            ? (string) ($data['smtp_encryption'] ?? $settings['smtp_encryption'] ?? 'tls')
+            : 'tls';
+        $settings['smtp_username'] = trim((string) ($data['smtp_username'] ?? $settings['smtp_username'] ?? ''));
+        $settings['smtp_password'] = trim((string) ($data['smtp_password'] ?? $settings['smtp_password'] ?? ''));
+        $settings['smtp_from_name'] = trim((string) ($data['smtp_from_name'] ?? $settings['smtp_from_name'] ?? 'SexyLua'));
+        $settings['smtp_from_email'] = trim((string) ($data['smtp_from_email'] ?? $settings['smtp_from_email'] ?? ''));
+        $settings['smtp_timeout_seconds'] = max(5, (int) ($data['smtp_timeout_seconds'] ?? $settings['smtp_timeout_seconds'] ?? 15));
         $settings['syncpay_webhook_url'] = webhook_url($this->config, $settings, '/webhook/syncpay');
         $settings['token_price_brl'] = $settings['luacoin_price_brl'];
         $settings['deposit_min_tokens'] = $settings['deposit_min_luacoins'];
@@ -5463,12 +5518,16 @@ final class PlatformRepository
             }
         }
 
+        $packItems = $this->decoratePackItems((array) ($item['pack_items'] ?? []));
+
         return $item + [
             'category' => $this->normalizeAudienceCategory((string) ($item['category'] ?? 'todos')),
             'category_label' => $this->audienceCategoryLabel((string) ($item['category'] ?? 'todos')),
             'creator' => $this->findCreatorBySlugOrId(null, (int) $item['creator_id']),
             'plan' => $plan,
             'is_expired' => $this->contentIsExpired($item),
+            'pack_items' => $packItems,
+            'pack_count' => (int) ($item['pack_count'] ?? count($packItems)),
         ];
     }
 
@@ -6378,6 +6437,18 @@ final class PlatformRepository
         $normalized['google_oauth_enabled'] = (bool) ($normalized['google_oauth_enabled'] ?? true);
         $normalized['google_client_id'] = trim((string) ($normalized['google_client_id'] ?? (getenv('SEXYLUA_GOOGLE_CLIENT_ID') ?: '')));
         $normalized['google_client_secret'] = trim((string) ($normalized['google_client_secret'] ?? (getenv('SEXYLUA_GOOGLE_CLIENT_SECRET') ?: '')));
+        $normalized['support_recipient_name'] = trim((string) ($normalized['support_recipient_name'] ?? 'SexyLua'));
+        $normalized['support_recipient_email'] = trim((string) ($normalized['support_recipient_email'] ?? ''));
+        $normalized['smtp_host'] = trim((string) ($normalized['smtp_host'] ?? ''));
+        $normalized['smtp_port'] = max(1, (int) ($normalized['smtp_port'] ?? 587));
+        $normalized['smtp_encryption'] = in_array(($normalized['smtp_encryption'] ?? 'tls'), ['none', 'tls', 'ssl'], true)
+            ? (string) ($normalized['smtp_encryption'] ?? 'tls')
+            : 'tls';
+        $normalized['smtp_username'] = trim((string) ($normalized['smtp_username'] ?? ''));
+        $normalized['smtp_password'] = trim((string) ($normalized['smtp_password'] ?? ''));
+        $normalized['smtp_from_name'] = trim((string) ($normalized['smtp_from_name'] ?? 'SexyLua'));
+        $normalized['smtp_from_email'] = trim((string) ($normalized['smtp_from_email'] ?? ''));
+        $normalized['smtp_timeout_seconds'] = max(5, (int) ($normalized['smtp_timeout_seconds'] ?? 15));
         $normalized['syncpay_webhook_url'] = webhook_url($this->config, $normalized, '/webhook/syncpay');
         $normalized['token_price_brl'] = $normalized['luacoin_price_brl'];
         $normalized['deposit_min_tokens'] = $normalized['deposit_min_luacoins'];
@@ -6436,6 +6507,16 @@ final class PlatformRepository
               'google_oauth_enabled' => true,
               'google_client_id' => trim((string) (getenv('SEXYLUA_GOOGLE_CLIENT_ID') ?: '')),
               'google_client_secret' => trim((string) (getenv('SEXYLUA_GOOGLE_CLIENT_SECRET') ?: '')),
+              'support_recipient_name' => 'SexyLua',
+              'support_recipient_email' => '',
+              'smtp_host' => '',
+              'smtp_port' => 587,
+              'smtp_encryption' => 'tls',
+              'smtp_username' => '',
+              'smtp_password' => '',
+              'smtp_from_name' => 'SexyLua',
+              'smtp_from_email' => '',
+              'smtp_timeout_seconds' => 15,
           ];
       }
 
@@ -7703,6 +7784,48 @@ final class PlatformRepository
         return $total;
     }
 
+    private function normalizePackItems(array $items): array
+    {
+        $normalized = [];
+
+        foreach ($items as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $url = trim((string) ($item['url'] ?? ''));
+            if ($url === '') {
+                continue;
+            }
+
+            $kind = (string) ($item['kind'] ?? '');
+            if (! in_array($kind, ['image', 'video'], true)) {
+                $kind = media_is_video($url) ? 'video' : 'image';
+            }
+
+            $normalized[] = [
+                'id' => trim((string) ($item['id'] ?? ('pack-' . ($index + 1)))),
+                'title' => trim((string) ($item['title'] ?? ('Item ' . ($index + 1)))),
+                'url' => $url,
+                'thumbnail_url' => trim((string) ($item['thumbnail_url'] ?? ($kind === 'image' ? $url : ''))),
+                'kind' => $kind,
+                'bytes' => max(0, (int) ($item['bytes'] ?? \public_media_file_bytes($url))),
+            ];
+        }
+
+        return array_values($normalized);
+    }
+
+    private function decoratePackItems(array $items): array
+    {
+        return array_map(static function (array $item): array {
+            return $item + [
+                'url' => media_url((string) ($item['url'] ?? '')),
+                'thumbnail_url' => media_url((string) ($item['thumbnail_url'] ?? '')),
+            ];
+        }, $this->normalizePackItems($items));
+    }
+
     private function contentStorageBytes(array $item): int
     {
         $mediaFileBytes = \public_media_file_bytes((string) ($item['media_url'] ?? ''));
@@ -7710,10 +7833,16 @@ final class PlatformRepository
 
         $thumbnailFileBytes = \public_media_file_bytes((string) ($item['thumbnail_url'] ?? ''));
         $thumbnailBytes = $thumbnailFileBytes > 0 ? $thumbnailFileBytes : max(0, (int) ($item['thumbnail_bytes'] ?? 0));
+        $packBytes = array_sum(array_map(static function (array $packItem): int {
+            $fileBytes = \public_media_file_bytes((string) ($packItem['url'] ?? ''));
+            $thumbBytes = \public_media_file_bytes((string) ($packItem['thumbnail_url'] ?? ''));
+
+            return ($fileBytes > 0 ? $fileBytes : max(0, (int) ($packItem['bytes'] ?? 0))) + $thumbBytes;
+        }, $this->normalizePackItems((array) ($item['pack_items'] ?? []))));
 
         $textBytes = strlen((string) ($item['title'] ?? '') . (string) ($item['excerpt'] ?? '') . (string) ($item['body'] ?? ''));
 
-        return $mediaBytes + $thumbnailBytes + $textBytes;
+        return $mediaBytes + $thumbnailBytes + $packBytes + $textBytes;
     }
 
     private function clearReplayReferenceForContent(int $creatorId, array $content): void
