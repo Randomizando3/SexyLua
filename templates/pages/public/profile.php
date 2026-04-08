@@ -22,6 +22,8 @@ $selectedLockedPayload = null;
 $viewerId = (int) ($currentUser['id'] ?? 0);
 $viewerRole = (string) ($currentUser['role'] ?? '');
 $guestPreviewLocked = ! is_array($currentUser) || $currentUser === [];
+$creatorHandle = user_handle($creator, 'criador');
+$creatorAvatarLabel = user_avatar_label($creator, 'CR');
 $canAccessContent = static function (array $item) use ($creatorId, $viewerId, $viewerRole, $isSubscribed): bool {
     $visibility = (string) ($item['visibility'] ?? 'public');
     if ($visibility === 'public') {
@@ -87,7 +89,7 @@ if ($requestedContentId > 0) {
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title><?= e((string) ($creator['name'] ?? 'Perfil')) ?> - SexyLua</title>
+    <title><?= e($creatorHandle) ?> - SexyLua</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -104,10 +106,10 @@ if ($requestedContentId > 0) {
 <main class="pt-20">
     <div class="relative z-0 h-[210px] overflow-hidden bg-surface-container-high md:h-[240px] lg:h-[260px]">
         <?php if ($cover !== ''): ?>
-            <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-full w-full object-cover" src="<?= e($cover) ?>">
+            <img alt="<?= e($creatorHandle) ?>" class="h-full w-full object-cover" src="<?= e($cover) ?>">
         <?php else: ?>
             <div class="signature-glow flex h-full w-full items-center justify-center">
-                <span class="headline text-5xl font-extrabold text-white"><?= e((string) ($creator['name'] ?? 'Criador')) ?></span>
+                <span class="headline text-5xl font-extrabold text-white"><?= e($creatorHandle) ?></span>
             </div>
         <?php endif; ?>
         <div class="absolute inset-0 z-10 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
@@ -118,14 +120,14 @@ if ($requestedContentId > 0) {
             <div class="flex flex-col items-center gap-5 text-center md:flex-row md:items-center md:text-left">
                 <div class="relative z-30 rounded-full bg-white p-1 shadow-xl">
                     <?php if ($avatar !== ''): ?>
-                        <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-44 w-44 rounded-full object-cover" src="<?= e($avatar) ?>">
+                        <img alt="<?= e($creatorHandle) ?>" class="h-44 w-44 rounded-full object-cover" src="<?= e($avatar) ?>">
                     <?php else: ?>
-                        <div class="signature-glow flex h-44 w-44 items-center justify-center rounded-full text-4xl font-extrabold text-white"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
+                        <div class="signature-glow flex h-44 w-44 items-center justify-center rounded-full text-4xl font-extrabold text-white"><?= e($creatorAvatarLabel) ?></div>
                     <?php endif; ?>
                 </div>
                 <div class="space-y-1 pt-1 md:pt-0">
-                    <h1 class="headline text-5xl font-extrabold tracking-tight"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h1>
-                    <p class="text-lg text-slate-500">@<?= e((string) ($creator['slug'] ?? 'sexylua')) ?></p>
+                    <h1 class="headline text-5xl font-extrabold tracking-tight"><?= e($creatorHandle) ?></h1>
+                    <p class="text-lg text-slate-500">Perfil publico do criador</p>
                     <p class="max-w-2xl text-slate-700"><?= e((string) ($creator['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
                 </div>
             </div>
@@ -403,13 +405,13 @@ if ($requestedContentId > 0) {
                             <a class="flex items-center gap-4 rounded-3xl bg-[#fbf9fb] p-4 shadow-sm ring-1 ring-[#f0e8ee]" href="<?= e(path_with_query('/profile', ['id' => (int) ($related['id'] ?? 0)])) ?>">
                                 <div class="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#f7edf2]">
                                     <?php if ($relatedAvatar !== ''): ?>
-                                        <img alt="<?= e((string) ($related['name'] ?? 'Criador')) ?>" class="h-full w-full object-cover" src="<?= e($relatedAvatar) ?>">
+                                        <img alt="<?= e(user_handle($related, 'criador')) ?>" class="h-full w-full object-cover" src="<?= e($relatedAvatar) ?>">
                                     <?php else: ?>
-                                        <span class="headline text-lg font-extrabold text-[#ab1155]"><?= e(avatar_initials((string) ($related['name'] ?? 'Criador'))) ?></span>
+                                        <span class="headline text-lg font-extrabold text-[#ab1155]"><?= e(user_avatar_label($related, 'CR')) ?></span>
                                     <?php endif; ?>
                                 </div>
                                 <div class="min-w-0">
-                                    <p class="headline truncate text-lg font-extrabold"><?= e((string) ($related['name'] ?? 'Criador')) ?></p>
+                                    <p class="headline truncate text-lg font-extrabold"><?= e(user_handle($related, 'criador')) ?></p>
                                     <p class="truncate text-sm text-slate-500"><?= e((string) ($related['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
                                 </div>
                             </a>

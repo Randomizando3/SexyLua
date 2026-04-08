@@ -118,7 +118,8 @@
 
                         <label class="block space-y-2">
                             <span class="px-1 text-sm font-semibold text-on-surface-variant">Usuario</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" name="username" placeholder="seuusuario" required type="text">
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" data-username-input data-username-target="register" name="username" placeholder="seuusuario" required spellcheck="false" type="text">
+                            <span class="block px-1 text-xs text-on-surface-variant" data-username-feedback="register">Use apenas letras, numeros, ponto e underscore.</span>
                         </label>
                     </div>
 
@@ -207,9 +208,71 @@
     <?php if (!empty($google_auth_enabled)): ?>
         <script>
             (() => {
+                const bindUsernameValidation = (key) => {
+                    const input = document.querySelector(`[data-username-target="${key}"]`);
+                    const feedback = document.querySelector(`[data-username-feedback="${key}"]`);
+                    if (!input || !feedback) {
+                        return;
+                    }
+
+                    let timer = null;
+
+                    const setFeedback = (message, tone = 'neutral') => {
+                        feedback.textContent = message;
+                        feedback.classList.remove('text-on-surface-variant', 'text-emerald-600', 'text-rose-600', 'text-amber-600');
+                        feedback.classList.add(
+                            tone === 'success'
+                                ? 'text-emerald-600'
+                                : (tone === 'error' ? 'text-rose-600' : (tone === 'warning' ? 'text-amber-600' : 'text-on-surface-variant'))
+                        );
+                    };
+
+                    const validate = async () => {
+                        const value = String(input.value || '').trim();
+                        if (value === '') {
+                            setFeedback('Escolha um @usuario para o seu perfil.', 'warning');
+                            return;
+                        }
+
+                        try {
+                            const response = await fetch(`/auth/check-username?username=${encodeURIComponent(value)}`, {
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                credentials: 'same-origin',
+                            });
+                            const payload = await response.json();
+                            const normalized = String(payload.normalized || '').trim();
+                            if (normalized && normalized !== value) {
+                                input.value = normalized;
+                            }
+
+                            if (payload.state === 'available') {
+                                setFeedback('Este @usuario esta disponivel.', 'success');
+                                return;
+                            }
+
+                            if (payload.state === 'taken') {
+                                setFeedback('Este @usuario ja esta em uso.', 'error');
+                                return;
+                            }
+
+                            setFeedback(String(payload.message || 'Digite um @usuario valido.'), payload.state === 'invalid' ? 'error' : 'warning');
+                        } catch {
+                            setFeedback('Nao foi possivel validar o @usuario agora.', 'warning');
+                        }
+                    };
+
+                    input.addEventListener('input', () => {
+                        if (timer) window.clearTimeout(timer);
+                        timer = window.setTimeout(validate, 260);
+                    });
+
+                    validate();
+                };
+
                 const googleButton = document.querySelector('[data-google-register]');
                 const roleSelect = document.querySelector('select[name=\"role\"]');
                 if (!googleButton || !roleSelect) {
+                    bindUsernameValidation('register');
                     return;
                 }
 
@@ -220,6 +283,69 @@
 
                 updateHref();
                 roleSelect.addEventListener('change', updateHref);
+                bindUsernameValidation('register');
+            })();
+        </script>
+    <?php else: ?>
+        <script>
+            (() => {
+                const input = document.querySelector('[data-username-target="register"]');
+                const feedback = document.querySelector('[data-username-feedback="register"]');
+                if (!input || !feedback) {
+                    return;
+                }
+
+                let timer = null;
+                const setFeedback = (message, tone = 'neutral') => {
+                    feedback.textContent = message;
+                    feedback.classList.remove('text-on-surface-variant', 'text-emerald-600', 'text-rose-600', 'text-amber-600');
+                    feedback.classList.add(
+                        tone === 'success'
+                            ? 'text-emerald-600'
+                            : (tone === 'error' ? 'text-rose-600' : (tone === 'warning' ? 'text-amber-600' : 'text-on-surface-variant'))
+                    );
+                };
+
+                const validate = async () => {
+                    const value = String(input.value || '').trim();
+                    if (value === '') {
+                        setFeedback('Escolha um @usuario para o seu perfil.', 'warning');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`/auth/check-username?username=${encodeURIComponent(value)}`, {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin',
+                        });
+                        const payload = await response.json();
+                        const normalized = String(payload.normalized || '').trim();
+                        if (normalized && normalized !== value) {
+                            input.value = normalized;
+                        }
+
+                        if (payload.state === 'available') {
+                            setFeedback('Este @usuario esta disponivel.', 'success');
+                            return;
+                        }
+
+                        if (payload.state === 'taken') {
+                            setFeedback('Este @usuario ja esta em uso.', 'error');
+                            return;
+                        }
+
+                        setFeedback(String(payload.message || 'Digite um @usuario valido.'), payload.state === 'invalid' ? 'error' : 'warning');
+                    } catch {
+                        setFeedback('Nao foi possivel validar o @usuario agora.', 'warning');
+                    }
+                };
+
+                input.addEventListener('input', () => {
+                    if (timer) window.clearTimeout(timer);
+                    timer = window.setTimeout(validate, 260);
+                });
+
+                validate();
             })();
         </script>
     <?php endif; ?>

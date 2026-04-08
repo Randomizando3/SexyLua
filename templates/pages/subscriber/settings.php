@@ -11,6 +11,8 @@ $verificationStatus = (string) ($verification['status'] ?? 'pending');
 $identityDocument = is_array($verification['identity_document'] ?? null) ? $verification['identity_document'] : null;
 $avatarUrl = media_url((string) ($subscriber['avatar_url'] ?? ''));
 $coverUrl = media_url((string) ($subscriber['cover_url'] ?? ''));
+$subscriberHandle = user_handle($subscriber, 'assinante');
+$subscriberAvatarLabel = user_avatar_label($subscriber, 'AS');
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -96,7 +98,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
         </div>
         <div class="signature-glow rounded-3xl px-6 py-5 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.2)]">
             <p class="text-xs font-bold uppercase tracking-[0.25em] text-white/70">Conta ativa</p>
-            <p class="mt-2 text-2xl font-extrabold"><?= e((string) ($subscriber['name'] ?? 'Assinante')) ?></p>
+            <p class="mt-2 text-2xl font-extrabold" data-username-preview="subscriber"><?= e($subscriberHandle) ?></p>
             <p class="mt-1 text-sm text-white/80"><?= e((string) ($subscriber['email'] ?? '')) ?></p>
         </div>
     </section>
@@ -121,11 +123,13 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                 <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <label class="block space-y-2">
                         <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nome</span>
-                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="name" type="text" value="<?= e((string) ($subscriber['name'] ?? '')) ?>">
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-slate-500 shadow-sm focus:ring-0" name="name" readonly type="text" value="<?= e((string) ($subscriber['name'] ?? '')) ?>">
+                        <span class="block text-xs text-on-surface-variant">Somente o admin pode alterar esse nome.</span>
                     </label>
                     <label class="block space-y-2">
                         <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Usuario</span>
-                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="username" type="text" value="<?= e((string) ($subscriber['username'] ?? '')) ?>">
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" data-username-input data-username-target="subscriber" name="username" spellcheck="false" type="text" value="<?= e((string) ($subscriber['username'] ?? '')) ?>">
+                        <span class="block text-xs text-on-surface-variant" data-username-feedback="subscriber">Use apenas letras, numeros, ponto e underscore.</span>
                     </label>
                     <label class="block space-y-2">
                         <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Cidade</span>
@@ -223,11 +227,11 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         <?php if ($avatarUrl !== ''): ?>
                             <img alt="Avatar do assinante" class="h-24 w-24 rounded-full border-4 border-white object-cover shadow-lg" src="<?= e($avatarUrl) ?>">
                         <?php else: ?>
-                            <div class="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-primary text-2xl font-bold text-white shadow-lg"><?= e(avatar_initials((string) ($subscriber['name'] ?? 'Assinante'))) ?></div>
+                            <div class="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-primary text-2xl font-bold text-white shadow-lg"><?= e($subscriberAvatarLabel) ?></div>
                         <?php endif; ?>
                         <div class="pb-3">
-                            <p class="text-xl font-bold"><?= e((string) ($subscriber['name'] ?? 'Assinante')) ?></p>
-                            <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($subscriber['username'] ?? 'assinante')) ?></p>
+                            <p class="text-xl font-bold" data-username-preview="subscriber"><?= e($subscriberHandle) ?></p>
+                            <p class="mt-1 text-sm text-on-surface-variant">Nome visivel controlado pelo admin</p>
                             <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($subscriber['headline'] ?? '')) ?></p>
                         </div>
                     </div>
@@ -256,5 +260,89 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
         </section>
     </div>
 </main>
+<script>
+    (() => {
+        const bindUsernameValidation = (key) => {
+            const input = document.querySelector(`[data-username-target="${key}"]`);
+            const feedback = document.querySelector(`[data-username-feedback="${key}"]`);
+            const previews = document.querySelectorAll(`[data-username-preview="${key}"]`);
+            if (!input || !feedback) {
+                return;
+            }
+
+            const original = String(input.value || '').trim();
+            let timer = null;
+
+            const setFeedback = (message, tone = 'neutral') => {
+                feedback.textContent = message;
+                feedback.classList.remove('text-on-surface-variant', 'text-emerald-600', 'text-rose-600', 'text-amber-600');
+                feedback.classList.add(
+                    tone === 'success'
+                        ? 'text-emerald-600'
+                        : (tone === 'error' ? 'text-rose-600' : (tone === 'warning' ? 'text-amber-600' : 'text-on-surface-variant'))
+                );
+            };
+
+            const syncPreview = (value) => {
+                const handle = value ? `@${value}` : '@usuario';
+                previews.forEach((node) => {
+                    node.textContent = handle;
+                });
+            };
+
+            const validate = async () => {
+                const value = String(input.value || '').trim();
+                syncPreview(value);
+
+                if (value === '') {
+                    setFeedback('Informe um @usuario para o seu perfil.', 'warning');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/auth/check-username?username=${encodeURIComponent(value)}`, {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                    });
+                    const payload = await response.json();
+                    const normalized = String(payload.normalized || '').trim();
+                    if (normalized && normalized !== value) {
+                        input.value = normalized;
+                        syncPreview(normalized);
+                    }
+
+                    if (normalized === original) {
+                        setFeedback('Este @usuario ja esta reservado para a sua conta.', 'success');
+                        return;
+                    }
+
+                    if (payload.state === 'available') {
+                        setFeedback('Este @usuario esta disponivel.', 'success');
+                        return;
+                    }
+
+                    if (payload.state === 'taken') {
+                        setFeedback('Este @usuario ja esta em uso.', 'error');
+                        return;
+                    }
+
+                    setFeedback(String(payload.message || 'Digite um @usuario valido.'), payload.state === 'invalid' ? 'error' : 'warning');
+                } catch {
+                    setFeedback('Nao foi possivel validar o @usuario agora.', 'warning');
+                }
+            };
+
+            input.addEventListener('input', () => {
+                if (timer) window.clearTimeout(timer);
+                timer = window.setTimeout(validate, 260);
+            });
+
+            syncPreview(original);
+            validate();
+        };
+
+        bindUsernameValidation('subscriber');
+    })();
+</script>
 </body>
 </html>

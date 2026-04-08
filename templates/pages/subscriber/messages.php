@@ -96,9 +96,9 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                     <?php $active = $selectedConversation && (int) ($selectedConversation['id'] ?? 0) === (int) ($conversation['id'] ?? 0); ?>
                     <a class="block rounded-3xl p-5 shadow-sm transition-colors <?= $active ? 'bg-primary text-white' : 'bg-surface-container-lowest hover:bg-surface-container-low' ?>" href="<?= e('/subscriber/messages?conversation=' . (int) ($conversation['id'] ?? 0)) ?>">
                         <div class="flex items-center gap-4">
-                            <div class="flex h-12 w-12 items-center justify-center rounded-full <?= $active ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary' ?> font-bold"><?= e(avatar_initials((string) ($conversation['creator']['name'] ?? 'Criador'))) ?></div>
+                            <div class="flex h-12 w-12 items-center justify-center rounded-full <?= $active ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary' ?> font-bold"><?= e(user_avatar_label($conversation['creator'] ?? [], 'CR')) ?></div>
                             <div class="min-w-0 flex-1">
-                                <p class="truncate font-bold"><?= e((string) ($conversation['creator']['name'] ?? 'Criador')) ?></p>
+                                <p class="truncate font-bold"><?= e(user_handle($conversation['creator'] ?? [], 'criador')) ?></p>
                                 <p class="mt-1 truncate text-sm <?= $active ? 'text-white/80' : 'text-on-surface-variant' ?>"><?= e(excerpt((string) ($conversation['latest_message']['body'] ?? 'Sem mensagens ainda.'), 70)) ?></p>
                             </div>
                         </div>
@@ -141,9 +141,9 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         Voltar
                     </a>
                     <div class="flex items-center gap-4 border-b border-slate-200 pb-4">
-                        <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($selectedConversation['creator']['name'] ?? 'Criador'))) ?></div>
+                        <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(user_avatar_label($selectedConversation['creator'] ?? [], 'CR')) ?></div>
                         <div class="min-w-0 flex-1">
-                            <h3 class="truncate text-2xl font-extrabold"><?= e((string) ($selectedConversation['creator']['name'] ?? 'Criador')) ?></h3>
+                            <h3 class="truncate text-2xl font-extrabold"><?= e(user_handle($selectedConversation['creator'] ?? [], 'criador')) ?></h3>
                             <p class="truncate text-sm text-on-surface-variant"><?= e((string) ($selectedConversation['creator']['headline'] ?? 'Chat ativo')) ?></p>
                         </div>
                     </div>

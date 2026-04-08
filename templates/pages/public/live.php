@@ -36,6 +36,8 @@ $visibleMessages = $isRoomLocked ? [] : $messages;
 $visibleRecentTips = $isRoomLocked ? [] : $recentTips;
 $visibleTopSupporters = $isRoomLocked ? [] : $topSupporters;
 $cover = media_url((string) ($live['cover_url'] ?? ''));
+$creatorHandle = user_handle($creator, 'criador');
+$creatorAvatarLabel = user_avatar_label($creator, 'CR');
 $segmentDurationSeconds = (int) ($live['segment_duration_seconds'] ?? $stream['segment_duration_seconds'] ?? 10);
 $iceServers = base64_encode((string) json_encode($app->config['app']['rtc_ice_servers'] ?? [], JSON_UNESCAPED_SLASHES));
 $iceTransportPolicy = (string) ($app->config['app']['rtc_ice_transport_policy'] ?? 'all');
@@ -238,13 +240,13 @@ if ($accessMessage === '') {
                                 <a class="group flex min-w-0 items-center gap-5 rounded-3xl bg-white p-4 shadow-sm xl:col-span-2" href="<?= e($profileUrl) ?>">
                                     <div class="h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-[#ab1155] p-1">
                                         <?php if ((string) ($creator['avatar_url'] ?? '') !== ''): ?>
-                                            <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-full w-full rounded-full object-cover" src="<?= e(media_url((string) ($creator['avatar_url'] ?? ''))) ?>">
+                                            <img alt="<?= e($creatorHandle) ?>" class="h-full w-full rounded-full object-cover" src="<?= e(media_url((string) ($creator['avatar_url'] ?? ''))) ?>">
                                         <?php else: ?>
-                                            <div class="signature-glow flex h-full w-full items-center justify-center rounded-full text-lg font-bold text-white"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
+                                            <div class="signature-glow flex h-full w-full items-center justify-center rounded-full text-lg font-bold text-white"><?= e($creatorAvatarLabel) ?></div>
                                         <?php endif; ?>
                                     </div>
                                     <div class="min-w-0">
-                                        <h1 class="headline text-3xl font-extrabold tracking-tight transition-colors group-hover:text-[#ab1155]"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h1>
+                                        <h1 class="headline text-3xl font-extrabold tracking-tight transition-colors group-hover:text-[#ab1155]"><?= e($creatorHandle) ?></h1>
                                         <p class="mt-1 text-slate-500"><?= e((string) ($creator['headline'] ?? 'Criando experiencias exclusivas ao vivo.')) ?></p>
                                     </div>
                                 </a>
@@ -398,8 +400,8 @@ if ($accessMessage === '') {
                         <div class="mt-3 flex gap-4" data-live-top-supporters data-live-supporters-variant="viewer">
                             <?php foreach (array_slice($visibleTopSupporters, 0, 3) as $supporter): ?>
                                 <div class="flex flex-col items-center">
-                                    <div class="signature-glow flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white"><?= e(avatar_initials((string) ($supporter['user']['name'] ?? 'Fan'))) ?></div>
-                                    <span class="mt-2 text-[10px] font-bold text-[#ab1155]"><?= e((string) ($supporter['user']['name'] ?? 'Fan')) ?></span>
+                                    <div class="signature-glow flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white"><?= e(user_avatar_label($supporter['user'] ?? [], 'FN')) ?></div>
+                                    <span class="mt-2 text-[10px] font-bold text-[#ab1155]"><?= e(user_handle($supporter['user'] ?? [], 'fan')) ?></span>
                                     <span class="text-[10px] text-slate-500"><?= luacoin_amount_html((int) ($supporter['amount'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3 w-3 shrink-0') ?></span>
                                 </div>
                             <?php endforeach; ?>
@@ -412,7 +414,7 @@ if ($accessMessage === '') {
                         <div class="mt-3 space-y-2" data-live-recent-tips data-live-tips-variant="viewer">
                             <?php foreach (array_slice($visibleRecentTips, 0, 4) as $tip): ?>
                                 <div class="flex items-center justify-between rounded-full bg-white px-4 py-2 text-xs">
-                                    <span class="font-bold text-slate-800"><?= e((string) ($tip['sender']['name'] ?? 'Fan')) ?></span>
+                                    <span class="font-bold text-slate-800"><?= e(user_handle($tip['sender'] ?? [], 'fan')) ?></span>
                                     <span class="font-black text-[#ab1155]"><?= luacoin_amount_html((int) ($tip['amount'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3.5 w-3.5 shrink-0') ?></span>
                                 </div>
                             <?php endforeach; ?>
@@ -430,7 +432,7 @@ if ($accessMessage === '') {
                     ?>
                     <div class="flex flex-col gap-1">
                         <div class="flex items-center justify-between gap-3">
-                            <span class="text-xs font-bold tracking-wide text-[#ab1155]"><?= e((string) ($message['sender']['name'] ?? 'Visitante')) ?></span>
+                                    <span class="text-xs font-bold tracking-wide text-[#ab1155]"><?= e(user_handle($message['sender'] ?? [], 'visitante')) ?></span>
                             <?php if ($isHighlighted): ?>
                                 <span class="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em]" style="background:<?= e((string) ($theme['label_background'] ?? '#f59e0b')) ?>;color:<?= e((string) ($theme['label_text'] ?? '#ffffff')) ?>"><?= e((string) ($message['highlight_label'] ?? 'Destaque')) ?></span>
                             <?php endif; ?>
@@ -490,7 +492,7 @@ if ($accessMessage === '') {
                         </div>
                         <div class="space-y-2 p-4">
                             <p class="headline text-lg font-extrabold"><?= e((string) ($item['title'] ?? 'Live')) ?></p>
-                            <p class="text-sm text-slate-500"><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></p>
+                            <p class="text-sm text-slate-500"><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></p>
                             <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400"><?= e($itemStatus) ?> &bull; <?= e((string) ($item['viewer_count'] ?? 0)) ?> viewers</p>
                         </div>
                     </a>

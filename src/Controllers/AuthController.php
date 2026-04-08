@@ -135,6 +135,59 @@ final class AuthController extends Controller
         $this->redirect($this->app->auth->homeForRole($user['role']), 'Conta criada com sucesso.');
     }
 
+    public function checkUsername(Request $request): void
+    {
+        $rawUsername = trim((string) $request->query('username', (string) $request->input('username', '')));
+        $normalized = $this->app->repository->normalizeUsername($rawUsername);
+        $authUser = $this->user();
+        $excludeId = 0;
+
+        if (is_array($authUser) && (int) ($authUser['id'] ?? 0) > 0) {
+            $excludeId = (int) ($authUser['id'] ?? 0);
+        }
+
+        if (($authUser['role'] ?? '') === 'admin') {
+            $excludeId = max($excludeId, (int) $request->query('exclude_id', $excludeId));
+        }
+
+        $formatChanged = ltrim(mb_strtolower($rawUsername), '@') !== $normalized;
+
+        if ($rawUsername === '') {
+            $this->json([
+                'ok' => false,
+                'available' => false,
+                'normalized' => '',
+                'state' => 'empty',
+                'message' => 'Digite um @usuario para verificar.',
+            ]);
+        }
+
+        if ($normalized === '' || mb_strlen($normalized) < 3) {
+            $this->json([
+                'ok' => false,
+                'available' => false,
+                'normalized' => $normalized,
+                'state' => 'invalid',
+                'message' => 'Use pelo menos 3 caracteres com letras, numeros, ponto, underline ou hifen.',
+            ]);
+        }
+
+        $existing = $this->app->repository->findUserByUsername($normalized);
+        $available = ! is_array($existing) || (int) ($existing['id'] ?? 0) === $excludeId;
+
+        $message = $available
+            ? ($formatChanged ? 'Disponivel. Sera salvo como @' . $normalized . '.' : 'Disponivel para uso.')
+            : 'Esse @usuario ja esta em uso.';
+
+        $this->json([
+            'ok' => true,
+            'available' => $available,
+            'normalized' => $normalized,
+            'state' => $available ? 'available' : 'taken',
+            'message' => $message,
+        ]);
+    }
+
     public function googleRedirect(Request $request): void
     {
         if ($this->app->auth->check()) {

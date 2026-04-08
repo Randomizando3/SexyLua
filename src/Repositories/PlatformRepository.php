@@ -1957,7 +1957,7 @@ final class PlatformRepository
 
             return [
                 'ok' => false,
-                'message' => 'Esta live ja esta em darkroom para ' . (string) ($activeDarkroom['user']['name'] ?? 'outro espectador') . '.',
+                'message' => 'Esta live ja esta em darkroom para ' . (string) ($activeDarkroom['user']['handle'] ?? user_handle($activeDarkroom['user'] ?? [], 'espectador')) . '.',
             ];
         }
 
@@ -3663,7 +3663,6 @@ final class PlatformRepository
         $foundProfile = false;
         $changedUsers = false;
         $changedProfiles = false;
-        $name = trim((string) ($data['name'] ?? ''));
         $headline = trim((string) ($data['headline'] ?? ''));
         $bio = trim((string) ($data['bio'] ?? ''));
         $city = trim((string) ($data['city'] ?? ''));
@@ -3721,11 +3720,6 @@ final class PlatformRepository
             }
 
             $foundCreator = true;
-
-            if ($name !== '' && $name !== (string) $user['name']) {
-                $user['name'] = $name;
-                $changedUsers = true;
-            }
 
             if (array_key_exists('username', $data) && $username !== (string) ($user['username'] ?? '')) {
                 $user['username'] = $username;
@@ -3859,7 +3853,7 @@ final class PlatformRepository
         if (! $foundProfile) {
             $profiles[] = [
                 'user_id' => $creatorId,
-                'slug' => $this->uniqueSlug($slug !== '' ? $slug : ($name !== '' ? $name : ((string) ($this->findUserById($creatorId)['name'] ?? 'criador'))), $creatorId),
+                'slug' => $this->uniqueSlug($slug !== '' ? $slug : ((string) ($this->findUserById($creatorId)['name'] ?? 'criador')), $creatorId),
                 'mood' => $mood !== '' ? $mood : 'Lua Nova',
                 'cover_style' => $coverStyle !== '' ? $coverStyle : 'rose-dawn',
                 'featured' => false,
@@ -4085,7 +4079,7 @@ final class PlatformRepository
                 return true;
             }
 
-            $haystack = mb_strtolower((string) (($user['name'] ?? '') . ' ' . ($user['email'] ?? '') . ' ' . ($user['role'] ?? '')));
+            $haystack = mb_strtolower((string) (($user['name'] ?? '') . ' ' . ($user['username'] ?? '') . ' ' . ($user['email'] ?? '') . ' ' . ($user['role'] ?? '')));
 
             return str_contains($haystack, $search);
         }));
@@ -4134,7 +4128,6 @@ final class PlatformRepository
         $found = false;
         $originalRole = '';
         $targetRole = '';
-        $name = trim((string) ($data['name'] ?? ''));
         $username = $this->normalizeUsername((string) ($data['username'] ?? ''));
         $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
         $headline = trim((string) ($data['headline'] ?? ''));
@@ -4407,7 +4400,7 @@ final class PlatformRepository
 
             $found = true;
 
-            if ($name !== '' && $name !== (string) ($user['name'] ?? '')) {
+            if ($role === 'admin' && $name !== '' && $name !== (string) ($user['name'] ?? '')) {
                 $user['name'] = $name;
                 $changed = true;
             }
@@ -4586,7 +4579,12 @@ final class PlatformRepository
                 return true;
             }
 
-            $haystack = mb_strtolower((string) (($transaction['note'] ?? '') . ' ' . ($transaction['user']['name'] ?? '') . ' ' . ($transaction['type'] ?? '')));
+            $haystack = mb_strtolower((string) (
+                ($transaction['note'] ?? '') . ' ' .
+                ($transaction['user']['name'] ?? '') . ' ' .
+                ($transaction['user']['username'] ?? '') . ' ' .
+                ($transaction['type'] ?? '')
+            ));
 
             return str_contains($haystack, $query);
         }));
@@ -4607,7 +4605,7 @@ final class PlatformRepository
                 'wallet_balance' => $this->walletBalance((int) ($user['id'] ?? 0)),
             ];
         }, $this->users());
-        usort($users, static fn (array $left, array $right): int => strnatcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? '')));
+        usort($users, static fn (array $left, array $right): int => strnatcasecmp((string) ($left['username'] ?? $left['name'] ?? ''), (string) ($right['username'] ?? $right['name'] ?? '')));
 
         return [
             'summary' => [
@@ -6566,7 +6564,7 @@ final class PlatformRepository
                 ? ($creatorUnlock !== null ? 'Desbloqueado' : 'Aguardando desbloqueio')
                 : '',
             'creator_unlock_at' => is_array($creatorUnlock) ? (string) ($creatorUnlock['created_at'] ?? '') : '',
-            'creator_unlock_user_name' => (string) ($creatorUnlockUser['name'] ?? ''),
+            'creator_unlock_user_name' => (string) ($creatorUnlockUser['handle'] ?? ('@' . ($creatorUnlockUser['username'] ?? ''))),
             'lock_reason' => $unlockPrice > 0
                 ? 'Desbloqueie este conteudo com LuaCoins para visualizar.'
                 : ($requiredPlan !== null ? 'Conteudo liberado apenas para o plano ' . (string) ($requiredPlan['name'] ?? 'selecionado') . '.' : 'Conteudo exclusivo.'),
@@ -7158,9 +7156,9 @@ final class PlatformRepository
             $requiresDarkroomWait = true;
         }
 
-        $ownerName = trim((string) ($activeDarkroom['user']['name'] ?? ''));
+        $ownerName = trim((string) ($activeDarkroom['user']['handle'] ?? user_handle($activeDarkroom['user'] ?? [], 'assinante')));
         if ($ownerName === '' && $activeDarkroom !== null) {
-            $ownerName = 'um espectador';
+            $ownerName = '@espectador';
         }
 
         $access = $base + [
@@ -7185,7 +7183,7 @@ final class PlatformRepository
     private function liveAccessMessage(array $live, array $access): string
     {
         $creator = $this->findUserById((int) ($live['creator_id'] ?? 0));
-        $creatorName = trim((string) ($creator['name'] ?? 'o criador'));
+        $creatorName = trim((string) ($creator['handle'] ?? user_handle($creator ?? [], 'criador')));
 
         if ((bool) ($access['requires_login'] ?? false)) {
             return (bool) ($access['requires_vip_unlock'] ?? false)
@@ -7927,6 +7925,9 @@ final class PlatformRepository
     private function sanitizeUser(array $user): array
     {
         unset($user['password']);
+        $username = $this->normalizeUsername((string) ($user['username'] ?? ''));
+        $user['handle'] = '@' . ($username !== '' ? $username : 'usuario');
+        $user['public_label'] = $user['handle'];
 
         return $user;
     }

@@ -97,9 +97,9 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
                     <?php $active = $selectedConversation && (int) ($selectedConversation['id'] ?? 0) === (int) ($conversation['id'] ?? 0); ?>
                     <a class="block rounded-3xl p-5 shadow-sm transition-colors <?= $active ? 'bg-primary text-white' : 'bg-surface-container-lowest hover:bg-surface-container-low' ?>" href="<?= e('/creator/messages?conversation=' . (int) ($conversation['id'] ?? 0)) ?>">
                         <div class="flex items-center gap-4">
-                            <div class="flex h-12 w-12 items-center justify-center rounded-full <?= $active ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary' ?> font-bold"><?= e(avatar_initials((string) ($conversation['subscriber']['name'] ?? 'Assinante'))) ?></div>
+                            <div class="flex h-12 w-12 items-center justify-center rounded-full <?= $active ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary' ?> font-bold"><?= e(user_avatar_label($conversation['subscriber'] ?? [], 'AS')) ?></div>
                             <div class="min-w-0 flex-1">
-                                <p class="truncate font-bold"><?= e((string) ($conversation['subscriber']['name'] ?? 'Assinante')) ?></p>
+                                <p class="truncate font-bold"><?= e(user_handle($conversation['subscriber'] ?? [], 'assinante')) ?></p>
                                 <p class="mt-1 truncate text-sm <?= $active ? 'text-white/80' : 'text-on-surface-variant' ?>"><?= e(excerpt((string) ($conversation['latest_message']['body'] ?? 'Sem mensagens ainda.'), 70)) ?></p>
                                 <?php if ((string) (($conversation['subscription']['plan']['name'] ?? '')) !== ''): ?>
                                     <span class="mt-3 inline-flex rounded-full <?= $active ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary' ?> px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em]"><?= e((string) ($conversation['subscription']['plan']['name'] ?? 'Plano')) ?></span>
@@ -145,9 +145,9 @@ require BASE_PATH . '/templates/partials/creator_topbar.php';
                         Voltar
                     </a>
                     <div class="flex items-center gap-4 border-b border-slate-200 pb-4">
-                        <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($selectedConversation['subscriber']['name'] ?? 'Assinante'))) ?></div>
+                        <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(user_avatar_label($selectedConversation['subscriber'] ?? [], 'AS')) ?></div>
                         <div class="min-w-0 flex-1">
-                            <h3 class="truncate text-2xl font-extrabold"><?= e((string) ($selectedConversation['subscriber']['name'] ?? 'Assinante')) ?></h3>
+                            <h3 class="truncate text-2xl font-extrabold"><?= e(user_handle($selectedConversation['subscriber'] ?? [], 'assinante')) ?></h3>
                             <p class="truncate text-sm text-on-surface-variant"><?= e((string) ($selectedConversation['subscriber']['headline'] ?? 'Chat ativo')) ?></p>
                         </div>
                         <?php if ((string) (($selectedConversation['subscription']['plan']['name'] ?? '')) !== ''): ?>

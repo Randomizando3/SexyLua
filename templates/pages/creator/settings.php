@@ -15,6 +15,8 @@ $priorityTipMessages = $liveDefaults['priority_tip_messages'] ?? [];
 $avatarUrl = media_url((string) ($creator['avatar_url'] ?? ''));
 $coverUrl = media_url((string) ($creator['cover_url'] ?? ''));
 $publicProfileUrl = '/profile?slug=' . (string) ($creator['slug'] ?? 'criador');
+$creatorHandle = user_handle($creator, 'criador');
+$creatorAvatarLabel = user_avatar_label($creator, 'CR');
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -113,11 +115,13 @@ include base_path('templates/partials/creator_topbar.php');
                     <div class="grid gap-6 md:grid-cols-3">
                         <label class="block space-y-2">
                             <span class="text-sm font-semibold text-on-surface-variant">Nome artístico</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="name" type="text" value="<?= e((string) ($creator['name'] ?? '')) ?>">
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-slate-500 shadow-sm focus:ring-0" name="name" readonly type="text" value="<?= e((string) ($creator['name'] ?? '')) ?>">
+                            <span class="block text-xs text-on-surface-variant">Somente o admin pode alterar esse nome.</span>
                         </label>
                         <label class="block space-y-2">
                             <span class="text-sm font-semibold text-on-surface-variant">Usuário</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="username" type="text" value="<?= e((string) ($creator['username'] ?? '')) ?>">
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" data-username-input data-username-target="creator" name="username" spellcheck="false" type="text" value="<?= e((string) ($creator['username'] ?? '')) ?>">
+                            <span class="block text-xs text-on-surface-variant" data-username-feedback="creator">Use apenas letras, numeros, ponto e underscore.</span>
                         </label>
                         <label class="block space-y-2">
                             <span class="text-sm font-semibold text-on-surface-variant">Slug público</span>
@@ -150,16 +154,16 @@ include base_path('templates/partials/creator_topbar.php');
                         <div class="grid gap-6 lg:grid-cols-2">
                             <div class="settings-mobile-card space-y-4 rounded-3xl bg-white p-5 shadow-sm">
                                 <div class="flex items-center gap-4">
-                                    <div class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-lg font-bold text-primary" data-upload-preview-box="avatar" data-upload-preview-fallback="<?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?>">
+                                    <div class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-lg font-bold text-primary" data-upload-preview-box="avatar" data-upload-preview-fallback="<?= e($creatorAvatarLabel) ?>">
                                         <?php if ($avatarUrl !== ''): ?>
                                             <img alt="Avatar do criador" class="h-full w-full object-cover" data-upload-preview-image="avatar" src="<?= e($avatarUrl) ?>">
                                         <?php else: ?>
-                                            <span data-upload-preview-placeholder="avatar"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></span>
+                                            <span data-upload-preview-placeholder="avatar"><?= e($creatorAvatarLabel) ?></span>
                                         <?php endif; ?>
                                     </div>
                                     <div class="min-w-0">
-                                        <p class="text-sm font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
-                                        <p class="text-xs text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
+                                        <p class="text-sm font-bold" data-username-preview="creator"><?= e($creatorHandle) ?></p>
+                                        <p class="text-xs text-on-surface-variant">Nome visivel controlado pelo admin</p>
                                     </div>
                                 </div>
                                 <label class="block space-y-2">
@@ -315,7 +319,7 @@ include base_path('templates/partials/creator_topbar.php');
             <section class="space-y-8 xl:sticky xl:top-28 xl:self-start">
                 <div class="rounded-2xl bg-primary p-8 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.18)]">
                     <p class="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Resumo rápido</p>
-                    <h3 class="mt-3 text-3xl font-extrabold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h3>
+                    <h3 class="mt-3 text-3xl font-extrabold" data-username-preview="creator"><?= e($creatorHandle) ?></h3>
                     <p class="mt-3 text-sm leading-relaxed text-white/80"><?= e(excerpt((string) ($creator['headline'] ?? ''), 100)) ?></p>
                     <div class="mt-6 grid grid-cols-2 gap-4 text-sm">
                         <div class="rounded-2xl bg-white/10 p-4">
@@ -390,6 +394,87 @@ include base_path('templates/partials/creator_topbar.php');
 
         bindPreview('avatar');
         bindPreview('cover');
+
+        const bindUsernameValidation = (key) => {
+            const input = document.querySelector(`[data-username-target="${key}"]`);
+            const feedback = document.querySelector(`[data-username-feedback="${key}"]`);
+            const previews = document.querySelectorAll(`[data-username-preview="${key}"]`);
+            if (!input || !feedback) {
+                return;
+            }
+
+            const original = String(input.value || '').trim();
+            let timer = null;
+
+            const setFeedback = (message, tone = 'neutral') => {
+                feedback.textContent = message;
+                feedback.classList.remove('text-on-surface-variant', 'text-emerald-600', 'text-rose-600', 'text-amber-600');
+                feedback.classList.add(
+                    tone === 'success'
+                        ? 'text-emerald-600'
+                        : (tone === 'error' ? 'text-rose-600' : (tone === 'warning' ? 'text-amber-600' : 'text-on-surface-variant'))
+                );
+            };
+
+            const syncPreview = (value) => {
+                const handle = value ? `@${value}` : '@usuario';
+                previews.forEach((node) => {
+                    node.textContent = handle;
+                });
+            };
+
+            const validate = async () => {
+                const value = String(input.value || '').trim();
+                syncPreview(value);
+
+                if (value === '') {
+                    setFeedback('Informe um @usuario para o seu perfil.', 'warning');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/auth/check-username?username=${encodeURIComponent(value)}`, {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                    });
+                    const payload = await response.json();
+                    const normalized = String(payload.normalized || '').trim();
+                    if (normalized && normalized !== value) {
+                        input.value = normalized;
+                        syncPreview(normalized);
+                    }
+
+                    if (normalized === original) {
+                        setFeedback('Este @usuario ja esta reservado para a sua conta.', 'success');
+                        return;
+                    }
+
+                    if (payload.state === 'available') {
+                        setFeedback('Este @usuario esta disponivel.', 'success');
+                        return;
+                    }
+
+                    if (payload.state === 'taken') {
+                        setFeedback('Este @usuario ja esta em uso.', 'error');
+                        return;
+                    }
+
+                    setFeedback(String(payload.message || 'Digite um @usuario valido.'), payload.state === 'invalid' ? 'error' : 'warning');
+                } catch {
+                    setFeedback('Nao foi possivel validar o @usuario agora.', 'warning');
+                }
+            };
+
+            input.addEventListener('input', () => {
+                if (timer) window.clearTimeout(timer);
+                timer = window.setTimeout(validate, 260);
+            });
+
+            syncPreview(original);
+            validate();
+        };
+
+        bindUsernameValidation('creator');
 
         const replayVisibilityField = document.querySelector('[name="replay_visibility_default"]');
         const replayVisibilityLabel = replayVisibilityField ? replayVisibilityField.closest('label') : null;

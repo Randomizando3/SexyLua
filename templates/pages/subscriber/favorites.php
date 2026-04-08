@@ -82,11 +82,11 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                     <div class="flex items-center gap-4">
                         <?php $creatorAvatar = media_url((string) ($creator['avatar_url'] ?? '')); ?>
                         <?php if ($creatorAvatar !== ''): ?>
-                            <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-14 w-14 rounded-full object-cover" src="<?= e($creatorAvatar) ?>">
+                            <img alt="<?= e(user_handle($creator, 'criador')) ?>" class="h-14 w-14 rounded-full object-cover" src="<?= e($creatorAvatar) ?>">
                         <?php else: ?>
-                            <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
+                            <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(user_avatar_label($creator, 'CR')) ?></div>
                         <?php endif; ?>
-                        <div class="min-w-0"><p class="truncate text-xl font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p><p class="truncate text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p></div>
+                        <div class="min-w-0"><p class="truncate text-xl font-bold"><?= e(user_handle($creator, 'criador')) ?></p><p class="truncate text-sm text-on-surface-variant"><?= e((string) ($creator['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p></div>
                     </div>
                     <p class="mt-4 text-sm text-on-surface-variant"><?= e(excerpt((string) ($creator['headline'] ?? ''), 95)) ?></p>
                     <div class="mt-5 flex justify-end gap-3">
@@ -115,7 +115,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                             <div class="flex items-start justify-between gap-4">
                                 <div class="min-w-0">
                                     <a class="truncate text-lg font-bold hover:text-primary" href="<?= e(path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0), 'content' => (int) ($item['id'] ?? 0)])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
-                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></p>
                                     <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 100)) ?></p>
                                 </div>
                                 <form action="/subscriber/saved/toggle" class="shrink-0" method="post">
@@ -141,7 +141,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                             <div class="flex items-start justify-between gap-4">
                                 <div class="min-w-0">
                                     <a class="truncate text-lg font-bold hover:text-primary" href="<?= e(path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0), 'content' => (int) ($item['id'] ?? 0)])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
-                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></p>
                                     <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 100)) ?></p>
                                 </div>
                                 <form action="/subscriber/saved/toggle" class="shrink-0" method="post">
@@ -172,7 +172,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                     <?php foreach ($trackedLives as $live): ?>
                         <a class="block rounded-3xl bg-surface-container-low p-5 transition-colors hover:bg-surface-container-high" href="<?= e('/live?id=' . (int) ($live['id'] ?? 0)) ?>">
                             <div class="flex items-start justify-between gap-4">
-                                <div><p class="text-lg font-bold"><?= e((string) ($live['title'] ?? 'Live')) ?></p><p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($live['creator']['name'] ?? 'Criador')) ?></p></div>
+                                <div><p class="text-lg font-bold"><?= e((string) ($live['title'] ?? 'Live')) ?></p><p class="mt-1 text-sm text-on-surface-variant"><?= e(user_handle($live['creator'] ?? [], 'criador')) ?></p></div>
                                 <span class="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest <?= (string) ($live['status'] ?? '') === 'live' ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-600' ?>"><?= e((string) ($live['status'] ?? 'scheduled')) ?></span>
                             </div>
                             <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(format_datetime((string) ($live['scheduled_for'] ?? ''), 'd/m/Y H:i')) ?></p>
@@ -190,13 +190,13 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                             <div class="flex items-center gap-4">
                                 <?php $creatorAvatar = media_url((string) ($creator['avatar_url'] ?? '')); ?>
                                 <?php if ($creatorAvatar !== ''): ?>
-                                    <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-12 w-12 rounded-full object-cover" src="<?= e($creatorAvatar) ?>">
+                                    <img alt="<?= e(user_handle($creator, 'criador')) ?>" class="h-12 w-12 rounded-full object-cover" src="<?= e($creatorAvatar) ?>">
                                 <?php else: ?>
-                                    <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(user_avatar_label($creator, 'CR')) ?></div>
                                 <?php endif; ?>
                                 <div class="min-w-0">
-                                    <p class="truncate text-lg font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
-                                    <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
+                                    <p class="truncate text-lg font-bold"><?= e(user_handle($creator, 'criador')) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($creator['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
                                 </div>
                             </div>
                             <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($creator['headline'] ?? ''), 90)) ?></p>

@@ -112,13 +112,13 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                     <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
                         <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                             <div class="flex items-start gap-4">
-                                <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
+                                <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(user_avatar_label($creator, 'CR')) ?></div>
                                 <div class="min-w-0">
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <h4 class="break-words text-xl font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h4>
+                                        <h4 class="break-words text-xl font-bold"><?= e(user_handle($creator, 'criador')) ?></h4>
                                         <span class="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-700"><?= e((string) ($subscription['status'] ?? 'active')) ?></span>
                                     </div>
-                                    <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($creator['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
                                     <p class="mt-3 text-sm text-on-surface-variant"><?= e((string) ($plan['name'] ?? 'Plano')) ?> • <?= luacoin_amount_html((int) ($plan['price_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></p>
                                     <p class="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Renova em <?= e((string) ($subscription['days_to_renew'] ?? 0)) ?> dias</p>
                                 </div>
@@ -148,8 +148,8 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                     <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <a class="text-xl font-bold hover:text-primary" href="<?= e('/profile?id=' . (int) ($creator['id'] ?? 0)) ?>"><?= e((string) ($creator['name'] ?? 'Criador')) ?></a>
-                                <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
+                                <a class="text-xl font-bold hover:text-primary" href="<?= e('/profile?id=' . (int) ($creator['id'] ?? 0)) ?>"><?= e(user_handle($creator, 'criador')) ?></a>
+                                <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($creator['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
                             </div>
                             <span class="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary"><?= luacoin_amount_html((int) ($plan['price_tokens'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3 w-3 shrink-0') ?></span>
                         </div>

@@ -108,7 +108,7 @@ $liveSectionDescription = $includeScheduled
                     </div>
                     <div class="space-y-2 p-5">
                         <p class="headline truncate text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
-                        <p class="text-sm text-slate-500"><?= e((string) ($live['creator']['name'] ?? 'Criador')) ?></p>
+                        <p class="text-sm text-slate-500"><?= e(user_handle($live['creator'] ?? [], 'criador')) ?></p>
                         <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">
                             <?= e((string) (($live['status'] ?? '') === 'live' ? number_format((int) ($live['viewer_count'] ?? 0), 0, ',', '.') . ' viewers' : format_datetime((string) ($live['scheduled_for'] ?? ''), 'd/m H:i'))) ?>
                         </p>
@@ -135,12 +135,12 @@ $liveSectionDescription = $includeScheduled
                     <a class="rounded-3xl bg-white p-5 text-center shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/profile', ['id' => (int) ($creator['id'] ?? 0)])) ?>">
                         <div class="mx-auto mb-4 flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] bg-[#f7edf2]">
                             <?php if ($avatar !== ''): ?>
-                                <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-full w-full object-cover" src="<?= e($avatar) ?>">
+                                <img alt="<?= e(user_handle($creator, 'criador')) ?>" class="h-full w-full object-cover" src="<?= e($avatar) ?>">
                             <?php else: ?>
-                                <span class="headline text-3xl font-extrabold text-[#ab1155]"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></span>
+                                <span class="headline text-3xl font-extrabold text-[#ab1155]"><?= e(user_avatar_label($creator, 'CR')) ?></span>
                             <?php endif; ?>
                         </div>
-                        <p class="headline truncate text-xl font-extrabold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
+                        <p class="headline truncate text-xl font-extrabold"><?= e(user_handle($creator, 'criador')) ?></p>
                         <p class="mt-2 line-clamp-2 min-h-[2.75rem] text-sm text-slate-500"><?= e((string) ($creator['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
                         <p class="mt-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(number_format((int) ($creator['subscriber_count'] ?? 0), 0, ',', '.')) ?> assinantes</p>
                     </a>
@@ -185,7 +185,7 @@ $liveSectionDescription = $includeScheduled
                             </div>
                             <p class="line-clamp-2 min-h-[2.75rem] text-sm text-slate-500"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 110)) ?></p>
                             <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">
-                                <span><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></span>
+                                <span><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></span>
                                 <span><?= luacoin_amount_html((int) ($item['price_tokens'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3 w-3 shrink-0') ?></span>
                             </div>
                         </div>

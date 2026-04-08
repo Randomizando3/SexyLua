@@ -315,6 +315,36 @@ function avatar_initials(string $name): string
     return $initials !== '' ? $initials : 'SL';
 }
 
+function user_username(?array $user, string $fallback = 'usuario'): string
+{
+    $username = trim((string) ($user['username'] ?? ''));
+
+    if ($username !== '') {
+        return ltrim($username, '@');
+    }
+
+    $fallback = trim($fallback, '@ ');
+
+    return $fallback !== '' ? $fallback : 'usuario';
+}
+
+function user_handle(?array $user, string $fallback = 'usuario'): string
+{
+    return '@' . user_username($user, $fallback);
+}
+
+function user_avatar_label(?array $user, string $fallback = 'SL'): string
+{
+    $username = str_replace(['.', '_', '-'], ' ', user_username($user, ''));
+    if ($username !== '') {
+        return avatar_initials($username);
+    }
+
+    $name = trim((string) ($user['name'] ?? ''));
+
+    return avatar_initials($name !== '' ? $name : $fallback);
+}
+
 function excerpt(string $text, int $limit = 140): string
 {
     $text = trim($text);

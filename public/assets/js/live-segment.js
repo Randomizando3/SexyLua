@@ -116,6 +116,13 @@
     const esc = (v) => String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;')
     const setText = (node, value) => { if (node) node.textContent = String(value ?? '') }
     const luacoinHtml = (value, size = 'h-4 w-4') => `<span class="inline-flex items-center gap-1.5 whitespace-nowrap"><span>${Math.max(0, Number(value || 0))}</span><img alt="LuaCoin" class="${size} shrink-0" src="/assets/img/luacoin.png"><span class="sr-only">LuaCoins</span></span>`
+    const displayHandle = (entity, fallback = 'usuario') => {
+        const handle = String(entity?.handle || '').trim()
+        if (handle) return handle
+        const username = String(entity?.username || '').trim()
+        if (username) return `@${username}`
+        return `@${fallback}`
+    }
     const setCount = (value) => el.viewerCounts.forEach((node) => { node.textContent = String(Math.max(0, Number(value || 0))) })
     const statusLabel = (status) => {
         if (status === 'live') return 'Ao vivo'
@@ -453,7 +460,7 @@
         }
 
         el.chatStream.innerHTML = items.map((message) => {
-            const sender = esc(message?.sender?.name || 'Visitante')
+        const sender = esc(displayHandle(message?.sender, 'visitante'))
             const body = esc(message?.body || '')
             const theme = message?.highlight_theme || {}
             const isHighlighted = Boolean(message?.is_highlighted)
@@ -486,7 +493,7 @@
         }
 
         el.tipsStream.innerHTML = items.map((tip) => {
-            const sender = esc(tip?.sender?.name || 'Fan')
+            const sender = esc(displayHandle(tip?.sender, 'fan'))
             const amount = Number(tip?.amount || 0)
             return variant === 'creator'
                 ? `<div class="flex items-center justify-between rounded-2xl bg-[#f5f3f5] px-4 py-3 text-sm"><span class="font-bold text-slate-700">${sender}</span><span class="font-black text-[#D81B60] inline-flex items-center gap-1 whitespace-nowrap">${amount}<img alt="LuaCoin" class="h-4 w-4 shrink-0" src="/assets/img/luacoin.png"></span></div>`
@@ -508,9 +515,9 @@
         }
 
         el.supportersStream.innerHTML = items.map((supporter) => {
-            const name = esc(supporter?.user?.name || 'Fan')
+            const name = esc(displayHandle(supporter?.user, 'fan'))
             const amount = Number(supporter?.amount || 0)
-            const initials = esc((String(name).match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() || 'FN')
+            const initials = esc(String(name).replace('@', '').slice(0, 2).toUpperCase() || 'FN')
             return variant === 'creator'
                 ? `<div class="rounded-2xl bg-[#f5f3f5] p-4 text-center"><div class="signature-glow mx-auto flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white">${initials}</div><p class="mt-3 text-sm font-bold text-slate-800">${name}</p><p class="mt-1 text-xs font-semibold text-[#D81B60] inline-flex items-center gap-1 whitespace-nowrap">${amount}<img alt="LuaCoin" class="h-4 w-4 shrink-0" src="/assets/img/luacoin.png"></p></div>`
                 : `<div class="flex flex-col items-center"><div class="signature-glow flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white">${initials}</div><span class="mt-2 text-[10px] font-bold text-[#ab1155]">${name}</span><span class="text-[10px] text-slate-500 inline-flex items-center gap-1 whitespace-nowrap">${amount}<img alt="LuaCoin" class="h-3 w-3 shrink-0" src="/assets/img/luacoin.png"></span></div>`
