@@ -94,12 +94,12 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
             <div class="space-y-4">
                 <?php foreach ($conversations as $conversation): ?>
                     <?php $active = $selectedConversation && (int) ($selectedConversation['id'] ?? 0) === (int) ($conversation['id'] ?? 0); ?>
-                    <a class="block rounded-3xl p-5 shadow-sm transition-colors <?= $active ? 'bg-primary text-white' : 'bg-surface-container-lowest hover:bg-surface-container-low' ?>" href="<?= e('/subscriber/messages?conversation=' . (int) ($conversation['id'] ?? 0)) ?>">
+                    <a class="block rounded-3xl p-5 shadow-sm transition-colors <?= $active ? 'bg-primary text-white' : 'bg-surface-container-lowest hover:bg-surface-container-low' ?>" data-chat-conversation-card="<?= e((string) ($conversation['id'] ?? 0)) ?>" href="<?= e('/subscriber/messages?conversation=' . (int) ($conversation['id'] ?? 0)) ?>">
                         <div class="flex items-center gap-4">
                             <div class="flex h-12 w-12 items-center justify-center rounded-full <?= $active ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary' ?> font-bold"><?= e(user_avatar_label($conversation['creator'] ?? [], 'CR')) ?></div>
                             <div class="min-w-0 flex-1">
                                 <p class="truncate font-bold"><?= e(user_handle($conversation['creator'] ?? [], 'criador')) ?></p>
-                                <p class="mt-1 truncate text-sm <?= $active ? 'text-white/80' : 'text-on-surface-variant' ?>"><?= e(excerpt((string) ($conversation['latest_message']['body'] ?? 'Sem mensagens ainda.'), 70)) ?></p>
+                                <p class="mt-1 truncate text-sm <?= $active ? 'text-white/80' : 'text-on-surface-variant' ?>" data-chat-preview><?= e(excerpt((string) ($conversation['latest_message']['body'] ?? 'Sem mensagens ainda.'), 70)) ?></p>
                             </div>
                         </div>
                     </a>
@@ -150,7 +150,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
 
                     <div class="mt-3 min-h-0 flex-1 overflow-y-auto pr-1 lg:mt-4" data-chat-thread>
                         <div class="h-full">
-                            <div class="flex min-h-full flex-col justify-end gap-3">
+                            <div class="flex min-h-full flex-col justify-end gap-3" data-chat-thread-items>
                                 <?php foreach ($messages as $message): ?>
                                     <?php $isMine = (int) ($message['sender_id'] ?? 0) === (int) ($subscriber['id'] ?? 0); ?>
                                     <article class="flex <?= $isMine ? 'justify-end' : 'justify-start' ?>">
@@ -200,15 +200,15 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                                         </div>
                                     </article>
                                 <?php endforeach; ?>
-                                <?php if ($messages === []): ?><p class="rounded-3xl bg-white p-5 text-sm text-on-surface-variant">Nenhuma mensagem nesta conversa ainda.</p><?php endif; ?>
+                                <?php if ($messages === []): ?><p class="rounded-3xl bg-white p-5 text-sm text-on-surface-variant" data-chat-empty-state>Nenhuma mensagem nesta conversa ainda.</p><?php endif; ?>
                             </div>
                         </div>
                     </div>
 
-                    <form action="/subscriber/messages/send" class="mt-3 shrink-0 border-t border-slate-200 pt-3" enctype="multipart/form-data" method="post">
+                    <form action="/subscriber/messages/send" class="mt-3 shrink-0 border-t border-slate-200 pt-3" data-chat-compose data-chat-role="subscriber" enctype="multipart/form-data" method="post">
                         <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                         <input name="conversation_id" type="hidden" value="<?= e((string) ($selectedConversation['id'] ?? 0)) ?>">
-                        <details class="group relative">
+                        <details class="group relative" data-chat-compose-details>
                             <summary class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full bg-surface-container-low text-slate-700 marker:content-none">
                                 <span class="material-symbols-outlined text-[20px]">add_circle</span>
                             </summary>
@@ -220,9 +220,10 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                                 </label>
                             </div>
                         </details>
+                        <p class="mt-3 hidden rounded-2xl bg-surface-container-low px-4 py-3 text-sm text-on-surface-variant" data-chat-feedback></p>
                         <div class="mt-3 flex items-end gap-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] lg:pb-0">
                             <textarea class="h-12 flex-1 resize-none rounded-2xl border-none bg-surface-container-low px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20" name="body" placeholder="Responder ao criador..."></textarea>
-                            <button class="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white" data-prototype-skip="1" type="submit">
+                            <button class="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white" data-chat-submit data-prototype-skip="1" type="submit">
                                 <span class="material-symbols-outlined text-[20px]">send</span>
                             </button>
                         </div>
@@ -234,6 +235,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
         </section>
     </div>
 </main>
+<script src="<?= e(asset('js/chat-thread.js')) ?>"></script>
 <script>
     document.querySelectorAll('[data-chat-thread]').forEach((element) => {
         element.scrollTop = element.scrollHeight;
@@ -270,6 +272,10 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                 : 'Imagem, video, documento ou pacote privado.';
         });
     });
+
+    if (window.SexyLuaChatComposer) {
+        window.SexyLuaChatComposer();
+    }
 </script>
 </body>
 </html>
