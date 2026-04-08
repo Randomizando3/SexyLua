@@ -194,7 +194,7 @@ include base_path('templates/partials/creator_topbar.php');
                                 ?>
                                 <div class="rounded-2xl border p-4 text-sm" style="<?= $isHighlighted ? 'background:' . e((string) ($theme['background'] ?? '#fff6cf')) . ';border-color:' . e((string) ($theme['border'] ?? '#fde68a')) . ';' : 'background:#f5f3f5;border-color:transparent;' ?>">
                                     <div class="flex items-center justify-between gap-3">
-                                        <span class="block text-[10px] font-bold uppercase tracking-widest text-[#D81B60]"><?= e((string) ($message['sender']['name'] ?? 'Convidado')) ?></span>
+                                        <span class="block text-[10px] font-bold uppercase tracking-widest text-[#D81B60]"><?= e(user_handle($message['sender'] ?? [], 'convidado')) ?></span>
                                         <?php if ($isHighlighted): ?>
                                             <span class="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em]" style="background:<?= e((string) ($theme['label_background'] ?? '#f59e0b')) ?>;color:<?= e((string) ($theme['label_text'] ?? '#ffffff')) ?>"><?= e((string) ($message['highlight_label'] ?? 'Destaque')) ?></span>
                                         <?php endif; ?>
@@ -218,8 +218,8 @@ include base_path('templates/partials/creator_topbar.php');
                                 <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" data-live-top-supporters data-live-supporters-variant="creator">
                                     <?php foreach ($topSupporters as $supporter): ?>
                                         <div class="rounded-2xl bg-[#f5f3f5] p-4 text-center">
-                                            <div class="signature-glow mx-auto flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white"><?= e(avatar_initials((string) ($supporter['user']['name'] ?? 'Fan'))) ?></div>
-                                            <p class="mt-3 text-sm font-bold text-slate-800"><?= e((string) ($supporter['user']['name'] ?? 'Fan')) ?></p>
+                                            <div class="signature-glow mx-auto flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white"><?= e(user_avatar_label($supporter['user'] ?? [], 'FA')) ?></div>
+                                            <p class="mt-3 text-sm font-bold text-slate-800"><?= e(user_handle($supporter['user'] ?? [], 'fan')) ?></p>
                                             <p class="mt-1 text-xs font-semibold text-[#D81B60]"><?= luacoin_amount_html((int) ($supporter['amount'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></p>
                                         </div>
                                     <?php endforeach; ?>
@@ -232,7 +232,7 @@ include base_path('templates/partials/creator_topbar.php');
                                 <div class="mt-3 space-y-3" data-live-recent-tips data-live-tips-variant="creator">
                                     <?php foreach ($recentTips as $tip): ?>
                                         <div class="flex items-center justify-between rounded-2xl bg-[#f5f3f5] px-4 py-3 text-sm">
-                                            <span class="font-bold text-slate-700"><?= e((string) ($tip['sender']['name'] ?? 'Fan')) ?></span>
+                                            <span class="font-bold text-slate-700"><?= e(user_handle($tip['sender'] ?? [], 'fan')) ?></span>
                                             <span class="font-black text-[#D81B60]"><?= luacoin_amount_html((int) ($tip['amount'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></span>
                                         </div>
                                     <?php endforeach; ?>
@@ -389,8 +389,8 @@ include base_path('templates/partials/creator_topbar.php');
                                             <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Usuario para a darkroom</span>
                                             <select class="min-h-[220px] rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 text-sm font-semibold text-slate-700" data-darkroom-user-select name="target_user_id" size="6">
                                                 <?php foreach ($studioDarkroomCandidates as $candidate): ?>
-                                                    <option data-search="<?= e(mb_strtolower((string) (($candidate['name'] ?? '') . ' ' . ($candidate['username'] ?? '') . ' ' . ($candidate['badge'] ?? '')))) ?>" value="<?= e((string) ((int) ($candidate['id'] ?? 0))) ?>">
-                                                        <?= e((string) ($candidate['name'] ?? 'Usuario')) ?><?= (string) ($candidate['username'] ?? '') !== '' ? ' (@' . e((string) $candidate['username']) . ')' : '' ?><?= (string) ($candidate['badge'] ?? '') !== '' ? ' • ' . e((string) ($candidate['badge'] ?? '')) : '' ?>
+                                                    <option data-search="<?= e(mb_strtolower((string) (($candidate['name'] ?? '') . ' ' . ($candidate['username'] ?? '') . ' ' . ($candidate['badge'] ?? '') . ' ' . ($candidate['email'] ?? '')))) ?>" value="<?= e((string) ((int) ($candidate['id'] ?? 0))) ?>">
+                                                        <?= e(user_handle($candidate, 'usuario')) ?><?= (string) ($candidate['badge'] ?? '') !== '' ? ' • ' . e((string) ($candidate['badge'] ?? '')) : '' ?>
                                                     </option>
                                                 <?php endforeach; ?>
                                             </select>

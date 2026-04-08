@@ -1467,8 +1467,8 @@ final class PlatformRepository
         $this->chargeSubscriberAndCreditCreator($subscriberId, (int) $plan['creator_id'], $price, 'subscription', 'Assinatura ' . $plan['name']);
         $subscriber = $this->findUserById($subscriberId);
         $creator = $this->findCreatorBySlugOrId(null, (int) ($plan['creator_id'] ?? 0));
-        $creatorName = (string) ($creator['name'] ?? 'criador');
-        $subscriberName = (string) ($subscriber['name'] ?? 'Novo assinante');
+        $creatorName = user_handle($creator, 'criador');
+        $subscriberName = user_handle($subscriber, 'assinante');
         $planName = (string) ($plan['name'] ?? 'Plano');
 
         $this->notifyUser(
@@ -1514,7 +1514,7 @@ final class PlatformRepository
                     (int) ($targetSubscription['creator_id'] ?? 0),
                     'subscription',
                     'Assinatura cancelada',
-                    (string) ($subscriber['name'] ?? 'Um assinante') . ' cancelou a assinatura' . (($creator['name'] ?? '') !== '' ? ' em ' . (string) ($creator['name'] ?? '') : '') . '.',
+                    user_handle($subscriber, 'assinante') . ' cancelou a assinatura' . ($creator !== null ? ' em ' . user_handle($creator, 'criador') : '') . '.',
                     '/creator/memberships'
                 );
             }
@@ -1659,7 +1659,7 @@ final class PlatformRepository
         $this->notifyUser(
             $recipientId,
             'message',
-            'Nova mensagem de ' . (string) ($sender['name'] ?? 'Conta'),
+            'Nova mensagem de ' . user_handle($sender, 'usuario'),
             excerpt($body !== '' ? $body : $this->messageNotificationPreview($messageType, $attachment, $unlockPrice, $requiredPlanId), 90),
             $recipientHref,
             [
@@ -1719,7 +1719,7 @@ final class PlatformRepository
             $creatorId,
             'tip',
             'Nova gorjeta recebida',
-            (string) ($subscriber['name'] ?? 'Um assinante') . ' enviou ' . $amount . ' LuaCoins.',
+            user_handle($subscriber, 'assinante') . ' enviou ' . $amount . ' LuaCoins.',
             $liveId > 0 ? path_with_query('/creator/live/studio', ['live' => $liveId]) : '/creator/wallet',
             [
                 'amount' => $amount,
@@ -1836,7 +1836,7 @@ final class PlatformRepository
             $creatorId,
             'sale',
             'Conteudo instantaneo desbloqueado',
-            (string) ($subscriber['name'] ?? 'Assinante') . ' desbloqueou seu conteudo por ' . $unlockPrice . ' LuaCoins.',
+            user_handle($subscriber, 'assinante') . ' desbloqueou seu conteudo por ' . $unlockPrice . ' LuaCoins.',
             path_with_query('/creator/messages', ['conversation' => (int) ($conversation['id'] ?? 0)]),
             [
                 'message_id' => $messageId,
@@ -5945,7 +5945,7 @@ final class PlatformRepository
         }
 
         $sender = $this->findUserById($subscriberId);
-        $senderName = trim((string) ($sender['name'] ?? 'Um assinante'));
+        $senderName = user_handle($sender, 'assinante');
         $template = trim((string) ($this->priorityTipMessagesForLive($live)[(string) $tier] ?? ''));
 
         if ($template === '') {
@@ -6042,7 +6042,7 @@ final class PlatformRepository
         $theme = $this->liveMessageHighlightTheme($level);
         $amount = max(1, (int) ($message['tip_amount'] ?? 0));
         $tier = max(1, (int) ($message['highlight_tier'] ?? $amount));
-        $senderName = (string) ($message['sender']['name'] ?? 'Assinante');
+        $senderName = user_handle($message['sender'] ?? [], 'assinante');
 
         return $message + [
             'is_highlighted' => true,
@@ -6076,7 +6076,7 @@ final class PlatformRepository
             'id' => (int) ($latest['id'] ?? 0),
             'body' => (string) ($latest['body'] ?? ''),
             'alert_text' => (string) ($latest['alert_text'] ?? ''),
-            'sender_name' => (string) ($latest['sender']['name'] ?? 'Assinante'),
+            'sender_name' => user_handle($latest['sender'] ?? [], 'assinante'),
             'tip_amount' => (int) ($latest['tip_amount'] ?? 0),
             'created_at' => (string) ($latest['created_at'] ?? ''),
         ];
@@ -6744,14 +6744,21 @@ final class PlatformRepository
         $rows = $this->sortByDate($rows, 'created_at');
         $items = array_map(function (array $notification): array {
             $marker = $this->feedMarker((string) ($notification['created_at'] ?? ''), (int) ($notification['id'] ?? 0));
+            $title = (string) ($notification['title'] ?? 'Atualizacao');
+            $kind = (string) ($notification['kind'] ?? 'notification');
+            $meta = is_array($notification['meta'] ?? null) ? $notification['meta'] : [];
+
+            if ($kind === 'message' && (int) ($meta['sender_id'] ?? 0) > 0) {
+                $title = 'Nova mensagem de ' . user_handle($this->findUserById((int) $meta['sender_id']), 'usuario');
+            }
 
             return [
                 'id' => (int) ($notification['id'] ?? 0),
                 'marker' => $marker,
-                'title' => (string) ($notification['title'] ?? 'Atualizacao'),
+                'title' => $title,
                 'body' => (string) ($notification['body'] ?? ''),
                 'href' => (string) ($notification['href'] ?? ''),
-                'icon' => $this->notificationIconForKind((string) ($notification['kind'] ?? 'notification')),
+                'icon' => $this->notificationIconForKind($kind),
                 'time' => format_datetime((string) ($notification['created_at'] ?? ''), 'd/m H:i'),
             ];
         }, array_slice($rows, 0, $limit));
@@ -6802,7 +6809,7 @@ final class PlatformRepository
                         (int) ($lastMessage['id'] ?? 0),
                         $this->feedMarker((string) ($conversation['updated_at'] ?? ''), (int) ($conversation['id'] ?? 0))
                     ),
-                    'title' => (string) ($conversation['subscriber']['name'] ?? 'Assinante'),
+                    'title' => user_handle($conversation['subscriber'] ?? [], 'assinante'),
                     'body' => excerpt((string) ($lastMessage['body'] ?? 'Sem mensagens ainda.'), 80),
                     'href' => path_with_query('/creator/messages', ['conversation' => (int) ($conversation['id'] ?? 0)]),
                     'icon' => 'chat',
@@ -6832,7 +6839,7 @@ final class PlatformRepository
                         (int) ($lastMessage['id'] ?? 0),
                         $this->feedMarker((string) ($conversation['updated_at'] ?? ''), (int) ($conversation['id'] ?? 0))
                     ),
-                    'title' => (string) ($conversation['creator']['name'] ?? 'Criador'),
+                    'title' => user_handle($conversation['creator'] ?? [], 'criador'),
                     'body' => excerpt((string) ($lastMessage['body'] ?? 'Sem mensagens ainda.'), 80),
                     'href' => path_with_query('/subscriber/messages', ['conversation' => (int) ($conversation['id'] ?? 0)]),
                     'icon' => 'chat',

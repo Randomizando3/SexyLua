@@ -12,6 +12,7 @@ $walletBalance = (int) ($data['wallet_balance'] ?? 0);
 $favoritesCount = (int) ($data['favorites_count'] ?? 0);
 $savedCount = (int) ($data['saved_count'] ?? 0);
 $recentMessagesCount = (int) ($data['recent_messages_count'] ?? 0);
+$subscriberHandle = user_handle($subscriber, 'assinante');
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -100,7 +101,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
         </div>
         <div class="signature-glow rounded-3xl px-6 py-5 text-white shadow-[0px_20px_40px_rgba(171,17,85,0.2)]">
             <p class="text-xs font-bold uppercase tracking-[0.25em] text-white/70">Bem-vindo</p>
-            <p class="mt-2 text-2xl font-extrabold"><?= e((string) ($subscriber['name'] ?? 'Assinante')) ?></p>
+            <p class="mt-2 text-2xl font-extrabold"><?= e($subscriberHandle) ?></p>
             <p class="mt-1 text-sm text-white/80"><?= e((string) ($subscriber['email'] ?? '')) ?></p>
         </div>
     </section>
@@ -141,8 +142,8 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         <article class="rounded-3xl bg-surface-container-low p-5">
                             <div class="flex items-start justify-between gap-4">
                                 <div>
-                                    <p class="text-lg font-bold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
-                                    <p class="mt-1 text-sm text-on-surface-variant">@<?= e((string) ($creator['slug'] ?? 'criador')) ?></p>
+                                    <p class="text-lg font-bold"><?= e(user_handle($creator, 'criador')) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($creator['headline'] ?? '')) ?></p>
                                 </div>
                                 <span class="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-700"><?= e((string) ($subscription['status'] ?? 'active')) ?></span>
                             </div>
@@ -167,7 +168,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                             <div class="flex items-start justify-between gap-4">
                                 <div>
                                     <p class="text-lg font-bold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
-                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($live['creator']['name'] ?? 'Criador')) ?></p>
+                                    <p class="mt-1 text-sm text-on-surface-variant"><?= e(user_handle($live['creator'] ?? [], 'criador')) ?></p>
                                 </div>
                                 <span class="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest <?= (string) ($live['status'] ?? '') === 'live' ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-600' ?>"><?= e((string) ($live['status'] ?? 'scheduled')) ?></span>
                             </div>
@@ -190,7 +191,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                 <div class="space-y-4">
                     <?php foreach ($conversations as $conversation): ?>
                         <a class="block rounded-3xl bg-surface-container-low p-5 transition-colors hover:bg-surface-container-high" href="<?= e('/subscriber/messages?conversation=' . (int) ($conversation['id'] ?? 0)) ?>">
-                            <p class="font-bold"><?= e((string) ($conversation['creator']['name'] ?? 'Criador')) ?></p>
+                            <p class="font-bold"><?= e(user_handle($conversation['creator'] ?? [], 'criador')) ?></p>
                             <p class="mt-1 text-sm text-on-surface-variant"><?= e(excerpt((string) ($conversation['latest_message']['body'] ?? 'Sem mensagens ainda.'), 80)) ?></p>
                             <p class="mt-3 text-xs font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(format_datetime((string) ($conversation['updated_at'] ?? ''), 'd/m H:i')) ?></p>
                         </a>
@@ -233,7 +234,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                 <div class="space-y-4">
                     <?php foreach ($availablePlans as $plan): ?>
                         <article class="rounded-3xl bg-surface-container-low p-5">
-                            <p class="text-lg font-bold"><?= e((string) ($plan['creator']['name'] ?? 'Criador')) ?></p>
+                            <p class="text-lg font-bold"><?= e(user_handle($plan['creator'] ?? [], 'criador')) ?></p>
                             <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($plan['name'] ?? 'Plano')) ?> • <?= luacoin_amount_html((int) ($plan['price_tokens'] ?? 0), 'inline-flex items-center gap-1.5 whitespace-nowrap', '', 'h-4 w-4 shrink-0') ?></p>
                             <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($plan['description'] ?? ''), 90)) ?></p>
                         </article>

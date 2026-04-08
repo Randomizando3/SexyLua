@@ -20,8 +20,8 @@
     <div class="marketing-actions">
         <?php if ($currentUser) : ?>
             <span class="user-chip compact">
-                <span class="avatar"><?= e(avatar_initials($currentUser['name'])) ?></span>
-                <span><?= e($currentUser['name']) ?></span>
+                <span class="avatar"><?= e(user_avatar_label($currentUser, 'SL')) ?></span>
+                <span><?= e(user_handle($currentUser, 'usuario')) ?></span>
             </span>
             <form action="/logout" method="post">
                 <input type="hidden" name="_token" value="<?= e($app->csrf->token()) ?>">
