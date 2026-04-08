@@ -68,6 +68,7 @@ if ($formItem) {
         'body' => (string) ($formItem['body'] ?? ''),
         'plan_id' => (int) ($formItem['plan_id'] ?? 0),
         'unlock_price_tokens' => (int) ($formItem['unlock_price_tokens'] ?? 0),
+        'pack_items' => array_values((array) ($formItem['pack_items'] ?? [])),
         'pack_count' => (int) ($formItem['pack_count'] ?? 0),
     ];
 }
@@ -208,6 +209,7 @@ include base_path('templates/partials/creator_topbar.php');
                     'body' => (string) ($item['body'] ?? ''),
                     'plan_id' => (int) ($item['plan_id'] ?? 0),
                     'unlock_price_tokens' => (int) ($item['unlock_price_tokens'] ?? 0),
+                    'pack_items' => array_values((array) ($item['pack_items'] ?? [])),
                     'pack_count' => (int) ($item['pack_count'] ?? 0),
                 ];
                 $archiveStatus = $status === 'archived' ? 'approved' : 'archived';
@@ -321,7 +323,9 @@ include base_path('templates/partials/creator_topbar.php');
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" data-content-field="title" name="title" placeholder="T&iacute;tulo do conte&uacute;do" required type="text" value="<?= e((string) ($formItem['title'] ?? '')) ?>">
-                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" data-content-field="duration" name="duration" placeholder="Dura&ccedil;&atilde;o (ex.: 12:45)" type="text" value="<?= e((string) ($formItem['duration'] ?? '')) ?>">
+                <div data-content-group="duration">
+                    <input class="w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" data-content-field="duration" name="duration" placeholder="Dura&ccedil;&atilde;o (ex.: 12:45)" type="text" value="<?= e((string) ($formItem['duration'] ?? '')) ?>">
+                </div>
                 <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" data-content-field="kind" name="kind">
                     <?php foreach ($kindLabels as $kindValue => $kindLabel): ?>
                         <option value="<?= e($kindValue) ?>" <?= (string) ($formItem['kind'] ?? 'gallery') === $kindValue ? 'selected' : '' ?>><?= e($kindLabel) ?></option>
@@ -342,10 +346,12 @@ include base_path('templates/partials/creator_topbar.php');
                         <option value="<?= e($statusValue) ?>" <?= (string) ($formItem['status'] ?? 'pending') === $statusValue ? 'selected' : '' ?>><?= e($statusLabel) ?></option>
                     <?php endforeach; ?>
                 </select>
-                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" data-content-field="media_url" name="media_url" placeholder="URL da m&iacute;dia (opcional)" type="url" value="<?= e((string) ($formItem['media_url'] ?? '')) ?>">
+                <div data-content-group="media_url">
+                    <input class="w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" data-content-field="media_url" name="media_url" placeholder="URL da m&iacute;dia (opcional)" type="url" value="<?= e((string) ($formItem['media_url'] ?? '')) ?>">
+                </div>
             </div>
 
-            <label class="block space-y-2">
+            <label class="block space-y-2" data-content-group="plan_id">
                 <span class="text-sm font-semibold text-slate-700">Plano vinculado</span>
                 <select class="w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" data-content-field="plan_id" name="plan_id">
                     <option value="">Sem plano vinculado</option>
@@ -362,26 +368,30 @@ include base_path('templates/partials/creator_topbar.php');
             <textarea class="min-h-[140px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" data-content-field="body" name="body" placeholder="Descri&ccedil;&atilde;o completa"><?= e((string) ($formItem['body'] ?? '')) ?></textarea>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <label class="block space-y-2 rounded-2xl bg-[#f5f3f5] p-4">
-                    <span class="text-sm font-semibold text-slate-700">Arquivo principal</span>
-                    <p class="text-xs text-slate-500">Envie o v&iacute;deo, imagem, &aacute;udio ou arquivo principal do post.</p>
-                    <input class="w-full rounded-2xl border-none bg-white px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" name="media_file" type="file">
+                <label class="block space-y-2 rounded-2xl bg-[#f5f3f5] p-4" data-content-group="media_file">
+                    <span class="text-sm font-semibold text-slate-700" data-content-media-title>Arquivo principal</span>
+                    <p class="text-xs text-slate-500" data-content-media-text>Envie o v&iacute;deo, imagem, &aacute;udio ou arquivo principal do post.</p>
+                    <input class="w-full rounded-2xl border-none bg-white px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" data-content-media-input name="media_file" type="file">
                 </label>
-                <label class="block space-y-2 rounded-2xl bg-[#f5f3f5] p-4">
-                    <span class="text-sm font-semibold text-slate-700">Capa / thumbnail</span>
-                    <p class="text-xs text-slate-500">Opcional. Use uma imagem de capa para destacar o conte&uacute;do na grade p&uacute;blica.</p>
-                    <input class="w-full rounded-2xl border-none bg-white px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" name="thumbnail_file" type="file">
+                <label class="block space-y-2 rounded-2xl bg-[#f5f3f5] p-4" data-content-group="thumbnail_file">
+                    <span class="text-sm font-semibold text-slate-700" data-content-thumbnail-title>Capa / thumbnail</span>
+                    <p class="text-xs text-slate-500" data-content-thumbnail-text>Opcional. Use uma imagem de capa para destacar o conte&uacute;do na grade p&uacute;blica.</p>
+                    <input class="w-full rounded-2xl border-none bg-white px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" data-content-thumbnail-input name="thumbnail_file" type="file">
                 </label>
             </div>
 
             <div class="hidden rounded-2xl bg-[#f5f3f5] p-4" data-content-pack-fields>
-                <div class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                    <label class="block space-y-2">
-                        <span class="text-sm font-semibold text-slate-700">Arquivos do pack</span>
-                        <p class="text-xs text-slate-500">Envie varias fotos e/ou videos para montar um pack. A primeira midia vira a capa do card publico.</p>
-                        <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm" class="w-full rounded-2xl border-none bg-white px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" multiple name="pack_files[]" type="file">
-                        <span class="block text-xs text-slate-500">Se voce editar um pack e enviar novos arquivos, a composicao atual sera substituida pela nova selecao.</span>
-                    </label>
+                <div class="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+                    <div class="space-y-4">
+                        <div>
+                            <span class="text-sm font-semibold text-slate-700">Itens do pack</span>
+                            <p class="mt-2 text-xs text-slate-500">Monte o pack item por item. Você pode adicionar, editar o título e remover somente a mídia desejada.</p>
+                        </div>
+                        <div class="space-y-3" data-content-pack-existing></div>
+                        <div class="space-y-3" data-content-pack-uploads></div>
+                        <button class="rounded-full bg-white px-4 py-3 text-sm font-bold text-[#D81B60] shadow-sm" data-content-pack-add type="button">+ Adicionar item</button>
+                        <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm" class="hidden" data-content-pack-legacy-file-input multiple name="pack_files[]" type="file">
+                    </div>
                     <label class="block space-y-2">
                         <span class="text-sm font-semibold text-slate-700">Compra avulsa permanente</span>
                         <p class="text-xs text-slate-500">Opcional. Defina quantos LuaCoins liberam este pack para sempre, mesmo sem assinatura ativa.</p>
@@ -407,6 +417,34 @@ include base_path('templates/partials/creator_topbar.php');
 <?php if ($selectedContentPayload !== null): ?>
     <script id="content-selected-data" type="application/json"><?= e((string) json_encode($selectedContentPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></script>
 <?php endif; ?>
+<template id="content-pack-existing-template">
+    <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-[#f0e8ee]" data-pack-existing-row>
+        <div class="flex items-start gap-4">
+            <div class="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#f5f3f5]" data-pack-existing-preview></div>
+            <div class="min-w-0 flex-1 space-y-2">
+                <input class="w-full rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 text-sm" data-pack-existing-title-input type="text">
+                <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                    <span data-pack-existing-kind>Imagem</span>
+                    <span data-pack-existing-file></span>
+                </div>
+            </div>
+            <label class="flex shrink-0 items-center gap-2 rounded-full bg-[#fff1f5] px-3 py-2 text-xs font-bold text-[#ab1155]">
+                <input class="rounded border-none text-[#D81B60]" data-pack-existing-remove-input type="checkbox">
+                Remover
+            </label>
+        </div>
+    </div>
+</template>
+<template id="content-pack-upload-template">
+    <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-[#f0e8ee]" data-pack-upload-row>
+        <div class="grid gap-3 md:grid-cols-[1fr_1.2fr_auto] md:items-end">
+            <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 text-sm" data-pack-upload-title name="new_pack_titles[]" placeholder="Título do item" type="text">
+            <input accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm" class="w-full rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 text-sm file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" data-pack-upload-file name="new_pack_files[]" type="file">
+            <button class="rounded-full bg-[#f7f4f7] px-4 py-3 text-sm font-bold text-slate-600" data-pack-upload-remove type="button">Remover</button>
+        </div>
+        <p class="mt-2 text-xs text-slate-500" data-pack-upload-label>Selecione uma imagem ou vídeo para adicionar ao pack.</p>
+    </div>
+</template>
 <script>
     (() => {
         const modal = document.querySelector('[data-content-modal]');
@@ -428,6 +466,7 @@ include base_path('templates/partials/creator_topbar.php');
             body: '',
             plan_id: '',
             unlock_price_tokens: '',
+            pack_items: [],
             pack_count: 0,
         };
         const fields = {
@@ -445,10 +484,211 @@ include base_path('templates/partials/creator_topbar.php');
             unlock_price_tokens: form.querySelector('[data-content-field="unlock_price_tokens"]'),
         };
         const packFieldsWrap = modal.querySelector('[data-content-pack-fields]');
+        const packExistingWrap = modal.querySelector('[data-content-pack-existing]');
+        const packUploadsWrap = modal.querySelector('[data-content-pack-uploads]');
+        const packAddButton = modal.querySelector('[data-content-pack-add]');
+        const packExistingTemplate = document.getElementById('content-pack-existing-template');
+        const packUploadTemplate = document.getElementById('content-pack-upload-template');
+        const mediaTitle = modal.querySelector('[data-content-media-title]');
+        const mediaText = modal.querySelector('[data-content-media-text]');
+        const mediaInput = modal.querySelector('[data-content-media-input]');
+        const thumbnailTitle = modal.querySelector('[data-content-thumbnail-title]');
+        const thumbnailText = modal.querySelector('[data-content-thumbnail-text]');
+        const thumbnailInput = modal.querySelector('[data-content-thumbnail-input]');
+        const groupKinds = {
+            duration: ['video', 'audio', 'live_teaser'],
+            media_url: ['gallery', 'video', 'audio', 'live_teaser'],
+            media_file: ['gallery', 'video', 'audio', 'live_teaser'],
+            thumbnail_file: ['gallery', 'video', 'audio', 'article', 'live_teaser'],
+        };
+        const visibilityGroups = {
+            plan_id: ['premium'],
+        };
+        const kindFieldMeta = {
+            gallery: {
+                mediaTitle: 'Arquivo principal',
+                mediaText: 'Envie a imagem principal deste conte&uacute;do.',
+                mediaAccept: '.jpg,.jpeg,.png,.webp,.gif',
+                thumbnailTitle: 'Capa / thumbnail',
+                thumbnailText: 'Opcional. Use uma imagem de capa para destacar a galeria na grade p&uacute;blica.',
+                thumbnailAccept: '.jpg,.jpeg,.png,.webp,.gif',
+            },
+            video: {
+                mediaTitle: 'V&iacute;deo principal',
+                mediaText: 'Envie o v&iacute;deo que ser&aacute; publicado neste conte&uacute;do.',
+                mediaAccept: '.mp4,.mov,.webm',
+                thumbnailTitle: 'Capa do v&iacute;deo',
+                thumbnailText: 'Opcional. Use uma imagem de capa para o card p&uacute;blico.',
+                thumbnailAccept: '.jpg,.jpeg,.png,.webp,.gif',
+            },
+            audio: {
+                mediaTitle: '&Aacute;udio principal',
+                mediaText: 'Envie o arquivo de &aacute;udio do post.',
+                mediaAccept: '.mp3,.wav,.m4a',
+                thumbnailTitle: 'Capa do &aacute;udio',
+                thumbnailText: 'Opcional. Use uma imagem de capa para representar o &aacute;udio.',
+                thumbnailAccept: '.jpg,.jpeg,.png,.webp,.gif',
+            },
+            article: {
+                thumbnailTitle: 'Imagem de destaque',
+                thumbnailText: 'Opcional. Use uma imagem para representar o artigo na grade p&uacute;blica.',
+                thumbnailAccept: '.jpg,.jpeg,.png,.webp,.gif',
+            },
+            live_teaser: {
+                mediaTitle: 'V&iacute;deo teaser',
+                mediaText: 'Envie o teaser da live que ser&aacute; exibido no perfil p&uacute;blico.',
+                mediaAccept: '.mp4,.mov,.webm',
+                thumbnailTitle: 'Capa do teaser',
+                thumbnailText: 'Opcional. Use uma imagem de capa para destacar o teaser da live.',
+                thumbnailAccept: '.jpg,.jpeg,.png,.webp,.gif',
+            },
+            pack: {},
+        };
 
-        const syncPackFields = (kind) => {
-            if (!packFieldsWrap) return;
-            packFieldsWrap.classList.toggle('hidden', kind !== 'pack');
+        const renderPackExisting = (items) => {
+            if (!packExistingWrap || !packExistingTemplate) return;
+            packExistingWrap.innerHTML = '';
+            const normalized = Array.isArray(items) ? items.filter(Boolean) : [];
+
+            if (normalized.length === 0) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'rounded-2xl border border-dashed border-[#e7d9e2] bg-white px-4 py-5 text-sm text-slate-500';
+                emptyState.textContent = 'Nenhum item salvo ainda neste pack.';
+                packExistingWrap.appendChild(emptyState);
+                return;
+            }
+
+            normalized.forEach((item, index) => {
+                const row = packExistingTemplate.content.firstElementChild.cloneNode(true);
+                const preview = row.querySelector('[data-pack-existing-preview]');
+                const titleInput = row.querySelector('[data-pack-existing-title-input]');
+                const kindNode = row.querySelector('[data-pack-existing-kind]');
+                const fileNode = row.querySelector('[data-pack-existing-file]');
+                const removeInput = row.querySelector('[data-pack-existing-remove-input]');
+                const itemId = String(item.id || `pack-${index + 1}`);
+                const itemTitle = String(item.title || `Item ${index + 1}`);
+                const itemKind = String(item.kind || 'image');
+                const itemUrl = String(item.url || '');
+                const thumbUrl = String(item.thumbnail_url || item.url || '');
+
+                if (titleInput) {
+                    titleInput.name = `existing_pack_titles[${itemId}]`;
+                    titleInput.value = itemTitle;
+                }
+                if (kindNode) {
+                    kindNode.textContent = itemKind === 'video' ? 'Vídeo' : 'Imagem';
+                }
+                if (fileNode) {
+                    fileNode.textContent = itemTitle;
+                }
+                if (removeInput) {
+                    removeInput.name = 'pack_remove_ids[]';
+                    removeInput.value = itemId;
+                    removeInput.checked = false;
+                }
+                if (preview) {
+                    if (itemKind === 'video') {
+                        preview.innerHTML = '<div class="flex h-full w-full items-center justify-center bg-slate-900 text-white"><span class="material-symbols-outlined text-3xl">play_circle</span></div>';
+                    } else if (thumbUrl !== '') {
+                        const img = document.createElement('img');
+                        img.className = 'h-full w-full object-cover';
+                        img.alt = itemTitle;
+                        img.src = thumbUrl;
+                        preview.appendChild(img);
+                    } else {
+                        preview.innerHTML = '<div class="flex h-full w-full items-center justify-center bg-[#f5f3f5] text-slate-400"><span class="material-symbols-outlined text-3xl">image</span></div>';
+                    }
+                }
+            });
+        };
+
+        const createPackUploadRow = (title = '') => {
+            if (!packUploadsWrap || !packUploadTemplate) return;
+            const row = packUploadTemplate.content.firstElementChild.cloneNode(true);
+            const titleInput = row.querySelector('[data-pack-upload-title]');
+            const fileInput = row.querySelector('[data-pack-upload-file]');
+            const labelNode = row.querySelector('[data-pack-upload-label]');
+            const removeButton = row.querySelector('[data-pack-upload-remove]');
+
+            if (titleInput) {
+                titleInput.value = title;
+            }
+            if (fileInput && labelNode) {
+                fileInput.addEventListener('change', () => {
+                    const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+                    labelNode.textContent = file ? `Arquivo selecionado: ${file.name}` : 'Selecione uma imagem ou vídeo para adicionar ao pack.';
+                });
+            }
+            if (removeButton) {
+                removeButton.addEventListener('click', () => row.remove());
+            }
+
+            packUploadsWrap.appendChild(row);
+        };
+
+        const syncKindFields = (kind) => {
+            Object.entries(groupKinds).forEach(([group, kinds]) => {
+                modal.querySelectorAll(`[data-content-group="${group}"]`).forEach((node) => {
+                    const visible = kinds.includes(kind);
+                    node.classList.toggle('hidden', !visible);
+                    node.querySelectorAll('input, select, textarea').forEach((field) => {
+                        field.disabled = !visible;
+                    });
+                });
+            });
+
+            const meta = kindFieldMeta[kind] || kindFieldMeta.gallery;
+            if (mediaTitle && meta.mediaTitle) {
+                mediaTitle.innerHTML = meta.mediaTitle;
+            }
+            if (mediaText && meta.mediaText) {
+                mediaText.innerHTML = meta.mediaText;
+            }
+            if (mediaInput) {
+                if (meta.mediaAccept) {
+                    mediaInput.setAttribute('accept', meta.mediaAccept);
+                } else {
+                    mediaInput.removeAttribute('accept');
+                }
+            }
+            if (thumbnailTitle && meta.thumbnailTitle) {
+                thumbnailTitle.innerHTML = meta.thumbnailTitle;
+            }
+            if (thumbnailText && meta.thumbnailText) {
+                thumbnailText.innerHTML = meta.thumbnailText;
+            }
+            if (thumbnailInput) {
+                if (meta.thumbnailAccept) {
+                    thumbnailInput.setAttribute('accept', meta.thumbnailAccept);
+                } else {
+                    thumbnailInput.removeAttribute('accept');
+                }
+            }
+
+            if (packFieldsWrap) {
+                const visible = kind === 'pack';
+                packFieldsWrap.classList.toggle('hidden', !visible);
+                packFieldsWrap.querySelectorAll('input, button').forEach((field) => {
+                    if (field.matches('[data-content-pack-add], [data-pack-upload-remove]')) {
+                        field.disabled = !visible;
+                        return;
+                    }
+
+                    field.disabled = !visible;
+                });
+            }
+        };
+
+        const syncVisibilityFields = (visibility) => {
+            Object.entries(visibilityGroups).forEach(([group, values]) => {
+                modal.querySelectorAll(`[data-content-group="${group}"]`).forEach((node) => {
+                    const visible = values.includes(visibility);
+                    node.classList.toggle('hidden', !visible);
+                    node.querySelectorAll('input, select, textarea').forEach((field) => {
+                        field.disabled = !visible;
+                    });
+                });
+            });
         };
 
         const applyContent = (content) => {
@@ -458,7 +698,15 @@ include base_path('templates/partials/creator_topbar.php');
                 field.value = payload[key] ?? '';
             });
             titleNode.textContent = payload.id ? 'Editar conte\u00fado' : 'Novo conte\u00fado';
-            syncPackFields(String(payload.kind || 'gallery'));
+            renderPackExisting(payload.pack_items || []);
+            if (packUploadsWrap) {
+                packUploadsWrap.innerHTML = '';
+            }
+            if ((payload.kind || 'gallery') === 'pack') {
+                createPackUploadRow();
+            }
+            syncKindFields(String(payload.kind || 'gallery'));
+            syncVisibilityFields(String(payload.visibility || 'subscriber'));
         };
 
         const openModal = (content) => {
@@ -491,8 +739,22 @@ include base_path('templates/partials/creator_topbar.php');
 
         if (fields.kind) {
             fields.kind.addEventListener('change', () => {
-                syncPackFields(fields.kind.value || 'gallery');
+                const currentKind = fields.kind.value || 'gallery';
+                syncKindFields(currentKind);
+                if (currentKind === 'pack' && packUploadsWrap && packUploadsWrap.children.length === 0) {
+                    createPackUploadRow();
+                }
             });
+        }
+
+        if (fields.visibility) {
+            fields.visibility.addEventListener('change', () => {
+                syncVisibilityFields(fields.visibility.value || 'subscriber');
+            });
+        }
+
+        if (packAddButton) {
+            packAddButton.addEventListener('click', () => createPackUploadRow());
         }
 
         modal.querySelectorAll('[data-content-close]').forEach((button) => button.addEventListener('click', closeModal));
