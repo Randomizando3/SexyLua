@@ -21,6 +21,8 @@ $bannerBackground = media_url((string) ($settings['home_banner_background_url'] 
 $bannerBackground = $bannerBackground !== '' ? $bannerBackground : home_banner_default_image_url();
 $bannerMobileBackground = media_url((string) ($settings['home_banner_background_mobile_url'] ?? ''));
 $bannerMobileBackground = $bannerMobileBackground !== '' ? $bannerMobileBackground : $bannerBackground;
+$bannerBackgroundIsVideo = media_is_video($bannerBackground);
+$bannerMobileBackgroundIsVideo = media_is_video($bannerMobileBackground);
 $bannerTitle = (string) ($settings['home_banner_title'] ?? 'Cadastre-se hoje e ganhe 10 LuaCoins gratis');
 $bannerSubtitle = (string) ($settings['home_banner_subtitle'] ?? 'Crie sua conta agora, receba 10 LuaCoins no cadastro e aproveite bonus extra em cada deposito para entrar na SexyLua com mais liberdade.');
 $bannerPrimaryText = (string) ($settings['home_banner_primary_text'] ?? 'Explorar agora');
@@ -64,10 +66,17 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
         <section class="relative overflow-hidden px-4 pt-6 sm:px-8">
             <div class="mx-auto max-w-7xl overflow-hidden rounded-[2.25rem] bg-slate-950 shadow-[0px_24px_56px_rgba(27,28,29,0.16)]">
                 <div class="relative min-h-[340px] md:min-h-[390px]">
-                    <picture class="absolute inset-0 block h-full w-full">
-                        <source media="(max-width: 767px)" srcset="<?= e($bannerMobileBackground) ?>">
-                        <img alt="Banner SexyLua" class="h-full w-full object-cover" src="<?= e($bannerBackground) ?>">
-                    </picture>
+                    <div class="absolute inset-0 block h-full w-full">
+                        <?php if ($bannerMobileBackgroundIsVideo || $bannerBackgroundIsVideo): ?>
+                            <video autoplay class="h-full w-full object-cover md:hidden" loop muted playsinline src="<?= e($bannerMobileBackground) ?>"></video>
+                            <video autoplay class="hidden h-full w-full object-cover md:block" loop muted playsinline src="<?= e($bannerBackground) ?>"></video>
+                        <?php else: ?>
+                            <picture class="block h-full w-full">
+                                <source media="(max-width: 767px)" srcset="<?= e($bannerMobileBackground) ?>">
+                                <img alt="Banner SexyLua" class="h-full w-full object-cover" src="<?= e($bannerBackground) ?>">
+                            </picture>
+                        <?php endif; ?>
+                    </div>
                     <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(33,7,20,0.88)_0%,rgba(33,7,20,0.55)_42%,rgba(33,7,20,0.2)_100%)]"></div>
                     <div class="relative z-10 flex min-h-[340px] flex-col justify-between gap-8 px-6 py-7 md:min-h-[390px] md:px-10 md:py-9">
                         <div class="flex flex-wrap items-center gap-3">
@@ -136,10 +145,15 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
             <?php foreach (array_slice($liveShowcase, 0, 4) as $live): ?>
                 <?php $cover = media_url((string) ($live['cover_url'] ?? '')); ?>
+                <?php $coverIsVideo = media_is_video($cover); ?>
                 <a class="group overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)] transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
                     <div class="relative aspect-[3/4] bg-slate-900">
                         <?php if ($cover !== ''): ?>
-                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" src="<?= e($cover) ?>">
+                            <?php if ($coverIsVideo): ?>
+                                <video autoplay class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" loop muted playsinline src="<?= e($cover) ?>"></video>
+                            <?php else: ?>
+                                <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" src="<?= e($cover) ?>">
+                            <?php endif; ?>
                         <?php else: ?>
                             <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
                                 <span class="headline text-2xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
@@ -183,7 +197,7 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-5">
                 <?php foreach (array_slice($featuredCreators, 0, 5) as $creator): ?>
                     <?php $avatar = media_url((string) ($creator['avatar_url'] ?? '')); ?>
-                    <a class="rounded-3xl bg-white p-5 text-center shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/profile', ['id' => (int) ($creator['id'] ?? 0)])) ?>">
+                    <a class="rounded-3xl bg-white p-5 text-center shadow-sm transition-transform hover:-translate-y-1" href="<?= e(creator_public_url($creator)) ?>">
                         <div class="mx-auto mb-4 flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] border border-[#f4d9e3] bg-[#f7edf2]">
                             <?php if ($avatar !== ''): ?>
                                 <img alt="<?= e(user_handle($creator, 'criador')) ?>" class="h-full w-full object-cover" src="<?= e($avatar) ?>">
@@ -217,7 +231,7 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
             <?php foreach (array_slice($featuredContent, 0, 6) as $item): ?>
                 <?php
                 $thumbnail = media_url((string) ($item['thumbnail_url'] ?? $item['media_url'] ?? ''));
-                $creatorUrl = path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0)]);
+                $creatorUrl = creator_public_url($item['creator'] ?? []);
                 ?>
                 <a class="overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)] transition-transform hover:-translate-y-1" href="<?= e($creatorUrl) ?>">
                     <div class="relative aspect-[4/3] bg-slate-900">

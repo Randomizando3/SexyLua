@@ -529,12 +529,18 @@ final class PlatformRepository
 
     public function findCreatorBySlugOrId(?string $slug, ?int $id): ?array
     {
+        $normalizedSlug = $slug !== null ? $this->normalizeUsername($slug) : '';
+
         foreach ($this->creators() as $creator) {
             if ($id !== null && (int) $creator['id'] === $id) {
                 return $creator;
             }
 
             if ($slug !== null && $creator['slug'] === $slug) {
+                return $creator;
+            }
+
+            if ($normalizedSlug !== '' && $this->normalizeUsername((string) ($creator['username'] ?? '')) === $normalizedSlug) {
                 return $creator;
             }
         }
@@ -3710,7 +3716,7 @@ final class PlatformRepository
         $identityDocument = is_array($data['identity_document'] ?? null) ? $data['identity_document'] : null;
         $verificationReset = false;
 
-        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $creatorId))) {
+        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $creatorId) || $this->usernameReservedForPublicRoute($username, $creatorId))) {
             return false;
         }
 
@@ -4148,7 +4154,7 @@ final class PlatformRepository
         $verificationNote = trim((string) ($data['verification_note'] ?? ''));
         $previousVerificationStatus = '';
 
-        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $userId))) {
+        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $userId) || $this->usernameReservedForPublicRoute($username, $userId))) {
             return false;
         }
 
@@ -4311,7 +4317,7 @@ final class PlatformRepository
         $role = in_array(($data['role'] ?? 'subscriber'), ['subscriber', 'creator', 'admin'], true) ? (string) $data['role'] : 'subscriber';
         $status = in_array(($data['status'] ?? 'active'), ['active', 'suspended'], true) ? (string) $data['status'] : 'active';
 
-        if ($name === '' || $username === '' || $email === '' || $password === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL) || $this->emailInUse($email) || $this->usernameInUse($username)) {
+        if ($name === '' || $username === '' || $email === '' || $password === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL) || $this->emailInUse($email) || $this->usernameInUse($username) || $this->usernameReservedForPublicRoute($username, null)) {
             return false;
         }
 
@@ -4389,7 +4395,7 @@ final class PlatformRepository
         $identityDocument = is_array($data['identity_document'] ?? null) ? $data['identity_document'] : null;
         $verificationReset = false;
 
-        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $userId))) {
+        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $userId) || $this->usernameReservedForPublicRoute($username, $userId))) {
             return false;
         }
 
@@ -5669,6 +5675,24 @@ final class PlatformRepository
         }
 
         return false;
+    }
+
+    private function usernameReservedForPublicRoute(string $username, ?int $exceptUserId = null): bool
+    {
+        $username = $this->normalizeUsername($username);
+
+        if ($username === '' || ! in_array($username, \public_profile_reserved_usernames(), true)) {
+            return false;
+        }
+
+        if ($exceptUserId !== null) {
+            $existing = $this->findUserByUsername($username);
+            if (is_array($existing) && (int) ($existing['id'] ?? 0) === $exceptUserId) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function isFavoriteCreator(int $subscriberId, int $creatorId): bool
@@ -7983,7 +8007,7 @@ final class PlatformRepository
         $username = $base;
         $counter = 2;
 
-        while ($this->usernameInUse($username, $ignoreUserId)) {
+        while ($this->usernameInUse($username, $ignoreUserId) || in_array($username, \public_profile_reserved_usernames(), true)) {
             $username = $base . $counter;
             $counter++;
         }

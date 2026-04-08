@@ -328,9 +328,11 @@ final class CreatorController extends Controller
         $payload = $request->all();
 
         if ($request->hasFile('cover_file')) {
-            $coverPath = store_uploaded_file($request->file('cover_file'), 'creator/live', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
-            if ($coverPath !== null) {
-                $payload['cover_url'] = $coverPath;
+            $coverUpload = store_cover_media_file($request->file('cover_file'), 'creator/live');
+            if (is_array($coverUpload) && (bool) ($coverUpload['ok'] ?? false)) {
+                $payload['cover_url'] = (string) ($coverUpload['path'] ?? '');
+            } elseif (is_array($coverUpload) && trim((string) ($coverUpload['error'] ?? '')) !== '') {
+                $this->redirect('/creator/live', (string) $coverUpload['error'], 'error');
             }
         }
 
@@ -458,9 +460,11 @@ final class CreatorController extends Controller
         }
 
         if ($request->hasFile('cover_file')) {
-            $coverPath = store_uploaded_file($request->file('cover_file'), 'creator/profile/cover', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
-            if ($coverPath !== null) {
-                $payload['cover_url'] = $coverPath;
+            $coverUpload = store_cover_media_file($request->file('cover_file'), 'creator/profile/cover');
+            if (is_array($coverUpload) && (bool) ($coverUpload['ok'] ?? false)) {
+                $payload['cover_url'] = (string) ($coverUpload['path'] ?? '');
+            } elseif (is_array($coverUpload) && trim((string) ($coverUpload['error'] ?? '')) !== '') {
+                $this->redirect('/creator/settings', (string) $coverUpload['error'], 'error');
             }
         }
 

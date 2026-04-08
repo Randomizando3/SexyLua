@@ -13,7 +13,8 @@ $isSubscribed = (bool) ($data['is_subscribed'] ?? false);
 $creatorId = (int) ($creator['id'] ?? 0);
 $cover = media_url((string) ($creator['cover_url'] ?? ''));
 $avatar = media_url((string) ($creator['avatar_url'] ?? ''));
-$profileUrl = path_with_query('/profile', ['id' => $creatorId]);
+$coverIsVideo = media_is_video($cover);
+$profileUrl = creator_public_url($creator);
 $primaryPlan = $plans[0] ?? null;
 $canInteractAsSubscriber = ($currentUser['role'] ?? '') === 'subscriber';
 $requestedContentId = isset($_GET['content']) ? (int) $_GET['content'] : 0;
@@ -106,7 +107,11 @@ if ($requestedContentId > 0) {
 <main class="pt-20">
     <div class="relative z-0 h-[210px] overflow-hidden bg-surface-container-high md:h-[240px] lg:h-[260px]">
         <?php if ($cover !== ''): ?>
-            <img alt="<?= e($creatorHandle) ?>" class="h-full w-full object-cover" src="<?= e($cover) ?>">
+            <?php if ($coverIsVideo): ?>
+                <video autoplay class="h-full w-full object-cover" loop muted playsinline src="<?= e($cover) ?>"></video>
+            <?php else: ?>
+                <img alt="<?= e($creatorHandle) ?>" class="h-full w-full object-cover" src="<?= e($cover) ?>">
+            <?php endif; ?>
         <?php else: ?>
             <div class="signature-glow flex h-full w-full items-center justify-center">
                 <span class="headline text-5xl font-extrabold text-white"><?= e($creatorHandle) ?></span>
@@ -195,12 +200,17 @@ if ($requestedContentId > 0) {
                             <?php foreach ($upcomingLives as $live): ?>
                                 <?php
                                 $liveCover = media_url((string) ($live['cover_url'] ?? ''));
+                                $liveCoverIsVideo = media_is_video($liveCover);
                                 $liveUrl = path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)]);
                                 ?>
                                 <a class="min-w-[260px] max-w-[260px] snap-start overflow-hidden rounded-3xl bg-[#fbf9fb] ring-1 ring-[#f0e8ee] transition-transform hover:-translate-y-1" href="<?= e($liveUrl) ?>">
                                     <div class="relative aspect-[4/3] bg-slate-900">
                                         <?php if ($liveCover !== ''): ?>
-                                            <img alt="<?= e((string) ($live['title'] ?? 'Live agendada')) ?>" class="h-full w-full scale-105 object-cover <?= $guestPreviewLocked ? 'scale-110 blur-[22px] brightness-75' : '' ?>" src="<?= e($liveCover) ?>">
+                                            <?php if ($liveCoverIsVideo): ?>
+                                                <video autoplay class="h-full w-full scale-105 object-cover <?= $guestPreviewLocked ? 'scale-110 blur-[22px] brightness-75' : '' ?>" loop muted playsinline src="<?= e($liveCover) ?>"></video>
+                                            <?php else: ?>
+                                                <img alt="<?= e((string) ($live['title'] ?? 'Live agendada')) ?>" class="h-full w-full scale-105 object-cover <?= $guestPreviewLocked ? 'scale-110 blur-[22px] brightness-75' : '' ?>" src="<?= e($liveCover) ?>">
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <div class="signature-glow flex h-full w-full items-center justify-center text-white">
                                                 <span class="headline px-6 text-center text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
@@ -402,7 +412,7 @@ if ($requestedContentId > 0) {
                     <div class="mt-6 space-y-4">
                         <?php foreach (array_slice($relatedCreators, 0, 4) as $related): ?>
                             <?php $relatedAvatar = media_url((string) ($related['avatar_url'] ?? '')); ?>
-                            <a class="flex items-center gap-4 rounded-3xl bg-[#fbf9fb] p-4 shadow-sm ring-1 ring-[#f0e8ee]" href="<?= e(path_with_query('/profile', ['id' => (int) ($related['id'] ?? 0)])) ?>">
+                                <a class="flex items-center gap-4 rounded-3xl bg-[#fbf9fb] p-4 shadow-sm ring-1 ring-[#f0e8ee]" href="<?= e(creator_public_url($related)) ?>">
                                 <div class="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#f7edf2]">
                                     <?php if ($relatedAvatar !== ''): ?>
                                         <img alt="<?= e(user_handle($related, 'criador')) ?>" class="h-full w-full object-cover" src="<?= e($relatedAvatar) ?>">

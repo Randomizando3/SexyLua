@@ -102,7 +102,7 @@ include base_path('templates/partials/creator_topbar.php');
                             <span><?= e((string) ($favoriteCreator['subscriber_count'] ?? 0)) ?> assinantes</span>
                         </div>
                         <div class="flex items-center gap-3">
-                            <a class="flex-1 rounded-full bg-surface-container-low px-4 py-3 text-center text-sm font-bold text-on-surface transition-colors hover:bg-surface-container" href="<?= e('/profile?id=' . (int) $favoriteCreator['id']) ?>">Abrir perfil</a>
+                                <a class="flex-1 rounded-full bg-surface-container-low px-4 py-3 text-center text-sm font-bold text-on-surface transition-colors hover:bg-surface-container" href="<?= e(creator_public_url($favoriteCreator)) ?>">Abrir perfil</a>
                             <form action="/creator/favorites/toggle" method="post" class="flex-1" data-prototype-skip="1">
                                 <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                 <input name="creator_id" type="hidden" value="<?= e((string) ($favoriteCreator['id'] ?? 0)) ?>">
@@ -132,7 +132,7 @@ include base_path('templates/partials/creator_topbar.php');
                                     <span class="material-symbols-outlined"><?= e($item['kind'] === 'video' ? 'play_circle' : ($item['kind'] === 'audio' ? 'headphones' : 'photo_library')) ?></span>
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <a class="truncate text-base font-bold hover:text-primary" href="<?= e('/profile?id=' . (int) ($item['creator']['id'] ?? $item['creator_id'])) ?>"><?= e((string) $item['title']) ?></a>
+                            <a class="truncate text-base font-bold hover:text-primary" href="<?= e(creator_public_url($item['creator'] ?? ['id' => (int) ($item['creator_id'] ?? 0)])) ?>"><?= e((string) $item['title']) ?></a>
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 110)) ?></p>
                                     <div class="mt-3 flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
                                         <span><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></span>
@@ -166,7 +166,7 @@ include base_path('templates/partials/creator_topbar.php');
                                     <span class="material-symbols-outlined"><?= e($item['kind'] === 'video' ? 'smart_display' : ($item['kind'] === 'audio' ? 'graphic_eq' : 'collections')) ?></span>
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <a class="truncate text-base font-bold hover:text-primary" href="<?= e('/profile?id=' . (int) ($item['creator']['id'] ?? $item['creator_id'])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
+                            <a class="truncate text-base font-bold hover:text-primary" href="<?= e(creator_public_url($item['creator'] ?? ['id' => (int) ($item['creator_id'] ?? 0)])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 110)) ?></p>
                                     <div class="mt-3 flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
                                         <span><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></span>

@@ -124,7 +124,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                                 </div>
                             </div>
                             <div class="flex w-full flex-col gap-3 lg:w-auto">
-                                <a class="rounded-full bg-surface-container-low px-5 py-3 text-center text-sm font-bold text-on-surface" href="<?= e('/profile?id=' . (int) ($creator['id'] ?? 0)) ?>">Abrir perfil</a>
+                        <a class="rounded-full bg-surface-container-low px-5 py-3 text-center text-sm font-bold text-on-surface" href="<?= e(creator_public_url($creator)) ?>">Abrir perfil</a>
                                 <form action="/subscriber/subscriptions/cancel" method="post" onsubmit="return confirm('Cancelar esta assinatura?');">
                                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                     <input name="subscription_id" type="hidden" value="<?= e((string) ($subscription['id'] ?? 0)) ?>">
@@ -148,7 +148,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                     <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.05)]">
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <a class="text-xl font-bold hover:text-primary" href="<?= e('/profile?id=' . (int) ($creator['id'] ?? 0)) ?>"><?= e(user_handle($creator, 'criador')) ?></a>
+                        <a class="text-xl font-bold hover:text-primary" href="<?= e(creator_public_url($creator)) ?>"><?= e(user_handle($creator, 'criador')) ?></a>
                                 <p class="mt-1 text-sm text-on-surface-variant"><?= e((string) ($creator['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
                             </div>
                             <span class="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary"><?= luacoin_amount_html((int) ($plan['price_tokens'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3 w-3 shrink-0') ?></span>

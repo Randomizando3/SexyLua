@@ -59,7 +59,7 @@ final class PublicController extends Controller
     {
         $category = current_public_audience_category((string) $request->query('category', ''));
         $creator = $this->app->repository->findCreatorBySlugOrId(
-            $request->query('slug'),
+            (string) $request->query('username', (string) $request->query('slug', '')),
             $request->query('id') !== null ? (int) $request->query('id') : null
         );
 
@@ -73,6 +73,45 @@ final class PublicController extends Controller
             return;
         }
 
+        $canonicalUrl = creator_public_url($creator, [
+            'category' => $category !== 'todos' ? $category : null,
+            'content' => $request->query('content'),
+        ]);
+        if ($canonicalUrl !== $this->currentRequestUri($request) && str_starts_with($canonicalUrl, '/')) {
+            $this->redirect($canonicalUrl);
+        }
+
+        $this->renderCreatorProfile($creator, $category);
+    }
+
+    public function profileByHandle(Request $request, string $handle): void
+    {
+        $category = current_public_audience_category((string) $request->query('category', ''));
+        $creator = $this->app->repository->findCreatorBySlugOrId($handle, null);
+
+        if (! $creator) {
+            http_response_code(404);
+            $this->render('pages/public/not-found', [
+                'title' => 'Perfil nao encontrado',
+                'description' => 'Este criador nao foi encontrado.',
+            ], 'layouts/marketing');
+
+            return;
+        }
+
+        $canonicalUrl = creator_public_url($creator, [
+            'category' => $category !== 'todos' ? $category : null,
+            'content' => $request->query('content'),
+        ]);
+        if ($canonicalUrl !== $this->currentRequestUri($request) && str_starts_with($canonicalUrl, '/')) {
+            $this->redirect($canonicalUrl);
+        }
+
+        $this->renderCreatorProfile($creator, $category);
+    }
+
+    private function renderCreatorProfile(array $creator, string $category): void
+    {
         $this->render('pages/public/profile', [
             'title' => $creator['name'],
             'data' => $profileData = $this->app->repository->creatorProfileData((int) $creator['id'], $this->app->auth->id(), [
@@ -82,6 +121,13 @@ final class PublicController extends Controller
                 'page' => 'public.profile',
             ],
         ], null);
+    }
+
+    private function currentRequestUri(Request $request): string
+    {
+        $query = http_build_query($request->queryParams());
+
+        return $request->path() . ($query !== '' ? '?' . $query : '');
     }
 
     public function storeAudienceGate(Request $request): void
@@ -278,7 +324,8 @@ final class PublicController extends Controller
 
         $this->app->auth->requireRole('subscriber');
         $creatorId = (int) $request->input('creator_id', 0);
-        $this->validateCsrf($request, path_with_query('/profile', ['id' => $creatorId]));
+        $creator = $this->app->repository->findCreatorBySlugOrId(null, $creatorId);
+        $this->validateCsrf($request, creator_public_url($creator, []));
         $conversationId = $this->app->repository->startConversation((int) $this->user()['id'], $creatorId, (string) $request->input('body', 'Oi! Gostaria de conversar sobre seus conteudos.'));
 
         $this->redirect(path_with_query('/subscriber/messages', ['conversation' => $conversationId]), 'Conversa iniciada.');
@@ -408,7 +455,8 @@ final class PublicController extends Controller
         $liveId = (int) $request->input('live_id', 0);
         $amount = (int) $request->input('amount', 0);
         $message = trim((string) $request->input('message', ''));
-        $redirect = $liveId > 0 ? path_with_query('/live', ['id' => $liveId]) : path_with_query('/profile', ['id' => $creatorId]);
+        $creator = $this->app->repository->findCreatorBySlugOrId(null, $creatorId);
+        $redirect = $liveId > 0 ? path_with_query('/live', ['id' => $liveId]) : creator_public_url($creator, []);
 
         if (! $this->app->csrf->validate((string) $request->input('_token'))) {
             if ($expectsJson) {

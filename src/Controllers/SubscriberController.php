@@ -292,9 +292,11 @@ final class SubscriberController extends Controller
         }
 
         if ($request->hasFile('cover_file')) {
-            $coverPath = store_uploaded_file($request->file('cover_file'), 'subscriber/profile/cover', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
-            if ($coverPath !== null) {
-                $payload['cover_url'] = $coverPath;
+            $coverUpload = store_cover_media_file($request->file('cover_file'), 'subscriber/profile/cover');
+            if (is_array($coverUpload) && (bool) ($coverUpload['ok'] ?? false)) {
+                $payload['cover_url'] = (string) ($coverUpload['path'] ?? '');
+            } elseif (is_array($coverUpload) && trim((string) ($coverUpload['error'] ?? '')) !== '') {
+                $this->redirect('/subscriber/settings', (string) $coverUpload['error'], 'error');
             }
         }
 

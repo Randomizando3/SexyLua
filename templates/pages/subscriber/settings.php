@@ -11,6 +11,7 @@ $verificationStatus = (string) ($verification['status'] ?? 'pending');
 $identityDocument = is_array($verification['identity_document'] ?? null) ? $verification['identity_document'] : null;
 $avatarUrl = media_url((string) ($subscriber['avatar_url'] ?? ''));
 $coverUrl = media_url((string) ($subscriber['cover_url'] ?? ''));
+$coverIsVideo = media_is_video($coverUrl);
 $subscriberHandle = user_handle($subscriber, 'assinante');
 $subscriberAvatarLabel = user_avatar_label($subscriber, 'AS');
 ?>
@@ -165,7 +166,9 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                     </label>
                     <label class="block space-y-2">
                         <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload da capa</span>
-                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp,.gif">
+                        <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" data-cover-preview-input name="cover_file" type="file" accept="<?= e(cover_media_accept_attribute()) ?>">
+                        <span class="block text-xs text-on-surface-variant"><?= e(cover_media_recommendation_text()) ?></span>
+                        <span class="block text-xs font-semibold text-primary/80" data-cover-preview-status>Nenhuma nova capa selecionada.</span>
                     </label>
                 </div>
 
@@ -216,9 +219,13 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
         </section>
 
         <section class="space-y-6">
-            <div class="overflow-hidden rounded-3xl bg-surface-container-lowest shadow-sm">
+            <div class="overflow-hidden rounded-3xl bg-surface-container-lowest shadow-sm" data-cover-preview-box data-cover-preview-fallback="Subscriber Club">
                 <?php if ($coverUrl !== ''): ?>
-                    <img alt="Capa do assinante" class="h-48 w-full object-cover" src="<?= e($coverUrl) ?>">
+                    <?php if ($coverIsVideo): ?>
+                        <video autoplay class="h-48 w-full object-cover" loop muted playsinline src="<?= e($coverUrl) ?>"></video>
+                    <?php else: ?>
+                        <img alt="Capa do assinante" class="h-48 w-full object-cover" src="<?= e($coverUrl) ?>">
+                    <?php endif; ?>
                 <?php else: ?>
                     <div class="flex h-48 w-full items-center justify-center bg-gradient-to-br from-[#ab1155] via-[#D81B60] to-[#f57c91] text-lg font-bold text-white">Subscriber Club</div>
                 <?php endif; ?>
@@ -262,6 +269,69 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
 </main>
 <script>
     (() => {
+        const coverInput = document.querySelector('[data-cover-preview-input]');
+        const coverBox = document.querySelector('[data-cover-preview-box]');
+        const coverStatus = document.querySelector('[data-cover-preview-status]');
+        const initialCoverMarkup = coverBox ? coverBox.innerHTML : '';
+        const coverFallback = coverBox ? (coverBox.getAttribute('data-cover-preview-fallback') || 'Subscriber Club') : 'Subscriber Club';
+        let coverObjectUrl = null;
+
+        if (coverInput && coverBox && coverStatus) {
+            coverInput.addEventListener('change', () => {
+                const file = coverInput.files && coverInput.files[0] ? coverInput.files[0] : null;
+                if (coverObjectUrl) {
+                    URL.revokeObjectURL(coverObjectUrl);
+                    coverObjectUrl = null;
+                }
+
+                if (!file) {
+                    coverBox.innerHTML = initialCoverMarkup || `<div class="flex h-48 w-full items-center justify-center bg-gradient-to-br from-[#ab1155] via-[#D81B60] to-[#f57c91] text-lg font-bold text-white">${coverFallback}</div>`;
+                    coverStatus.classList.remove('text-rose-600');
+                    coverStatus.textContent = 'Nenhuma nova capa selecionada.';
+                    return;
+                }
+
+                coverObjectUrl = URL.createObjectURL(file);
+                coverBox.innerHTML = '';
+
+                if (file.type.startsWith('video/')) {
+                    const video = document.createElement('video');
+                    video.src = coverObjectUrl;
+                    video.className = 'h-48 w-full object-cover';
+                    video.muted = true;
+                    video.loop = true;
+                    video.autoplay = true;
+                    video.playsInline = true;
+                    video.addEventListener('loadedmetadata', () => {
+                        if (video.duration > 5.05) {
+                            if (coverObjectUrl) {
+                                URL.revokeObjectURL(coverObjectUrl);
+                                coverObjectUrl = null;
+                            }
+                            coverInput.value = '';
+                            coverBox.innerHTML = initialCoverMarkup || `<div class="flex h-48 w-full items-center justify-center bg-gradient-to-br from-[#ab1155] via-[#D81B60] to-[#f57c91] text-lg font-bold text-white">${coverFallback}</div>`;
+                            coverStatus.classList.add('text-rose-600');
+                            coverStatus.textContent = 'Envie um video de capa com ate 5 segundos.';
+                            return;
+                        }
+
+                        coverStatus.classList.remove('text-rose-600');
+                        coverStatus.textContent = `Video selecionado: ${file.name}`;
+                    }, { once: true });
+                    coverBox.appendChild(video);
+                    return;
+                }
+
+                const image = document.createElement('img');
+                image.src = coverObjectUrl;
+                image.alt = 'Preview da capa';
+                image.className = 'h-48 w-full object-cover';
+                coverBox.appendChild(image);
+                coverStatus.classList.remove('text-rose-600');
+                coverStatus.textContent = `Arquivo selecionado: ${file.name}`;
+            });
+        }
+
         const bindUsernameValidation = (key) => {
             const input = document.querySelector(`[data-username-target="${key}"]`);
             const feedback = document.querySelector(`[data-username-feedback="${key}"]`);

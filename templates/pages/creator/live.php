@@ -33,6 +33,7 @@ $selectedLiveDuration = (int) ($selected['duration_seconds'] ?? 0);
 $selectedDurationLabel = $selectedLiveDuration > 0 ? gmdate($selectedLiveDuration >= 3600 ? 'H:i:s' : 'i:s', $selectedLiveDuration) : '00:00';
 $selectedRoomUrl = $selectedLiveId > 0 ? path_with_query('/live', ['id' => $selectedLiveId]) : '';
 $selectedCover = media_url((string) ($selected['cover_url'] ?? ''));
+$selectedCoverIsVideo = media_is_video($selectedCover);
 $selectedIsConcluded = $selectedStatus === 'ended';
 $viewerCount = (int) ($selected['viewer_count'] ?? 0);
 $selectedTipTotalAmount = (int) ($selected['tip_total_amount'] ?? 0);
@@ -261,7 +262,11 @@ include base_path('templates/partials/creator_topbar.php');
                     <div class="overflow-hidden rounded-3xl bg-[#f7f4f7]">
                         <div class="relative aspect-video bg-slate-950">
                             <?php if ($selectedCover !== ''): ?>
-                                <img alt="Capa da live" class="h-full w-full object-cover" src="<?= e($selectedCover) ?>">
+                                <?php if ($selectedCoverIsVideo): ?>
+                                    <video autoplay class="h-full w-full object-cover" loop muted playsinline src="<?= e($selectedCover) ?>"></video>
+                                <?php else: ?>
+                                    <img alt="Capa da live" class="h-full w-full object-cover" src="<?= e($selectedCover) ?>">
+                                <?php endif; ?>
                             <?php else: ?>
                                 <div class="signature-glow flex h-full w-full items-center justify-center text-white">
                                     <span class="headline text-2xl font-extrabold"><?= e(mb_strtoupper(mb_substr((string) ($selected['title'] ?? 'LIVE'), 0, 18))) ?></span>
@@ -373,7 +378,11 @@ include base_path('templates/partials/creator_topbar.php');
                     <div class="overflow-hidden rounded-3xl bg-[#f7f4f7]">
                         <div class="relative aspect-video bg-slate-950">
                             <?php if ($selectedCover !== ''): ?>
-                                <img alt="Capa da live" class="h-full w-full object-cover" src="<?= e($selectedCover) ?>">
+                                <?php if ($selectedCoverIsVideo): ?>
+                                    <video autoplay class="h-full w-full object-cover" loop muted playsinline src="<?= e($selectedCover) ?>"></video>
+                                <?php else: ?>
+                                    <img alt="Capa da live" class="h-full w-full object-cover" src="<?= e($selectedCover) ?>">
+                                <?php endif; ?>
                             <?php else: ?>
                                 <div class="signature-glow flex h-full w-full items-center justify-center text-white">
                                     <span class="headline text-2xl font-extrabold"><?= e(mb_strtoupper(mb_substr((string) ($selected['title'] ?? 'LIVE'), 0, 18))) ?></span>
@@ -478,7 +487,10 @@ include base_path('templates/partials/creator_topbar.php');
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="cover_url" placeholder="URL da capa (opcional)" type="url" value="<?= e((string) ($formLive['cover_url'] ?? '')) ?>">
-                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" name="cover_file" type="file">
+                <div class="space-y-2">
+                    <input accept="<?= e(cover_media_accept_attribute()) ?>" class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" data-cover-media-input name="cover_file" type="file">
+                    <p class="text-xs text-slate-500" data-cover-media-feedback><?= e(cover_media_recommendation_text()) ?></p>
+                </div>
             </div>
 
             <textarea class="min-h-[92px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="pinned_notice" placeholder="Aviso fixado"><?= e((string) ($formLive['pinned_notice'] ?? '')) ?></textarea>
@@ -542,6 +554,42 @@ include base_path('templates/partials/creator_topbar.php');
         });
 
         updateScheduleVisibility();
+
+        const coverInput = form.querySelector('[data-cover-media-input]');
+        const coverFeedback = form.querySelector('[data-cover-media-feedback]');
+        const coverDefaultMessage = coverFeedback ? coverFeedback.textContent : '';
+        if (coverInput && coverFeedback) {
+            coverInput.addEventListener('change', () => {
+                const file = coverInput.files && coverInput.files[0] ? coverInput.files[0] : null;
+                coverFeedback.classList.remove('text-rose-600');
+
+                if (!file) {
+                    coverFeedback.textContent = coverDefaultMessage;
+                    return;
+                }
+
+                if (!String(file.type || '').startsWith('video/')) {
+                    coverFeedback.textContent = `Arquivo selecionado: ${file.name}`;
+                    return;
+                }
+
+                const objectUrl = URL.createObjectURL(file);
+                const video = document.createElement('video');
+                video.preload = 'metadata';
+                video.src = objectUrl;
+                video.addEventListener('loadedmetadata', () => {
+                    URL.revokeObjectURL(objectUrl);
+                    if (video.duration > 5.05) {
+                        coverInput.value = '';
+                        coverFeedback.textContent = 'Envie um video de capa com ate 5 segundos.';
+                        coverFeedback.classList.add('text-rose-600');
+                        return;
+                    }
+
+                    coverFeedback.textContent = `Video selecionado: ${file.name}`;
+                }, { once: true });
+            });
+        }
 
         const detailsSection = document.querySelector('[data-live-details]');
         const params = new URLSearchParams(window.location.search);

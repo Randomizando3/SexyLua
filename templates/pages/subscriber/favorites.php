@@ -78,7 +78,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
         <div class="mb-5 flex items-center justify-between"><h3 class="text-2xl font-extrabold">Criadores favoritos</h3><a class="text-sm font-bold text-primary hover:underline" href="/explore">Explorar mais</a></div>
         <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
             <?php foreach ($favoriteCreators as $creator): ?>
-                <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm transition-transform hover:-translate-y-1" data-card-href="<?= e('/profile?id=' . (int) ($creator['id'] ?? 0)) ?>">
+                        <article class="rounded-3xl bg-surface-container-lowest p-6 shadow-sm transition-transform hover:-translate-y-1" data-card-href="<?= e(creator_public_url($creator)) ?>">
                     <div class="flex items-center gap-4">
                         <?php $creatorAvatar = media_url((string) ($creator['avatar_url'] ?? '')); ?>
                         <?php if ($creatorAvatar !== ''): ?>
@@ -114,7 +114,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         <div class="rounded-3xl bg-surface-container-low p-5">
                             <div class="flex items-start justify-between gap-4">
                                 <div class="min-w-0">
-                                    <a class="truncate text-lg font-bold hover:text-primary" href="<?= e(path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0), 'content' => (int) ($item['id'] ?? 0)])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
+                                <a class="truncate text-lg font-bold hover:text-primary" href="<?= e(creator_public_url($item['creator'] ?? [], ['content' => (int) ($item['id'] ?? 0)])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></p>
                                     <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 100)) ?></p>
                                 </div>
@@ -140,7 +140,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                         <div class="rounded-3xl bg-surface-container-low p-5">
                             <div class="flex items-start justify-between gap-4">
                                 <div class="min-w-0">
-                                    <a class="truncate text-lg font-bold hover:text-primary" href="<?= e(path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0), 'content' => (int) ($item['id'] ?? 0)])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
+                                <a class="truncate text-lg font-bold hover:text-primary" href="<?= e(creator_public_url($item['creator'] ?? [], ['content' => (int) ($item['id'] ?? 0)])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></p>
                                     <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 100)) ?></p>
                                 </div>
@@ -186,7 +186,7 @@ require BASE_PATH . '/templates/partials/subscriber_sidebar.php';
                 <div class="mb-6 flex items-center justify-between"><h3 class="text-2xl font-extrabold">Criadores sugeridos</h3><span class="text-sm font-bold text-primary"><?= count($suggestedCreators) ?> perfis</span></div>
                 <div class="space-y-4">
                     <?php foreach ($suggestedCreators as $creator): ?>
-                        <div class="rounded-3xl bg-surface-container-low p-5 transition-transform hover:-translate-y-1" data-card-href="<?= e('/profile?id=' . (int) ($creator['id'] ?? 0)) ?>">
+                        <div class="rounded-3xl bg-surface-container-low p-5 transition-transform hover:-translate-y-1" data-card-href="<?= e(creator_public_url($creator)) ?>">
                             <div class="flex items-center gap-4">
                                 <?php $creatorAvatar = media_url((string) ($creator['avatar_url'] ?? '')); ?>
                                 <?php if ($creatorAvatar !== ''): ?>

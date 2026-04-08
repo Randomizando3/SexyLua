@@ -14,7 +14,8 @@ $priorityTipTiers = $liveDefaults['priority_tip_tiers'] ?? [1, 10, 25, 50, 100, 
 $priorityTipMessages = $liveDefaults['priority_tip_messages'] ?? [];
 $avatarUrl = media_url((string) ($creator['avatar_url'] ?? ''));
 $coverUrl = media_url((string) ($creator['cover_url'] ?? ''));
-$publicProfileUrl = '/profile?slug=' . (string) ($creator['slug'] ?? 'criador');
+$coverIsVideo = media_is_video($coverUrl);
+$publicProfileUrl = creator_public_url($creator);
 $creatorHandle = user_handle($creator, 'criador');
 $creatorAvatarLabel = user_avatar_label($creator, 'CR');
 ?>
@@ -176,16 +177,21 @@ include base_path('templates/partials/creator_topbar.php');
                             <div class="settings-mobile-card space-y-4 rounded-3xl bg-white p-5 shadow-sm">
                                 <div class="flex h-40 w-full items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-pink-700 via-rose-600 to-orange-400 text-lg font-bold text-white" data-upload-preview-box="cover" data-upload-preview-fallback="SexyLua">
                                     <?php if ($coverUrl !== ''): ?>
-                                        <img alt="Capa do criador" class="h-full w-full object-cover" data-upload-preview-image="cover" src="<?= e($coverUrl) ?>">
+                                        <?php if ($coverIsVideo): ?>
+                                            <video autoplay class="h-full w-full object-cover" data-upload-preview-video="cover" loop muted playsinline src="<?= e($coverUrl) ?>"></video>
+                                        <?php else: ?>
+                                            <img alt="Capa do criador" class="h-full w-full object-cover" data-upload-preview-image="cover" src="<?= e($coverUrl) ?>">
+                                        <?php endif; ?>
                                     <?php else: ?>
                                         <span data-upload-preview-placeholder="cover">SexyLua</span>
                                     <?php endif; ?>
                                 </div>
                                 <label class="block space-y-2">
                                     <span class="text-sm font-semibold text-on-surface-variant">Nova capa</span>
-                                    <input accept=".jpg,.jpeg,.png,.webp,.gif" class="w-full rounded-2xl border-none bg-surface-container-low px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" data-upload-preview-input="cover" name="cover_file" type="file">
+                                    <input accept="<?= e(cover_media_accept_attribute()) ?>" class="w-full rounded-2xl border-none bg-surface-container-low px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" data-upload-preview-input="cover" name="cover_file" type="file">
                                 </label>
                                 <p class="text-xs font-semibold text-primary/80" data-upload-preview-status="cover">Nenhuma nova capa selecionada.</p>
+                                <p class="text-xs text-on-surface-variant"><?= e(cover_media_recommendation_text()) ?></p>
                             </div>
                         </div>
                     </div>
@@ -376,18 +382,50 @@ include base_path('templates/partials/creator_topbar.php');
 
                 if (!file) {
                     box.innerHTML = initialMarkup || `<span>${fallbackText}</span>`;
+                    status.classList.remove('text-rose-600');
                     status.textContent = key === 'avatar' ? 'Nenhum novo avatar selecionado.' : 'Nenhuma nova capa selecionada.';
                     return;
                 }
 
                 objectUrl = URL.createObjectURL(file);
                 box.innerHTML = '';
+
+                if (key === 'cover' && file.type.startsWith('video/')) {
+                    const video = document.createElement('video');
+                    video.src = objectUrl;
+                    video.className = 'h-full w-full object-cover';
+                    video.setAttribute('data-upload-preview-video', key);
+                    video.muted = true;
+                    video.loop = true;
+                    video.autoplay = true;
+                    video.playsInline = true;
+                    video.addEventListener('loadedmetadata', () => {
+                        if (video.duration > 5.05) {
+                            if (objectUrl) {
+                                URL.revokeObjectURL(objectUrl);
+                                objectUrl = null;
+                            }
+                            input.value = '';
+                            box.innerHTML = initialMarkup || `<span>${fallbackText}</span>`;
+                            status.textContent = 'Envie um video de capa com ate 5 segundos.';
+                            status.classList.add('text-rose-600');
+                            return;
+                        }
+
+                        status.classList.remove('text-rose-600');
+                        status.textContent = `Video selecionado: ${file.name}`;
+                    }, { once: true });
+                    box.appendChild(video);
+                    return;
+                }
+
                 const image = document.createElement('img');
                 image.src = objectUrl;
                 image.alt = key === 'avatar' ? 'Preview do avatar' : 'Preview da capa';
                 image.className = 'h-full w-full object-cover';
                 image.setAttribute('data-upload-preview-image', key);
                 box.appendChild(image);
+                status.classList.remove('text-rose-600');
                 status.textContent = `Arquivo selecionado: ${file.name}`;
             });
         };

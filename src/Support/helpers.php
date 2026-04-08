@@ -333,6 +333,66 @@ function user_handle(?array $user, string $fallback = 'usuario'): string
     return '@' . user_username($user, $fallback);
 }
 
+function public_profile_reserved_usernames(): array
+{
+    return [
+        'admin',
+        'assets',
+        'audience-gate',
+        'auth',
+        'creator',
+        'explore',
+        'help',
+        'live',
+        'login',
+        'logout',
+        'messages',
+        'privacy',
+        'profile',
+        'register',
+        'subscriber',
+        'terms',
+        'tip',
+        'uploads',
+        'webhook',
+    ];
+}
+
+function creator_public_path(?array $creator): string
+{
+    if (! is_array($creator)) {
+        return '/profile';
+    }
+
+    $username = user_username($creator, '');
+    if ($username !== '' && ! in_array($username, public_profile_reserved_usernames(), true)) {
+        return '/' . rawurlencode($username);
+    }
+
+    $slug = trim((string) ($creator['slug'] ?? ''));
+    if ($slug !== '') {
+        return path_with_query('/profile', ['slug' => $slug]);
+    }
+
+    $creatorId = (int) ($creator['id'] ?? 0);
+
+    return $creatorId > 0
+        ? path_with_query('/profile', ['id' => $creatorId])
+        : '/profile';
+}
+
+function creator_public_url(?array $creator, array $query = []): string
+{
+    $base = creator_public_path($creator);
+    $query = array_filter($query, static fn (mixed $value): bool => $value !== null && $value !== '');
+
+    if ($query === []) {
+        return $base;
+    }
+
+    return $base . (str_contains($base, '?') ? '&' : '?') . http_build_query($query);
+}
+
 function user_avatar_label(?array $user, string $fallback = 'SL'): string
 {
     $username = str_replace(['.', '_', '-'], ' ', user_username($user, ''));
@@ -383,6 +443,46 @@ function media_url(?string $value): string
     }
 
     return '/' . ltrim($value, '/');
+}
+
+function media_file_extension(?string $value): string
+{
+    $value = trim((string) $value);
+
+    if ($value === '') {
+        return '';
+    }
+
+    $path = preg_match('#^https?://#i', $value) === 1
+        ? (string) parse_url($value, PHP_URL_PATH)
+        : $value;
+
+    return strtolower(pathinfo($path, PATHINFO_EXTENSION));
+}
+
+function media_kind_from_value(?string $value): string
+{
+    return uploaded_asset_kind(media_file_extension($value));
+}
+
+function media_is_video(?string $value): bool
+{
+    return media_kind_from_value($value) === 'video';
+}
+
+function cover_media_allowed_extensions(): array
+{
+    return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm'];
+}
+
+function cover_media_accept_attribute(): string
+{
+    return '.jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.webm';
+}
+
+function cover_media_recommendation_text(): string
+{
+    return 'Recomendado: 1600 x 900 px para imagem, ou vídeo MP4/WebM/MOV de até 5s, sem áudio, em loop.';
 }
 
 function public_media_local_path(?string $value): ?string
@@ -599,6 +699,176 @@ function store_uploaded_file(?array $file, string $folder, array $allowedExtensi
     return '/' . str_replace('\\', '/', $relativeDir . '/' . $filename);
 }
 
+function shell_command_path(string $command): ?string
+{
+    static $cache = [];
+
+    if (array_key_exists($command, $cache)) {
+        return $cache[$command];
+    }
+
+    $output = [];
+    $exitCode = 1;
+
+    if (DIRECTORY_SEPARATOR === '\\') {
+        @exec('where ' . escapeshellarg($command), $output, $exitCode);
+    } else {
+        @exec('command -v ' . escapeshellarg($command) . ' 2>/dev/null', $output, $exitCode);
+    }
+
+    $path = $exitCode === 0 ? trim((string) ($output[0] ?? '')) : '';
+    $cache[$command] = $path !== '' ? $path : null;
+
+    return $cache[$command];
+}
+
+function uploaded_video_duration_seconds(string $path): ?float
+{
+    $probe = shell_command_path('ffprobe');
+    if ($probe === null || ! is_file($path)) {
+        return null;
+    }
+
+    $command = escapeshellarg($probe)
+        . ' -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 '
+        . escapeshellarg($path) . ' 2>&1';
+
+    $output = [];
+    $exitCode = 1;
+    @exec($command, $output, $exitCode);
+
+    if ($exitCode !== 0) {
+        return null;
+    }
+
+    $duration = (float) trim((string) implode("\n", $output));
+
+    return $duration > 0 ? $duration : null;
+}
+
+function compress_cover_video_file(string $sourcePath): ?array
+{
+    $ffmpeg = shell_command_path('ffmpeg');
+    if ($ffmpeg === null || ! is_file($sourcePath)) {
+        return null;
+    }
+
+    $targetPath = preg_replace('/\.[^.]+$/', '', $sourcePath) . '-cover.mp4';
+    if (! is_string($targetPath) || trim($targetPath) === '') {
+        return null;
+    }
+
+    $command = escapeshellarg($ffmpeg)
+        . ' -y -i ' . escapeshellarg($sourcePath)
+        . ' -an -vf fps=24 -c:v libx264 -preset veryfast -crf 30 -pix_fmt yuv420p -movflags +faststart '
+        . escapeshellarg($targetPath) . ' 2>&1';
+
+    $output = [];
+    $exitCode = 1;
+    @exec($command, $output, $exitCode);
+
+    if ($exitCode !== 0 || ! is_file($targetPath)) {
+        return null;
+    }
+
+    return [
+        'path' => $targetPath,
+        'extension' => 'mp4',
+        'mime_type' => 'video/mp4',
+        'size' => max(0, (int) (@filesize($targetPath) ?: 0)),
+    ];
+}
+
+function store_cover_media_file(?array $file, string $folder, int $maxBytes = 26214400, int $maxDurationSeconds = 5): ?array
+{
+    if (! is_array($file) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        return null;
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    $originalName = (string) ($file['name'] ?? '');
+    $size = (int) ($file['size'] ?? 0);
+
+    if ($tmpName === '' || ! is_uploaded_file($tmpName) || $size <= 0 || $size > $maxBytes) {
+        return [
+            'ok' => false,
+            'error' => 'A capa enviada e invalida ou ultrapassa o limite permitido.',
+        ];
+    }
+
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    if (! in_array($extension, cover_media_allowed_extensions(), true)) {
+        return [
+            'ok' => false,
+            'error' => 'Use apenas imagem ou video curto na capa.',
+        ];
+    }
+
+    $folder = trim(preg_replace('/[^a-z0-9\\/_-]+/i', '-', $folder) ?? 'uploads', '/');
+    $relativeDir = 'uploads/' . ($folder !== '' ? $folder : 'misc');
+    $targetDir = public_path($relativeDir);
+
+    if (! is_dir($targetDir)) {
+        mkdir($targetDir, 0777, true);
+    }
+
+    $filename = date('YmdHis') . '-' . bin2hex(random_bytes(6)) . ($extension !== '' ? '.' . $extension : '');
+    $targetPath = $targetDir . DIRECTORY_SEPARATOR . $filename;
+
+    if (! move_uploaded_file($tmpName, $targetPath)) {
+        return [
+            'ok' => false,
+            'error' => 'Nao foi possivel salvar a capa enviada.',
+        ];
+    }
+
+    $mimeType = detect_uploaded_mime_type($targetPath, (string) ($file['type'] ?? 'application/octet-stream'));
+    $kind = uploaded_asset_kind($extension, $mimeType);
+
+    if ($kind === 'document') {
+        @unlink($targetPath);
+
+        return [
+            'ok' => false,
+            'error' => 'A capa aceita apenas imagem ou video curto.',
+        ];
+    }
+
+    $relativePath = '/' . str_replace('\\', '/', $relativeDir . '/' . $filename);
+
+    if ($kind === 'video') {
+        $durationSeconds = uploaded_video_duration_seconds($targetPath);
+        if ($durationSeconds !== null && $durationSeconds > ($maxDurationSeconds + 0.1)) {
+            @unlink($targetPath);
+
+            return [
+                'ok' => false,
+                'error' => 'Envie um video de capa com ate ' . $maxDurationSeconds . ' segundos.',
+            ];
+        }
+
+        $compressed = compress_cover_video_file($targetPath);
+        if (is_array($compressed) && is_file((string) ($compressed['path'] ?? ''))) {
+            @unlink($targetPath);
+            $targetPath = (string) $compressed['path'];
+            $filename = basename($targetPath);
+            $relativePath = '/' . str_replace('\\', '/', $relativeDir . '/' . $filename);
+            $mimeType = (string) ($compressed['mime_type'] ?? 'video/mp4');
+            $extension = (string) ($compressed['extension'] ?? 'mp4');
+            $size = max(0, (int) ($compressed['size'] ?? $size));
+        }
+    }
+
+    return [
+        'ok' => true,
+        'path' => $relativePath,
+        'kind' => $kind,
+        'mime_type' => $mimeType,
+        'extension' => $extension,
+        'size' => $size,
+    ];
+}
+
 function store_private_uploaded_file(?array $file, string $folder, array $allowedExtensions = [], int $maxBytes = 52428800): ?array
 {
     if (! is_array($file) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -790,7 +1060,7 @@ function prototype_runtime_html(array $payload): string
         'creatorWallet' => '/creator/wallet',
         'creatorSettings' => '/creator/settings',
         'live' => '/live?id=' . (string) ($prototype['live']['id'] ?? 1),
-        'profile' => '/profile?id=' . (string) ($prototype['profile']['creator_id'] ?? 2),
+        'profile' => creator_public_url(['id' => (int) ($prototype['profile']['creator_id'] ?? 2), 'username' => (string) ($prototype['profile']['username'] ?? '')]),
     ];
 
     if ($isAdmin) {

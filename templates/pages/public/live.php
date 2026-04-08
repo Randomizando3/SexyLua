@@ -36,12 +36,13 @@ $visibleMessages = $isRoomLocked ? [] : $messages;
 $visibleRecentTips = $isRoomLocked ? [] : $recentTips;
 $visibleTopSupporters = $isRoomLocked ? [] : $topSupporters;
 $cover = media_url((string) ($live['cover_url'] ?? ''));
+$coverIsVideo = media_is_video($cover);
 $creatorHandle = user_handle($creator, 'criador');
 $creatorAvatarLabel = user_avatar_label($creator, 'CR');
 $segmentDurationSeconds = (int) ($live['segment_duration_seconds'] ?? $stream['segment_duration_seconds'] ?? 10);
 $iceServers = base64_encode((string) json_encode($app->config['app']['rtc_ice_servers'] ?? [], JSON_UNESCAPED_SLASHES));
 $iceTransportPolicy = (string) ($app->config['app']['rtc_ice_transport_policy'] ?? 'all');
-$profileUrl = path_with_query('/profile', ['id' => (int) ($creator['id'] ?? 0)]);
+$profileUrl = creator_public_url($creator);
 $messagesUrl = '/login';
 $subscriptionsUrl = '/login';
 $authUser = $app->auth->user();
@@ -66,7 +67,7 @@ if (($authUser['role'] ?? '') === 'subscriber') {
     $subscriptionsUrl = '/creator/memberships';
     $mobileShortcutItems = [
         ['href' => '/creator', 'label' => 'Metricas', 'icon' => 'insights'],
-        ['href' => '/profile?id=' . (int) ($authUser['id'] ?? 0), 'label' => 'Minha Pagina', 'icon' => 'public'],
+        ['href' => creator_public_url($authUser), 'label' => 'Minha Pagina', 'icon' => 'public'],
         ['href' => '/creator/content', 'label' => 'Meu Conteudo', 'icon' => 'movie'],
         ['href' => '/creator/messages', 'label' => 'Mensagens', 'icon' => 'chat'],
         ['href' => '/creator/live', 'label' => 'Configurar Live', 'icon' => 'settings_input_antenna'],
@@ -155,7 +156,13 @@ if ($accessMessage === '') {
             >
                 <div class="relative aspect-video bg-slate-950">
                     <video class="absolute inset-0 z-[1] h-full w-full bg-slate-950 object-cover transition-opacity duration-500 opacity-100" controls data-live-remote-video playsinline></video>
-                    <?php if ($cover !== ''): ?><img alt="Capa da live" class="absolute inset-0 h-full w-full object-cover opacity-25" src="<?= e($cover) ?>"><?php endif; ?>
+            <?php if ($cover !== ''): ?>
+                <?php if ($coverIsVideo): ?>
+                    <video autoplay class="absolute inset-0 h-full w-full object-cover opacity-25" loop muted playsinline src="<?= e($cover) ?>"></video>
+                <?php else: ?>
+                    <img alt="Capa da live" class="absolute inset-0 h-full w-full object-cover opacity-25" src="<?= e($cover) ?>">
+                <?php endif; ?>
+            <?php endif; ?>
                     <div class="<?= $liveStatus === 'ended' ? '' : 'hidden ' ?>absolute left-1/2 top-24 z-[4] w-[min(92%,36rem)] -translate-x-1/2 rounded-3xl border border-white/20 bg-[#D81B60]/90 px-6 py-4 text-center text-white shadow-xl backdrop-blur-md" data-live-ended-banner>
                         <p class="headline text-lg font-extrabold">Encerramos por aqui. Obrigado por assistir, ate a proxima!</p>
                     </div>
@@ -488,7 +495,13 @@ if ($accessMessage === '') {
                     ?>
                     <a class="overflow-hidden rounded-3xl bg-[#f5f3f5] transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($item['id'] ?? 0)])) ?>">
                         <div class="aspect-[4/3] bg-slate-900">
-                            <?php if ($itemCover !== ''): ?><img alt="<?= e((string) ($item['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover blur-[2px]" src="<?= e($itemCover) ?>"><?php else: ?><div class="signature-glow flex h-full w-full items-center justify-center text-white"><span class="headline text-xl font-extrabold">LIVE</span></div><?php endif; ?>
+                            <?php if ($itemCover !== ''): ?>
+                                <?php if (media_is_video($itemCover)): ?>
+                                    <video autoplay class="h-full w-full scale-105 object-cover blur-[2px]" loop muted playsinline src="<?= e($itemCover) ?>"></video>
+                                <?php else: ?>
+                                    <img alt="<?= e((string) ($item['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover blur-[2px]" src="<?= e($itemCover) ?>">
+                                <?php endif; ?>
+                            <?php else: ?><div class="signature-glow flex h-full w-full items-center justify-center text-white"><span class="headline text-xl font-extrabold">LIVE</span></div><?php endif; ?>
                         </div>
                         <div class="space-y-2 p-4">
                             <p class="headline text-lg font-extrabold"><?= e((string) ($item['title'] ?? 'Live')) ?></p>

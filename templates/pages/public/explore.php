@@ -86,10 +86,15 @@ $liveSectionDescription = $includeScheduled
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
             <?php foreach (array_slice($lives, 0, 8) as $live): ?>
                 <?php $cover = media_url((string) ($live['cover_url'] ?? '')); ?>
+                <?php $coverIsVideo = media_is_video($cover); ?>
                 <a class="group overflow-hidden rounded-3xl bg-white shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
                     <div class="relative aspect-[3/4] bg-slate-900">
                         <?php if ($cover !== ''): ?>
-                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" src="<?= e($cover) ?>">
+                            <?php if ($coverIsVideo): ?>
+                                <video autoplay class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" loop muted playsinline src="<?= e($cover) ?>"></video>
+                            <?php else: ?>
+                                <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" src="<?= e($cover) ?>">
+                            <?php endif; ?>
                         <?php else: ?>
                             <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
                                 <span class="headline text-2xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
@@ -132,7 +137,7 @@ $liveSectionDescription = $includeScheduled
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                 <?php foreach (array_slice($creators, 0, 8) as $creator): ?>
                     <?php $avatar = media_url((string) ($creator['avatar_url'] ?? '')); ?>
-                    <a class="rounded-3xl bg-white p-5 text-center shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/profile', ['id' => (int) ($creator['id'] ?? 0)])) ?>">
+                    <a class="rounded-3xl bg-white p-5 text-center shadow-sm transition-transform hover:-translate-y-1" href="<?= e(creator_public_url($creator)) ?>">
                         <div class="mx-auto mb-4 flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] bg-[#f7edf2]">
                             <?php if ($avatar !== ''): ?>
                                 <img alt="<?= e(user_handle($creator, 'criador')) ?>" class="h-full w-full object-cover" src="<?= e($avatar) ?>">
@@ -161,7 +166,7 @@ $liveSectionDescription = $includeScheduled
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                 <?php foreach (array_slice($content, 0, 9) as $item): ?>
                     <?php $thumbnail = media_url((string) ($item['thumbnail_url'] ?? $item['media_url'] ?? '')); ?>
-                    <a class="overflow-hidden rounded-3xl bg-white shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0)])) ?>">
+                    <a class="overflow-hidden rounded-3xl bg-white shadow-sm transition-transform hover:-translate-y-1" href="<?= e(creator_public_url($item['creator'] ?? [])) ?>">
                         <div class="relative aspect-[4/3] bg-slate-900">
                             <?php if ($thumbnail !== ''): ?>
                                 <img alt="<?= e((string) ($item['title'] ?? 'Conteudo')) ?>" class="h-full w-full object-cover <?= $guestPreviewLocked ? 'scale-105 blur-[22px] brightness-85' : '' ?>" src="<?= e($thumbnail) ?>">

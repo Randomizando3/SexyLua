@@ -117,6 +117,10 @@ final class AuthController extends Controller
             $this->redirect('/register', 'Este usuario ja esta em uso.', 'error');
         }
 
+        if (in_array($username, \public_profile_reserved_usernames(), true)) {
+            $this->redirect('/register', 'Este usuario e reservado pela plataforma. Escolha outro @usuario.', 'error');
+        }
+
         $user = $this->app->repository->registerUser([
             'name' => $name,
             'username' => $username,
@@ -174,6 +178,16 @@ final class AuthController extends Controller
 
         $existing = $this->app->repository->findUserByUsername($normalized);
         $available = ! is_array($existing) || (int) ($existing['id'] ?? 0) === $excludeId;
+
+        if ($available && in_array($normalized, \public_profile_reserved_usernames(), true)) {
+            $this->json([
+                'ok' => false,
+                'available' => false,
+                'normalized' => $normalized,
+                'state' => 'invalid',
+                'message' => 'Esse @usuario e reservado pela plataforma.',
+            ]);
+        }
 
         $message = $available
             ? ($formatChanged ? 'Disponivel. Sera salvo como @' . $normalized . '.' : 'Disponivel para uso.')

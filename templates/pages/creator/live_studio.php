@@ -23,6 +23,7 @@ $selectedLiveDuration = (int) ($selected['duration_seconds'] ?? 0);
 $selectedDurationLabel = $selectedLiveDuration > 0 ? gmdate($selectedLiveDuration >= 3600 ? 'H:i:s' : 'i:s', $selectedLiveDuration) : '00:00';
 $selectedRoomUrl = $selectedLiveId > 0 ? path_with_query('/live', ['id' => $selectedLiveId]) : '';
 $selectedCover = media_url((string) ($selected['cover_url'] ?? ''));
+$selectedCoverIsVideo = media_is_video($selectedCover);
 $viewerCount = (int) ($selected['viewer_count'] ?? 0);
 $priorityTiers = is_array($selected['priority_tip_tiers'] ?? null) ? array_values($selected['priority_tip_tiers']) : [1, 10, 25, 50, 100, 150];
 $selectedChatAudience = (string) ($selected['chat_audience'] ?? 'all');
@@ -143,7 +144,13 @@ include base_path('templates/partials/creator_topbar.php');
                             title="Preview da live"
                         ></iframe>
                         <video class="h-full w-full object-cover" controls data-live-local-video muted playsinline></video>
-                        <?php if ($selectedCover !== ''): ?><img alt="Capa da live" class="absolute inset-0 h-full w-full object-cover opacity-20" src="<?= e($selectedCover) ?>"><?php endif; ?>
+                        <?php if ($selectedCover !== ''): ?>
+                            <?php if ($selectedCoverIsVideo): ?>
+                                <video autoplay class="absolute inset-0 h-full w-full object-cover opacity-20" loop muted playsinline src="<?= e($selectedCover) ?>"></video>
+                            <?php else: ?>
+                                <img alt="Capa da live" class="absolute inset-0 h-full w-full object-cover opacity-20" src="<?= e($selectedCover) ?>">
+                            <?php endif; ?>
+                        <?php endif; ?>
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/35"></div>
                         <div class="absolute inset-x-0 top-0 flex items-start justify-between gap-4 p-6 text-white">
                             <div>

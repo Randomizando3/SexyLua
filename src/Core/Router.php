@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Core;
 
+use App\Controllers\PublicController;
+
 final class Router
 {
     private array $routes = [];
@@ -32,6 +34,10 @@ final class Router
     {
         $handler = $this->routes[$request->method()][$request->path()] ?? null;
 
+        if ($handler === null && $this->tryDispatchCreatorProfile($request)) {
+            return;
+        }
+
         if ($handler === null) {
             http_response_code(404);
             $this->app->view->render('pages/public/not-found', [
@@ -51,6 +57,36 @@ final class Router
         }
 
         $handler($request, $this->app);
+    }
+
+    private function tryDispatchCreatorProfile(Request $request): bool
+    {
+        if ($request->method() !== 'GET') {
+            return false;
+        }
+
+        $path = trim($request->path(), '/');
+        if ($path === '' || str_contains($path, '/')) {
+            return false;
+        }
+
+        if (str_contains($path, '.')) {
+            return false;
+        }
+
+        $normalized = mb_strtolower($path);
+        if (in_array($normalized, \public_profile_reserved_usernames(), true)) {
+            return false;
+        }
+
+        if ($this->app->repository->findCreatorBySlugOrId($path, null) === null) {
+            return false;
+        }
+
+        $controller = new PublicController($this->app);
+        $controller->profileByHandle($request, $path);
+
+        return true;
     }
 
     private static function normalizePath(string $path): string

@@ -6,12 +6,15 @@ $settings = $data ?? [];
 $admin = $app->auth->user() ?? [];
 $adminAvatarUrl = media_url((string) ($admin['avatar_url'] ?? ''));
 $adminCoverUrl = media_url((string) ($admin['cover_url'] ?? ''));
+$adminCoverIsVideo = media_is_video($adminCoverUrl);
 $siteBaseUrl = (string) ($settings['site_base_url'] ?? app_base_url($app->config, $settings));
 $syncPayWebhookUrl = (string) ($settings['syncpay_webhook_url'] ?? webhook_url($app->config, $settings, '/webhook/syncpay'));
 $seoLogoWhitePreview = media_url((string) ($settings['seo_logo_white_url'] ?? '')) ?: asset('img/sexylualogobranco.png');
 $seoLogoColorPreview = media_url((string) ($settings['seo_logo_color_url'] ?? '')) ?: asset('img/sexylualogomagenta.png');
 $homeBannerPreview = media_url((string) ($settings['home_banner_background_url'] ?? '')) ?: home_banner_default_image_url();
 $homeBannerMobilePreview = media_url((string) ($settings['home_banner_background_mobile_url'] ?? '')) ?: $homeBannerPreview;
+$homeBannerIsVideo = media_is_video($homeBannerPreview);
+$homeBannerMobileIsVideo = media_is_video($homeBannerMobilePreview);
 $homeBannerCountdownTargetAt = trim((string) ($settings['home_banner_countdown_target_at'] ?? ''));
 $googleRedirectUrl = rtrim($siteBaseUrl !== '' ? $siteBaseUrl : app_base_url($app->config, $settings), '/') . '/auth/google/callback';
 ?>
@@ -150,7 +153,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">URL do avatar</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_url" type="text" value="<?= e((string) ($admin['avatar_url'] ?? '')) ?>"></label>
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload do avatar</span><input accept=".jpg,.jpeg,.png,.webp,.gif" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_file" type="file"></label>
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">URL da capa</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_url" type="text" value="<?= e((string) ($admin['cover_url'] ?? '')) ?>"></label>
-                    <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload da capa</span><input accept=".jpg,.jpeg,.png,.webp,.gif" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_file" type="file"></label>
+                                <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload da capa</span><input accept="<?= e(cover_media_accept_attribute()) ?>" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" data-cover-media-input name="cover_file" type="file"><span class="block text-xs text-on-surface-variant" data-cover-media-feedback><?= e(cover_media_recommendation_text()) ?></span></label>
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nova senha</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password" type="password"></label>
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Confirmar senha</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password_confirmation" type="password"></label>
                 </div>
@@ -158,7 +161,13 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
             </div>
             <div class="space-y-6">
                 <div class="overflow-hidden rounded-3xl bg-surface-container-low">
-                    <?php if ($adminCoverUrl !== ''): ?><img alt="Capa do admin" class="h-44 w-full object-cover" src="<?= e($adminCoverUrl) ?>"><?php else: ?><div class="flex h-44 w-full items-center justify-center bg-gradient-to-br from-[#ab1155] via-[#D81B60] to-[#f57c91] text-lg font-bold text-white">Control Room</div><?php endif; ?>
+                    <?php if ($adminCoverUrl !== ''): ?>
+                        <?php if ($adminCoverIsVideo): ?>
+                            <video autoplay class="h-44 w-full object-cover" loop muted playsinline src="<?= e($adminCoverUrl) ?>"></video>
+                        <?php else: ?>
+                            <img alt="Capa do admin" class="h-44 w-full object-cover" src="<?= e($adminCoverUrl) ?>">
+                        <?php endif; ?>
+                    <?php else: ?><div class="flex h-44 w-full items-center justify-center bg-gradient-to-br from-[#ab1155] via-[#D81B60] to-[#f57c91] text-lg font-bold text-white">Control Room</div><?php endif; ?>
                 </div>
                 <div class="rounded-3xl bg-surface-container-low p-6 shadow-sm">
                     <div class="flex items-center gap-4">
@@ -390,12 +399,16 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                         </label>
                                     </div>
                                     <label class="block space-y-2"><span class="settings-mini-label">Imagem do banner URL</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_url" type="text" value="<?= e((string) ($settings['home_banner_background_url'] ?? '')) ?>"></label>
-                                    <label class="block space-y-2"><span class="settings-mini-label">Upload da imagem do banner</span><input accept=".png,.jpg,.jpeg,.webp,.gif" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_file" type="file"></label>
+                                    <label class="block space-y-2"><span class="settings-mini-label">Upload da imagem do banner</span><input accept="<?= e(cover_media_accept_attribute()) ?>" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" data-cover-media-input name="home_banner_background_file" type="file"><span class="block text-xs text-on-surface-variant" data-cover-media-feedback><?= e(cover_media_recommendation_text()) ?></span></label>
                                 </div>
                                 <div class="space-y-4">
                                     <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
                                         <div class="settings-preview-tile overflow-hidden">
-                                            <img alt="Preview desktop do banner da home" class="h-56 w-full object-cover" src="<?= e($homeBannerPreview) ?>">
+                                            <?php if ($homeBannerIsVideo): ?>
+                                                <video autoplay class="h-56 w-full object-cover" loop muted playsinline src="<?= e($homeBannerPreview) ?>"></video>
+                                            <?php else: ?>
+                                                <img alt="Preview desktop do banner da home" class="h-56 w-full object-cover" src="<?= e($homeBannerPreview) ?>">
+                                            <?php endif; ?>
                                             <div class="space-y-3 p-5">
                                                 <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
                                                     <span class="rounded-full bg-[#f5f3f5] px-3 py-1">Preview desktop</span>
@@ -413,7 +426,11 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                         </div>
                                         <div class="settings-preview-tile overflow-hidden">
                                             <div class="mx-auto flex max-w-[260px] justify-center bg-[#f5f3f5] p-4">
-                                                <img alt="Preview mobile do banner da home" class="h-[360px] w-full rounded-[2rem] object-cover" src="<?= e($homeBannerMobilePreview) ?>">
+                                                <?php if ($homeBannerMobileIsVideo): ?>
+                                                    <video autoplay class="h-[360px] w-full rounded-[2rem] object-cover" loop muted playsinline src="<?= e($homeBannerMobilePreview) ?>"></video>
+                                                <?php else: ?>
+                                                    <img alt="Preview mobile do banner da home" class="h-[360px] w-full rounded-[2rem] object-cover" src="<?= e($homeBannerMobilePreview) ?>">
+                                                <?php endif; ?>
                                             </div>
                                             <div class="space-y-3 p-5">
                                                 <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
@@ -431,7 +448,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                             </div>
                             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <label class="block space-y-2"><span class="settings-mini-label">Imagem do banner mobile URL</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_mobile_url" type="text" value="<?= e((string) ($settings['home_banner_background_mobile_url'] ?? '')) ?>"></label>
-                                <label class="block space-y-2"><span class="settings-mini-label">Upload da imagem do banner mobile</span><input accept=".png,.jpg,.jpeg,.webp,.gif" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_mobile_file" type="file"></label>
+                                <label class="block space-y-2"><span class="settings-mini-label">Upload da imagem do banner mobile</span><input accept="<?= e(cover_media_accept_attribute()) ?>" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" data-cover-media-input name="home_banner_background_mobile_file" type="file"><span class="block text-xs text-on-surface-variant" data-cover-media-feedback><?= e(cover_media_recommendation_text()) ?></span></label>
                             </div>
                         </section>
                     </div>
@@ -453,5 +470,48 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
         </div>
     </form>
 </main>
+<script>
+    (() => {
+        document.querySelectorAll('[data-cover-media-input]').forEach((input) => {
+            const feedback = input.parentElement ? input.parentElement.querySelector('[data-cover-media-feedback]') : null;
+            const defaultMessage = feedback ? feedback.textContent : '';
+
+            input.addEventListener('change', () => {
+                const file = input.files && input.files[0] ? input.files[0] : null;
+                if (!feedback) {
+                    return;
+                }
+
+                feedback.classList.remove('text-rose-600');
+
+                if (!file) {
+                    feedback.textContent = defaultMessage;
+                    return;
+                }
+
+                if (!String(file.type || '').startsWith('video/')) {
+                    feedback.textContent = `Arquivo selecionado: ${file.name}`;
+                    return;
+                }
+
+                const objectUrl = URL.createObjectURL(file);
+                const video = document.createElement('video');
+                video.preload = 'metadata';
+                video.src = objectUrl;
+                video.addEventListener('loadedmetadata', () => {
+                    URL.revokeObjectURL(objectUrl);
+                    if (video.duration > 5.05) {
+                        input.value = '';
+                        feedback.textContent = 'Envie um video de capa com ate 5 segundos.';
+                        feedback.classList.add('text-rose-600');
+                        return;
+                    }
+
+                    feedback.textContent = `Video selecionado: ${file.name}`;
+                }, { once: true });
+            });
+        });
+    })();
+</script>
 </body>
 </html>
