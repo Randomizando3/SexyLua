@@ -1586,13 +1586,21 @@ final class PlatformRepository
 
     public function sendConversationMessage(int $conversationId, int $senderId, string $body, array $options = []): bool
     {
+        return (bool) ($this->sendConversationMessageWithPayload($conversationId, $senderId, $body, $options, $senderId)['ok'] ?? false);
+    }
+
+    public function sendConversationMessageWithPayload(int $conversationId, int $senderId, string $body, array $options = [], ?int $viewerId = null): array
+    {
         $body = trim($body);
         $attachment = $this->normalizeConversationAttachment(is_array($options['attachment'] ?? null) ? $options['attachment'] : null);
 
         $conversation = $this->findConversationById($conversationId);
 
         if (! $conversation) {
-            return false;
+            return [
+                'ok' => false,
+                'message' => 'Conversa nao encontrada.',
+            ];
         }
 
         $isConversationParticipant = in_array($senderId, [
@@ -1601,7 +1609,10 @@ final class PlatformRepository
         ], true);
 
         if (! $isConversationParticipant || ($body === '' && $attachment === null)) {
-            return false;
+            return [
+                'ok' => false,
+                'message' => 'Escreva uma mensagem ou envie um anexo.',
+            ];
         }
 
         $requiredPlanId = 0;
@@ -1684,7 +1695,24 @@ final class PlatformRepository
             ]
         );
 
-        return true;
+        $viewerId = $viewerId !== null && $viewerId > 0 ? $viewerId : $senderId;
+        $sentMessage = $messages[array_key_last($messages)] ?? null;
+        if (is_array($sentMessage)) {
+            $sentMessage['sender'] = $sender;
+            $sentMessage = $this->decorateConversationMessage($sentMessage, $conversation, $viewerId);
+        }
+
+        $previewText = excerpt(
+            $body !== '' ? $body : $this->messageNotificationPreview($messageType, $attachment, $unlockPrice, $requiredPlanId),
+            70
+        );
+
+        return [
+            'ok' => true,
+            'message' => 'Mensagem enviada.',
+            'message_data' => is_array($sentMessage) ? $sentMessage : null,
+            'preview_text' => $previewText,
+        ];
     }
 
     public function startConversation(int $subscriberId, int $creatorId, string $body): int
@@ -5106,7 +5134,24 @@ final class PlatformRepository
             }
         }
 
-        return true;
+        $viewerId = $viewerId !== null && $viewerId > 0 ? $viewerId : $senderId;
+        $sentMessage = $messages[array_key_last($messages)] ?? null;
+        if (is_array($sentMessage)) {
+            $sentMessage['sender'] = $sender;
+            $sentMessage = $this->decorateConversationMessage($sentMessage, $conversation, $viewerId);
+        }
+
+        $previewText = excerpt(
+            $body !== '' ? $body : $this->messageNotificationPreview($messageType, $attachment, $unlockPrice, $requiredPlanId),
+            70
+        );
+
+        return [
+            'ok' => true,
+            'message' => 'Mensagem enviada.',
+            'message_data' => is_array($sentMessage) ? $sentMessage : null,
+            'preview_text' => $previewText,
+        ];
     }
 
     public function adminSavePlan(int $planId, array $data): bool
@@ -5867,7 +5912,24 @@ final class PlatformRepository
             }
         }
 
-        return true;
+        $viewerId = $viewerId !== null && $viewerId > 0 ? $viewerId : $senderId;
+        $sentMessage = $messages[array_key_last($messages)] ?? null;
+        if (is_array($sentMessage)) {
+            $sentMessage['sender'] = $sender;
+            $sentMessage = $this->decorateConversationMessage($sentMessage, $conversation, $viewerId);
+        }
+
+        $previewText = excerpt(
+            $body !== '' ? $body : $this->messageNotificationPreview($messageType, $attachment, $unlockPrice, $requiredPlanId),
+            70
+        );
+
+        return [
+            'ok' => true,
+            'message' => 'Mensagem enviada.',
+            'message_data' => is_array($sentMessage) ? $sentMessage : null,
+            'preview_text' => $previewText,
+        ];
     }
 
     private function isFavoriteCreator(int $subscriberId, int $creatorId): bool
@@ -6772,6 +6834,7 @@ final class PlatformRepository
             'attachment' => $attachment !== null ? array_merge($attachment, [
                 'href' => $hasAccess ? path_with_query('/messages/asset', ['scope' => 'message', 'id' => (int) ($message['id'] ?? 0)]) : null,
             ]) : null,
+            'created_at_label' => format_datetime((string) ($message['created_at'] ?? ''), 'd/m H:i'),
             'required_plan' => $requiredPlan,
             'required_plan_name' => (string) ($requiredPlan['name'] ?? ''),
             'unlock_price' => $unlockPrice,
