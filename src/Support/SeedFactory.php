@@ -21,6 +21,7 @@ final class SeedFactory
             'messages' => [],
             'message_unlocks' => [],
             'live_unlocks' => [],
+            'content_unlocks' => [],
             'live_darkrooms' => [],
             'notifications' => [],
             'announcements' => [],

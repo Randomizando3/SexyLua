@@ -60,20 +60,13 @@ $adminTopbarAction = ['href' => '/admin/settings', 'label' => 'Configuracoes'];
 require BASE_PATH . '/templates/partials/admin_topbar.php';
 ?>
 
-<aside class="fixed left-0 top-16 hidden h-[calc(100vh-64px)] w-64 flex-col bg-[#f5f3f5] p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:flex">
-    <nav class="space-y-2">
-        <a class="flex items-center gap-4 rounded-full bg-white px-4 py-3 font-bold text-primary" href="/admin"><span class="material-symbols-outlined">dashboard</span><span>Painel</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/users"><span class="material-symbols-outlined">group</span><span>Usuarios</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/moderation"><span class="material-symbols-outlined">gavel</span><span>Moderacao</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/finance"><span class="material-symbols-outlined">payments</span><span>Financeiro</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/operations"><span class="material-symbols-outlined">manufacturing</span><span>Operacoes</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/settings"><span class="material-symbols-outlined">settings</span><span>Configuracoes</span></a>
-    </nav>
-    <div class="signature-glow mt-auto rounded-3xl p-5 text-white shadow-lg">
-        <p class="text-xs font-bold uppercase tracking-[0.25em] text-white/70">Resultado da plataforma</p>
-        <div class="mt-3 text-3xl font-extrabold"><?= luacoin_amount_html((int) ($metrics['platform_result'] ?? 0), 'inline-flex items-center gap-2 whitespace-nowrap', '', 'h-8 w-8 shrink-0') ?></div>
-    </div>
-</aside>
+<?php
+$adminSidebarCurrent = 'dashboard';
+$adminSidebarMetricTitle = 'Resultado da plataforma';
+$adminSidebarMetricValue = token_amount((int) ($metrics['platform_result'] ?? 0));
+$adminSidebarMetricDescription = 'Resumo do resultado liquido atual da plataforma.';
+require BASE_PATH . '/templates/partials/admin_sidebar.php';
+?>
 
 <main class="min-h-screen px-6 pb-10 pt-24 lg:ml-64 lg:px-10">
     <section class="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">

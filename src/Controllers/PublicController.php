@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Request;
+use App\Services\SmtpMailer;
 
 final class PublicController extends Controller
 {
@@ -59,7 +60,7 @@ final class PublicController extends Controller
     {
         $category = current_public_audience_category((string) $request->query('category', ''));
         $creator = $this->app->repository->findCreatorBySlugOrId(
-            $request->query('slug'),
+            (string) $request->query('username', (string) $request->query('slug', '')),
             $request->query('id') !== null ? (int) $request->query('id') : null
         );
 
@@ -73,6 +74,45 @@ final class PublicController extends Controller
             return;
         }
 
+        $canonicalUrl = creator_public_url($creator, [
+            'category' => $category !== 'todos' ? $category : null,
+            'content' => $request->query('content'),
+        ]);
+        if ($canonicalUrl !== $this->currentRequestUri($request) && str_starts_with($canonicalUrl, '/')) {
+            $this->redirect($canonicalUrl);
+        }
+
+        $this->renderCreatorProfile($creator, $category);
+    }
+
+    public function profileByHandle(Request $request, string $handle): void
+    {
+        $category = current_public_audience_category((string) $request->query('category', ''));
+        $creator = $this->app->repository->findCreatorBySlugOrId($handle, null);
+
+        if (! $creator) {
+            http_response_code(404);
+            $this->render('pages/public/not-found', [
+                'title' => 'Perfil nao encontrado',
+                'description' => 'Este criador nao foi encontrado.',
+            ], 'layouts/marketing');
+
+            return;
+        }
+
+        $canonicalUrl = creator_public_url($creator, [
+            'category' => $category !== 'todos' ? $category : null,
+            'content' => $request->query('content'),
+        ]);
+        if ($canonicalUrl !== $this->currentRequestUri($request) && str_starts_with($canonicalUrl, '/')) {
+            $this->redirect($canonicalUrl);
+        }
+
+        $this->renderCreatorProfile($creator, $category);
+    }
+
+    private function renderCreatorProfile(array $creator, string $category): void
+    {
         $this->render('pages/public/profile', [
             'title' => $creator['name'],
             'data' => $profileData = $this->app->repository->creatorProfileData((int) $creator['id'], $this->app->auth->id(), [
@@ -82,6 +122,13 @@ final class PublicController extends Controller
                 'page' => 'public.profile',
             ],
         ], null);
+    }
+
+    private function currentRequestUri(Request $request): string
+    {
+        $query = http_build_query($request->queryParams());
+
+        return $request->path() . ($query !== '' ? '?' . $query : '');
     }
 
     public function storeAudienceGate(Request $request): void
@@ -167,6 +214,8 @@ final class PublicController extends Controller
             'darkroom_started_at' => (string) ($data['darkroom_started_at'] ?? ''),
             'darkroom_ends_at' => (string) ($data['darkroom_ends_at'] ?? ''),
             'access_message' => (string) ($data['access_message'] ?? ''),
+            'active_darkroom' => is_array($data['active_darkroom'] ?? null) ? $data['active_darkroom'] : null,
+            'darkroom_candidates' => is_array($data['darkroom_candidates'] ?? null) ? array_values($data['darkroom_candidates']) : [],
         ], 200);
     }
 
@@ -205,7 +254,35 @@ final class PublicController extends Controller
     {
         $this->render('pages/public/help', [
             'title' => 'Ajuda',
+            'data' => [
+                'settings' => $this->app->repository->settings(),
+            ],
         ], null);
+    }
+
+    public function submitHelp(Request $request): void
+    {
+        $this->validateCsrf($request, '/help');
+
+        $name = trim((string) $request->input('name', ''));
+        $email = trim((string) $request->input('email', ''));
+        $message = trim((string) $request->input('message', ''));
+
+        if ($name === '' || $email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL) || $message === '') {
+            $this->redirect('/help', 'Preencha nome, e-mail valido e mensagem para enviar seu pedido.', 'error');
+        }
+
+        $mailer = new SmtpMailer($this->app->repository->settings());
+        $result = $mailer->sendSupportMessage([
+            'name' => $name,
+            'email' => $email,
+            'subject' => (string) $request->input('subject', 'Contato pela ajuda'),
+            'category' => (string) $request->input('category', 'geral'),
+            'role' => (string) $request->input('role', 'visitante'),
+            'message' => $message,
+        ]);
+
+        $this->redirect('/help', (string) ($result['message'] ?? 'Nao foi possivel enviar sua mensagem agora.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
     }
 
     public function terms(Request $request): void
@@ -276,7 +353,8 @@ final class PublicController extends Controller
 
         $this->app->auth->requireRole('subscriber');
         $creatorId = (int) $request->input('creator_id', 0);
-        $this->validateCsrf($request, path_with_query('/profile', ['id' => $creatorId]));
+        $creator = $this->app->repository->findCreatorBySlugOrId(null, $creatorId);
+        $this->validateCsrf($request, creator_public_url($creator, []));
         $conversationId = $this->app->repository->startConversation((int) $this->user()['id'], $creatorId, (string) $request->input('body', 'Oi! Gostaria de conversar sobre seus conteudos.'));
 
         $this->redirect(path_with_query('/subscriber/messages', ['conversation' => $conversationId]), 'Conversa iniciada.');
@@ -298,6 +376,28 @@ final class PublicController extends Controller
         }
 
         $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel desbloquear este conteudo.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
+    }
+
+    public function unlockContent(Request $request): void
+    {
+        if ($this->app->auth->guest()) {
+            $this->redirect('/login', 'Entre para desbloquear este pack.', 'error');
+        }
+
+        $this->app->auth->requireRole('subscriber');
+        $contentId = (int) $request->input('content_id', 0);
+        $content = $this->app->repository->findPublicContentById($contentId);
+        $creator = is_array($content['creator'] ?? null) ? $content['creator'] : null;
+        $defaultRedirect = $creator ? creator_public_url($creator, ['content' => $contentId]) : '/explore';
+        $redirect = (string) $request->input('redirect', $defaultRedirect);
+        $this->validateCsrf($request, $redirect);
+        $result = $this->app->repository->unlockContentAccess($contentId, (int) ($this->user()['id'] ?? 0));
+
+        if (! (bool) ($result['ok'] ?? false) && str_contains(mb_strtolower((string) ($result['message'] ?? '')), 'saldo insuficiente')) {
+            $this->redirect('/subscriber/wallet', 'Voce nao tem LuaCoins suficientes para desbloquear este pack. Recarregue sua carteira para continuar.', 'error');
+        }
+
+        $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel desbloquear este pack.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
     }
 
     public function unlockLive(Request $request): void
@@ -394,12 +494,20 @@ final class PublicController extends Controller
             $this->redirect('/login', 'Entre para enviar gorjetas.', 'error');
         }
 
-        $this->app->auth->requireRole('subscriber');
+        if (! $this->app->auth->hasRole('subscriber')) {
+            if ($expectsJson) {
+                $this->json(['ok' => false, 'message' => 'Apenas assinantes podem enviar gorjetas nesta sala.'], 403);
+            }
+
+            $this->redirect($this->app->auth->homeForRole((string) ($this->user()['role'] ?? 'subscriber')), 'Apenas assinantes podem enviar gorjetas nesta sala.', 'error');
+        }
+
         $creatorId = (int) $request->input('creator_id', 0);
         $liveId = (int) $request->input('live_id', 0);
         $amount = (int) $request->input('amount', 0);
         $message = trim((string) $request->input('message', ''));
-        $redirect = $liveId > 0 ? path_with_query('/live', ['id' => $liveId]) : path_with_query('/profile', ['id' => $creatorId]);
+        $creator = $this->app->repository->findCreatorBySlugOrId(null, $creatorId);
+        $redirect = $liveId > 0 ? path_with_query('/live', ['id' => $liveId]) : creator_public_url($creator, []);
 
         if (! $this->app->csrf->validate((string) $request->input('_token'))) {
             if ($expectsJson) {
@@ -410,6 +518,25 @@ final class PublicController extends Controller
         }
 
         $result = $this->app->repository->tipCreator((int) $this->user()['id'], $creatorId, $amount, 'Gorjeta enviada ao criador', $liveId, $message);
+
+        if (! (bool) ($result['ok'] ?? false) && str_contains(mb_strtolower((string) ($result['message'] ?? '')), 'saldo insuficiente')) {
+            $role = (string) ($this->user()['role'] ?? 'subscriber');
+            $walletUrl = match ($role) {
+                'creator' => '/creator/wallet',
+                'admin' => '/admin/finance',
+                default => '/subscriber/wallet',
+            };
+
+            if ($expectsJson) {
+                $this->json([
+                    'ok' => false,
+                    'message' => 'Voce nao tem LuaCoins suficientes para enviar essa gorjeta. Recarregue sua carteira para continuar.',
+                    'wallet_url' => $walletUrl,
+                ], 422);
+            }
+
+            $this->redirect($walletUrl, 'Voce nao tem LuaCoins suficientes para enviar essa gorjeta. Recarregue sua carteira para continuar.', 'error');
+        }
 
         if ($expectsJson) {
             $this->json($result, (bool) ($result['ok'] ?? false) ? 200 : 422);

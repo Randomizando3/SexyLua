@@ -34,6 +34,7 @@ final class PlatformRepository
         'messages',
         'message_unlocks',
         'live_unlocks',
+        'content_unlocks',
         'live_darkrooms',
         'notifications',
         'announcements',
@@ -107,6 +108,23 @@ final class PlatformRepository
 
         foreach ($this->users() as $user) {
             if ($this->normalizeUsername((string) ($user['username'] ?? '')) === $username) {
+                return $user;
+            }
+        }
+
+        return null;
+    }
+
+    public function findUserByGoogleId(string $googleId): ?array
+    {
+        $googleId = trim($googleId);
+
+        if ($googleId === '') {
+            return null;
+        }
+
+        foreach ($this->users() as $user) {
+            if (trim((string) ($user['oauth_google_sub'] ?? '')) === $googleId) {
                 return $user;
             }
         }
@@ -226,6 +244,148 @@ final class PlatformRepository
         }
 
         return $this->sanitizeUser($user);
+    }
+
+    public function registerGoogleUser(array $data): array
+    {
+        $users = $this->users();
+        $userId = $this->store->nextId($users);
+        $role = in_array(($data['role'] ?? 'subscriber'), ['subscriber', 'creator'], true) ? $data['role'] : 'subscriber';
+        $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
+        $name = trim((string) ($data['name'] ?? ''));
+        $googleId = trim((string) ($data['google_sub'] ?? ''));
+        $avatarUrl = trim((string) ($data['avatar_url'] ?? ''));
+        $usernameSeed = (string) ($data['username'] ?? '');
+
+        if ($name === '') {
+            $name = trim((string) ($data['given_name'] ?? ''));
+        }
+
+        if ($name === '' && $email !== '') {
+            $name = strstr($email, '@', true) ?: $email;
+        }
+
+        if ($name === '') {
+            $name = 'Novo Usuario';
+        }
+
+        if ($usernameSeed === '' && $email !== '') {
+            $usernameSeed = strstr($email, '@', true) ?: $email;
+        }
+
+        if ($usernameSeed === '') {
+            $usernameSeed = $name;
+        }
+
+        $user = [
+            'id' => $userId,
+            'name' => $name,
+            'username' => $this->uniqueUsername($usernameSeed, null, $email !== '' ? $email : $name),
+            'email' => $email,
+            'password' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+            'role' => $role,
+            'status' => 'active',
+            'headline' => $role === 'creator' ? 'Novo criador em fase de estreia.' : 'Novo assinante da comunidade SexyLua.',
+            'bio' => $role === 'creator' ? 'Perfil criado para publicar conteudo, planos e lives.' : 'Perfil criado para acompanhar criadores, salvar colecoes e conversar.',
+            'city' => trim((string) ($data['city'] ?? 'Brasil')),
+            'age' => max(18, (int) ($data['age'] ?? 18)),
+            'created_at' => date('Y-m-d H:i:s'),
+            'terms_accepted_at' => trim((string) ($data['terms_accepted_at'] ?? date('Y-m-d H:i:s'))),
+            'terms_version' => trim((string) ($data['terms_version'] ?? '2026-04')),
+            'identity_document' => null,
+            'verification_status' => 'pending',
+            'verification_note' => '',
+            'verification_requested_at' => date('Y-m-d H:i:s'),
+            'verification_reviewed_at' => null,
+            'oauth_google_sub' => $googleId,
+            'oauth_google_connected_at' => date('Y-m-d H:i:s'),
+            'oauth_provider' => 'google',
+        ];
+
+        if ($avatarUrl !== '') {
+            $user['avatar_url'] = $avatarUrl;
+        }
+
+        $users[] = $user;
+        $this->save('users', $users);
+
+        if ($role === 'creator') {
+            $profiles = $this->creatorProfiles();
+            $profiles[] = [
+                'user_id' => $userId,
+                'slug' => $this->uniqueSlug($user['name']),
+                'mood' => 'Lua Nova',
+                'cover_style' => 'rose-dawn',
+                'featured' => false,
+                'followers' => 0,
+                'rating' => 5.0,
+            ];
+            $this->save('creator_profiles', $profiles);
+
+            $plans = $this->plans();
+            $plans[] = [
+                'id' => $this->store->nextId($plans),
+                'creator_id' => $userId,
+                'name' => 'Plano Inicial',
+                'description' => 'Assinatura base criada automaticamente.',
+                'price_tokens' => 39,
+                'active' => true,
+                'perks' => ['Conteudo exclusivo', 'Mensagens diretas', 'Acesso antecipado'],
+            ];
+            $this->save('plans', $plans);
+        } else {
+            $settings = $this->settings();
+            $signupBonusEnabled = (bool) ($settings['subscriber_signup_bonus_enabled'] ?? true);
+            $signupBonusAmount = max(0, (int) ($settings['subscriber_signup_bonus_luacoins'] ?? 10));
+
+            if ($signupBonusEnabled && $signupBonusAmount > 0) {
+                $transactions = $this->walletTransactions();
+                $transactions[] = [
+                    'id' => $this->store->nextId($transactions),
+                    'user_id' => $userId,
+                    'type' => 'welcome_bonus',
+                    'direction' => 'in',
+                    'amount' => $signupBonusAmount,
+                    'note' => 'Bonus de boas-vindas',
+                    'created_at' => date('Y-m-d H:i:s'),
+                ];
+                $this->save('wallet_transactions', $transactions);
+            }
+        }
+
+        return $this->sanitizeUser($user);
+    }
+
+    public function linkGoogleIdentity(int $userId, string $googleId, string $avatarUrl = ''): ?array
+    {
+        $users = $this->users();
+        $changed = false;
+
+        foreach ($users as &$user) {
+            if ((int) ($user['id'] ?? 0) !== $userId) {
+                continue;
+            }
+
+            $user['oauth_google_sub'] = trim($googleId);
+            $user['oauth_google_connected_at'] = date('Y-m-d H:i:s');
+            $user['oauth_provider'] = 'google';
+
+            if ($avatarUrl !== '' && trim((string) ($user['avatar_url'] ?? '')) === '') {
+                $user['avatar_url'] = $avatarUrl;
+            }
+
+            $changed = true;
+            break;
+        }
+        unset($user);
+
+        if (! $changed) {
+            return null;
+        }
+
+        $this->save('users', $users);
+
+        return $this->findUserById($userId);
     }
 
     public function homepageData(array $filters = []): array
@@ -370,12 +530,18 @@ final class PlatformRepository
 
     public function findCreatorBySlugOrId(?string $slug, ?int $id): ?array
     {
+        $normalizedSlug = $slug !== null ? $this->normalizeUsername($slug) : '';
+
         foreach ($this->creators() as $creator) {
             if ($id !== null && (int) $creator['id'] === $id) {
                 return $creator;
             }
 
             if ($slug !== null && $creator['slug'] === $slug) {
+                return $creator;
+            }
+
+            if ($normalizedSlug !== '' && $this->normalizeUsername((string) ($creator['username'] ?? '')) === $normalizedSlug) {
                 return $creator;
             }
         }
@@ -394,6 +560,14 @@ final class PlatformRepository
 
         $plans = array_values(array_filter($this->plansWithCreators(), static fn (array $plan): bool => (int) $plan['creator_id'] === $creatorId && (bool) $plan['active']));
         $content = array_values(array_filter($this->contentsWithCreators(), fn (array $item): bool => (int) $item['creator_id'] === $creatorId && $item['status'] === 'approved' && ! $this->contentIsExpired($item) && $this->matchesAudienceCategory($category, (string) ($item['category'] ?? 'todos'))));
+        $content = $this->sortByDate($content, 'created_at');
+        $content = array_map(function (array $item) use ($viewerId): array {
+            $item['viewer_has_unlock'] = $viewerId !== null && $viewerId > 0
+                ? $this->hasContentUnlock((int) ($item['id'] ?? 0), $viewerId)
+                : false;
+
+            return $item;
+        }, $content);
         $relatedCreators = array_values(array_filter($this->creators(), static fn (array $item): bool => (int) $item['id'] !== $creatorId));
         $upcomingLives = array_values(array_filter(
             $this->livesWithCreators(),
@@ -429,6 +603,10 @@ final class PlatformRepository
         $related = array_values(array_filter($this->livesWithCreators(), static fn (array $item): bool => (int) ($item['id'] ?? 0) !== $liveId));
         $engagement = $this->liveEngagementData($decoratedLive);
         $stream = $this->publicLiveStreamState($liveId);
+        $viewer = $viewerId !== null ? $this->findUserById($viewerId) : null;
+        $isCreatorOwner = $viewerId !== null
+            && (int) ($live['creator_id'] ?? 0) === $viewerId
+            && (string) (($viewer['role'] ?? '')) === 'creator';
         $shouldHideRoomData = ! (bool) ($access['granted'] ?? false)
             && ((bool) ($access['requires_vip_unlock'] ?? false) || (bool) ($access['requires_darkroom_wait'] ?? false));
 
@@ -462,11 +640,15 @@ final class PlatformRepository
             'darkroom_ends_at' => (string) ($access['darkroom_ends_at'] ?? ''),
             'access_message' => (string) ($access['access_message'] ?? ''),
             'can_chat' => $this->canUserChatInLive($decoratedLive, $viewerId),
-            'can_tip' => $viewerId !== null && (bool) ($access['granted'] ?? false),
+            'can_tip' => $viewerId !== null
+                && (bool) ($access['granted'] ?? false)
+                && (string) (($viewer['role'] ?? '')) === 'subscriber',
             'stream' => $stream,
             'priority_tip_tiers' => $this->priorityTipTiersForLive($decoratedLive),
             'priority_tip_messages' => $this->priorityTipMessagesForLive($decoratedLive),
             'priority_alert' => $this->latestPriorityAlertForLive($liveId),
+            'active_darkroom' => $isCreatorOwner ? $this->activeDarkroomSummaryForCreator($viewerId, $liveId) : null,
+            'darkroom_candidates' => $isCreatorOwner ? $this->darkroomCandidatesForCreatorLive($viewerId, $liveId) : [],
         ];
     }
 
@@ -1300,8 +1482,8 @@ final class PlatformRepository
         $this->chargeSubscriberAndCreditCreator($subscriberId, (int) $plan['creator_id'], $price, 'subscription', 'Assinatura ' . $plan['name']);
         $subscriber = $this->findUserById($subscriberId);
         $creator = $this->findCreatorBySlugOrId(null, (int) ($plan['creator_id'] ?? 0));
-        $creatorName = (string) ($creator['name'] ?? 'criador');
-        $subscriberName = (string) ($subscriber['name'] ?? 'Novo assinante');
+        $creatorName = user_handle($creator, 'criador');
+        $subscriberName = user_handle($subscriber, 'assinante');
         $planName = (string) ($plan['name'] ?? 'Plano');
 
         $this->notifyUser(
@@ -1347,7 +1529,7 @@ final class PlatformRepository
                     (int) ($targetSubscription['creator_id'] ?? 0),
                     'subscription',
                     'Assinatura cancelada',
-                    (string) ($subscriber['name'] ?? 'Um assinante') . ' cancelou a assinatura' . (($creator['name'] ?? '') !== '' ? ' em ' . (string) ($creator['name'] ?? '') : '') . '.',
+                    user_handle($subscriber, 'assinante') . ' cancelou a assinatura' . ($creator !== null ? ' em ' . user_handle($creator, 'criador') : '') . '.',
                     '/creator/memberships'
                 );
             }
@@ -1404,13 +1586,21 @@ final class PlatformRepository
 
     public function sendConversationMessage(int $conversationId, int $senderId, string $body, array $options = []): bool
     {
+        return (bool) ($this->sendConversationMessageWithPayload($conversationId, $senderId, $body, $options, $senderId)['ok'] ?? false);
+    }
+
+    public function sendConversationMessageWithPayload(int $conversationId, int $senderId, string $body, array $options = [], ?int $viewerId = null): array
+    {
         $body = trim($body);
         $attachment = $this->normalizeConversationAttachment(is_array($options['attachment'] ?? null) ? $options['attachment'] : null);
 
         $conversation = $this->findConversationById($conversationId);
 
         if (! $conversation) {
-            return false;
+            return [
+                'ok' => false,
+                'message' => 'Conversa nao encontrada.',
+            ];
         }
 
         $isConversationParticipant = in_array($senderId, [
@@ -1419,7 +1609,10 @@ final class PlatformRepository
         ], true);
 
         if (! $isConversationParticipant || ($body === '' && $attachment === null)) {
-            return false;
+            return [
+                'ok' => false,
+                'message' => 'Escreva uma mensagem ou envie um anexo.',
+            ];
         }
 
         $requiredPlanId = 0;
@@ -1492,7 +1685,7 @@ final class PlatformRepository
         $this->notifyUser(
             $recipientId,
             'message',
-            'Nova mensagem de ' . (string) ($sender['name'] ?? 'Conta'),
+            'Nova mensagem de ' . user_handle($sender, 'usuario'),
             excerpt($body !== '' ? $body : $this->messageNotificationPreview($messageType, $attachment, $unlockPrice, $requiredPlanId), 90),
             $recipientHref,
             [
@@ -1502,7 +1695,24 @@ final class PlatformRepository
             ]
         );
 
-        return true;
+        $viewerId = $viewerId !== null && $viewerId > 0 ? $viewerId : $senderId;
+        $sentMessage = $messages[array_key_last($messages)] ?? null;
+        if (is_array($sentMessage)) {
+            $sentMessage['sender'] = $sender;
+            $sentMessage = $this->decorateConversationMessage($sentMessage, $conversation, $viewerId);
+        }
+
+        $previewText = excerpt(
+            $body !== '' ? $body : $this->messageNotificationPreview($messageType, $attachment, $unlockPrice, $requiredPlanId),
+            70
+        );
+
+        return [
+            'ok' => true,
+            'message' => 'Mensagem enviada.',
+            'message_data' => is_array($sentMessage) ? $sentMessage : null,
+            'preview_text' => $previewText,
+        ];
     }
 
     public function startConversation(int $subscriberId, int $creatorId, string $body): int
@@ -1552,7 +1762,7 @@ final class PlatformRepository
             $creatorId,
             'tip',
             'Nova gorjeta recebida',
-            (string) ($subscriber['name'] ?? 'Um assinante') . ' enviou ' . $amount . ' LuaCoins.',
+            user_handle($subscriber, 'assinante') . ' enviou ' . $amount . ' LuaCoins.',
             $liveId > 0 ? path_with_query('/creator/live/studio', ['live' => $liveId]) : '/creator/wallet',
             [
                 'amount' => $amount,
@@ -1669,7 +1879,7 @@ final class PlatformRepository
             $creatorId,
             'sale',
             'Conteudo instantaneo desbloqueado',
-            (string) ($subscriber['name'] ?? 'Assinante') . ' desbloqueou seu conteudo por ' . $unlockPrice . ' LuaCoins.',
+            user_handle($subscriber, 'assinante') . ' desbloqueou seu conteudo por ' . $unlockPrice . ' LuaCoins.',
             path_with_query('/creator/messages', ['conversation' => (int) ($conversation['id'] ?? 0)]),
             [
                 'message_id' => $messageId,
@@ -1741,6 +1951,72 @@ final class PlatformRepository
         return ['ok' => true, 'message' => 'Live VIP desbloqueada com sucesso.'];
     }
 
+    public function unlockContentAccess(int $contentId, int $userId): array
+    {
+        $content = $this->findContentWithCreator($contentId);
+
+        if ($content === null || (string) ($content['status'] ?? '') !== 'approved' || $this->contentIsExpired($content)) {
+            return ['ok' => false, 'message' => 'Pack nao encontrado.'];
+        }
+
+        if ((string) ($content['kind'] ?? '') !== 'pack') {
+            return ['ok' => false, 'message' => 'A compra avulsa esta disponivel apenas para packs.'];
+        }
+
+        $unlockPrice = max(0, (int) ($content['unlock_price_tokens'] ?? 0));
+        if ($unlockPrice <= 0) {
+            return ['ok' => false, 'message' => 'Este pack nao possui compra avulsa disponivel.'];
+        }
+
+        if ($this->hasContentUnlock($contentId, $userId)) {
+            return ['ok' => true, 'message' => 'Pack ja desbloqueado para sua conta.'];
+        }
+
+        $user = $this->findUserById($userId);
+        if ($user === null || (string) ($user['status'] ?? 'active') !== 'active') {
+            return ['ok' => false, 'message' => 'Sua conta nao pode desbloquear este pack agora.'];
+        }
+
+        $creatorId = (int) ($content['creator_id'] ?? 0);
+        if ($creatorId <= 0) {
+            return ['ok' => false, 'message' => 'Criador nao encontrado para este pack.'];
+        }
+
+        if ($this->walletBalance($userId) < $unlockPrice) {
+            return ['ok' => false, 'message' => 'Saldo insuficiente para desbloquear este pack.'];
+        }
+
+        $title = trim((string) ($content['title'] ?? 'Pack exclusivo'));
+        $this->chargeSubscriberAndCreditCreator($userId, $creatorId, $unlockPrice, 'instant_content', 'Compra avulsa do pack ' . $title);
+
+        $unlocks = $this->contentUnlocks();
+        $unlocks[] = [
+            'id' => $this->store->nextId($unlocks),
+            'content_id' => $contentId,
+            'user_id' => $userId,
+            'amount' => $unlockPrice,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        $this->save('content_unlocks', $unlocks);
+
+        $buyer = $this->findUserById($userId);
+        $creator = $this->findCreatorBySlugOrId(null, $creatorId);
+        $this->notifyUser(
+            $creatorId,
+            'sale',
+            'Pack desbloqueado',
+            user_handle($buyer, 'assinante') . ' comprou seu pack por ' . $unlockPrice . ' LuaCoins.',
+            creator_public_url($creator, ['content' => $contentId]),
+            [
+                'content_id' => $contentId,
+                'amount' => $unlockPrice,
+                'buyer_id' => $userId,
+            ]
+        );
+
+        return ['ok' => true, 'message' => 'Pack desbloqueado com acesso permanente.'];
+    }
+
     public function activateLiveDarkroom(int $liveId, int $userId): array
     {
         $live = $this->findLiveById($liveId);
@@ -1790,7 +2066,7 @@ final class PlatformRepository
 
             return [
                 'ok' => false,
-                'message' => 'Esta live ja esta em darkroom para ' . (string) ($activeDarkroom['user']['name'] ?? 'outro espectador') . '.',
+                'message' => 'Esta live ja esta em darkroom para ' . (string) ($activeDarkroom['user']['handle'] ?? user_handle($activeDarkroom['user'] ?? [], 'espectador')) . '.',
             ];
         }
 
@@ -1844,6 +2120,132 @@ final class PlatformRepository
         );
 
         return ['ok' => true, 'message' => 'Darkroom ativado com sucesso.'];
+    }
+
+    public function creatorActivateLiveDarkroom(int $liveId, int $creatorId, int $targetUserId): array
+    {
+        $live = $this->findLiveById($liveId);
+
+        if ($live === null || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+            return ['ok' => false, 'message' => 'Live nao encontrada para este criador.'];
+        }
+
+        if ($this->resolveLiveStatus($live) !== 'live') {
+            return ['ok' => false, 'message' => 'O darkroom manual so pode ser iniciado enquanto a live estiver ao vivo.'];
+        }
+
+        $darkroomDuration = $this->sanitizeDarkroomDurationMinutes((int) ($live['darkroom_duration_minutes'] ?? 0));
+        if ($darkroomDuration <= 0) {
+            return ['ok' => false, 'message' => 'Defina a duracao da Sala DarkRoom em minutos antes de iniciar manualmente.'];
+        }
+
+        $targetUser = $this->findUserById($targetUserId);
+        if ($targetUser === null || (string) ($targetUser['status'] ?? 'active') !== 'active') {
+            return ['ok' => false, 'message' => 'Escolha um assinante ou espectador valido para iniciar o darkroom.'];
+        }
+
+        if ((string) ($targetUser['role'] ?? '') === 'admin' || (int) ($targetUser['id'] ?? 0) === $creatorId) {
+            return ['ok' => false, 'message' => 'Selecione um assinante ou espectador diferente do criador.'];
+        }
+
+        $candidateIds = array_map(
+            static fn (array $candidate): int => (int) ($candidate['id'] ?? 0),
+            $this->darkroomCandidatesForCreatorLive($creatorId, $liveId)
+        );
+
+        if (! in_array($targetUserId, $candidateIds, true)) {
+            return ['ok' => false, 'message' => 'Esse usuario nao esta disponivel na lista de espectadores e assinantes atuais.'];
+        }
+
+        $activeDarkroom = $this->activeDarkroomForLive($liveId);
+        if ($activeDarkroom !== null) {
+            if ((int) ($activeDarkroom['user_id'] ?? 0) === $targetUserId) {
+                return ['ok' => true, 'message' => 'Esse usuario ja esta na darkroom atual.'];
+            }
+
+            return ['ok' => false, 'message' => 'Ja existe um darkroom ativo nesta live. Cancele o atual antes de iniciar outro.'];
+        }
+
+        $darkrooms = $this->liveDarkrooms();
+        $now = date('Y-m-d H:i:s');
+        $darkrooms[] = [
+            'id' => $this->store->nextId($darkrooms),
+            'live_id' => $liveId,
+            'creator_id' => $creatorId,
+            'user_id' => $targetUserId,
+            'amount' => 0,
+            'duration_minutes' => $darkroomDuration,
+            'status' => 'active',
+            'started_at' => $now,
+            'ends_at' => date('Y-m-d H:i:s', strtotime('+' . $darkroomDuration . ' minutes')),
+            'ended_at' => '',
+            'created_at' => $now,
+            'creator_initiated' => true,
+        ];
+        $this->save('live_darkrooms', $darkrooms);
+
+        $liveTitle = trim((string) ($live['title'] ?? 'Live'));
+        $this->notifyUser(
+            $targetUserId,
+            'live',
+            'Darkroom iniciada',
+            'O criador abriu uma darkroom com voce na live ' . $liveTitle . ' por ' . $darkroomDuration . ' minuto(s).',
+            path_with_query('/live', ['id' => $liveId]),
+            [
+                'live_id' => $liveId,
+                'duration_minutes' => $darkroomDuration,
+                'creator_initiated' => true,
+            ]
+        );
+
+        return ['ok' => true, 'message' => 'Darkroom iniciada com ' . (string) ($targetUser['name'] ?? 'o assinante') . '.'];
+    }
+
+    public function cancelLiveDarkroom(int $liveId, int $creatorId): array
+    {
+        $live = $this->findLiveById($liveId);
+
+        if ($live === null || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+            return ['ok' => false, 'message' => 'Live nao encontrada para este criador.'];
+        }
+
+        $activeDarkroom = $this->activeDarkroomForLive($liveId);
+        if ($activeDarkroom === null) {
+            return ['ok' => false, 'message' => 'Nao ha darkroom ativa nesta live agora.'];
+        }
+
+        $darkrooms = $this->liveDarkrooms();
+        $now = date('Y-m-d H:i:s');
+        foreach ($darkrooms as &$row) {
+            if ((int) ($row['id'] ?? 0) !== (int) ($activeDarkroom['id'] ?? 0)) {
+                continue;
+            }
+
+            $row['status'] = 'cancelled';
+            $row['ended_at'] = $now;
+            $row['cancelled_by_creator_id'] = $creatorId;
+            break;
+        }
+        unset($row);
+
+        $this->save('live_darkrooms', $darkrooms);
+
+        $ownerId = (int) ($activeDarkroom['user_id'] ?? 0);
+        if ($ownerId > 0 && $ownerId !== $creatorId) {
+            $this->notifyUser(
+                $ownerId,
+                'live',
+                'Darkroom encerrada',
+                'O criador encerrou a darkroom atual e a live voltou ao modo normal.',
+                path_with_query('/live', ['id' => $liveId]),
+                [
+                    'live_id' => $liveId,
+                    'creator_cancelled' => true,
+                ]
+            );
+        }
+
+        return ['ok' => true, 'message' => 'Darkroom encerrada e sala publica restaurada.'];
     }
 
     public function findSecureConversationMessageAttachment(int $messageId, int $viewerId): ?array
@@ -1995,11 +2397,11 @@ final class PlatformRepository
                 'edit' => $editId,
             ],
             'counts' => [
-                'approved' => count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'approved')),
-                'pending' => count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'pending')),
-                'draft' => count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'draft')),
-                'rejected' => count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'rejected')),
-                'archived' => count(array_filter($contents, static fn (array $item): bool => $item['status'] === 'archived')),
+                'approved' => count(array_filter($contents, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'approved')),
+                'pending' => count(array_filter($contents, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'pending')),
+                'draft' => count(array_filter($contents, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'draft')),
+                'rejected' => count(array_filter($contents, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'rejected')),
+                'archived' => count(array_filter($contents, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'archived')),
             ],
             'summary' => [
                 'total_posts' => count($contents),
@@ -2025,12 +2427,14 @@ final class PlatformRepository
         $contentId = isset($data['id']) ? (int) $data['id'] : 0;
         $status = in_array(($data['status'] ?? 'draft'), ['draft', 'pending', 'approved', 'rejected', 'archived'], true) ? $data['status'] : 'draft';
         $visibility = in_array(($data['visibility'] ?? 'public'), ['public', 'subscriber', 'premium'], true) ? $data['visibility'] : 'public';
-        $kind = in_array(($data['kind'] ?? 'gallery'), ['gallery', 'video', 'audio', 'article', 'live_teaser'], true) ? $data['kind'] : 'gallery';
+        $kind = in_array(($data['kind'] ?? 'gallery'), ['gallery', 'video', 'audio', 'article', 'live_teaser', 'pack'], true) ? $data['kind'] : 'gallery';
         $category = $this->normalizeAudienceCategory((string) ($data['category'] ?? 'todos'));
         $mediaUrl = trim((string) ($data['media_url'] ?? ''));
         $thumbnailUrl = trim((string) ($data['thumbnail_url'] ?? ''));
+        $packItems = array_key_exists('pack_items', $data) ? $this->normalizePackItems((array) ($data['pack_items'] ?? [])) : null;
         $planId = max(0, (int) ($data['plan_id'] ?? 0));
         $plan = $planId > 0 ? $this->findPlanById($planId) : null;
+        $unlockPriceTokens = max(0, (int) ($data['unlock_price_tokens'] ?? $data['unlock_price'] ?? 0));
 
         if (! $plan || (int) ($plan['creator_id'] ?? 0) !== $creatorId) {
             $planId = 0;
@@ -2048,12 +2452,35 @@ final class PlatformRepository
             'duration' => trim((string) ($data['duration'] ?? '')),
             'plan_id' => $planId,
             'price_tokens' => $plan ? (int) ($plan['price_tokens'] ?? 0) : max(0, (int) ($data['price_tokens'] ?? $data['price_luacoins'] ?? 0)),
+            'unlock_price_tokens' => $kind === 'pack' ? $unlockPriceTokens : 0,
             'media_url' => $mediaUrl,
             'thumbnail_url' => $thumbnailUrl,
             'media_bytes' => max(0, (int) ($data['media_bytes'] ?? ($mediaUrl !== '' ? \public_media_file_bytes($mediaUrl) : 0))),
             'thumbnail_bytes' => max(0, (int) ($data['thumbnail_bytes'] ?? ($thumbnailUrl !== '' ? \public_media_file_bytes($thumbnailUrl) : 0))),
             'updated_at' => date('Y-m-d H:i:s'),
         ];
+
+        if ($kind === 'pack') {
+            if ($packItems !== null && $packItems === []) {
+                return [
+                    'ok' => false,
+                    'message' => 'Envie pelo menos um arquivo para montar o pack.',
+                ];
+            }
+
+            if ($packItems !== null) {
+                $previewItem = $packItems[0] ?? [];
+                $payload['pack_items'] = $packItems;
+                $payload['pack_count'] = count($packItems);
+                $payload['media_url'] = trim((string) ($previewItem['url'] ?? ''));
+                $payload['thumbnail_url'] = trim((string) ($previewItem['thumbnail_url'] ?? $previewItem['url'] ?? ''));
+                $payload['media_bytes'] = array_sum(array_map(static fn (array $item): int => max(0, (int) ($item['bytes'] ?? 0)), $packItems));
+                $payload['thumbnail_bytes'] = 0;
+            }
+        } else {
+            $payload['pack_items'] = [];
+            $payload['pack_count'] = 0;
+        }
 
         $currentItem = null;
         if ($contentId > 0) {
@@ -2156,9 +2583,15 @@ final class PlatformRepository
         $this->save('content_items', $items);
         $savedItems = array_values(array_filter($this->savedItems(), static fn (array $saved): bool => (int) ($saved['content_id'] ?? 0) !== $contentId));
         $this->save('saved_items', $savedItems);
+        $contentUnlocks = array_values(array_filter($this->contentUnlocks(), static fn (array $unlock): bool => (int) ($unlock['content_id'] ?? 0) !== $contentId));
+        $this->save('content_unlocks', $contentUnlocks);
         if (is_array($removed)) {
             $this->deletePublicMediaFile((string) ($removed['media_url'] ?? ''));
             $this->deletePublicMediaFile((string) ($removed['thumbnail_url'] ?? ''));
+            foreach ($this->normalizePackItems((array) ($removed['pack_items'] ?? [])) as $packItem) {
+                $this->deletePublicMediaFile((string) ($packItem['url'] ?? ''));
+                $this->deletePublicMediaFile((string) ($packItem['thumbnail_url'] ?? ''));
+            }
             $this->clearReplayReferenceForContent($creatorId, $removed);
         }
 
@@ -2369,6 +2802,8 @@ final class PlatformRepository
         $query = mb_strtolower(trim((string) ($filters['q'] ?? '')));
         $status = trim((string) ($filters['status'] ?? 'scheduled'));
         $selectedId = (int) ($filters['live'] ?? 0);
+        $page = max(1, (int) ($filters['page'] ?? 1));
+        $perPage = 15;
 
         $filtered = array_values(array_filter($lives, static function (array $live) use ($query, $status): bool {
             if ($status !== '' && (string) ($live['status_bucket'] ?? '') !== $status) {
@@ -2385,6 +2820,11 @@ final class PlatformRepository
         }));
         $filtered = $this->sortCreatorLives($filtered, $status);
         $allSorted = $this->sortCreatorLives($lives, $status);
+        $filteredTotal = count($filtered);
+        $totalPages = max(1, (int) ceil($filteredTotal / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+        $paginated = array_values(array_slice($filtered, $offset, $perPage));
 
         $selectedLive = null;
         if ($selectedId > 0) {
@@ -2405,12 +2845,15 @@ final class PlatformRepository
             $selectedMessages = $this->liveChatMessagesFor((int) ($selectedLive['id'] ?? 0), 8);
             $selectedEngagement = $this->liveEngagementData($selectedLive, 6, 4);
             $selectedLive['tip_total_amount'] = (int) ($selectedEngagement['tip_total_amount'] ?? 0);
+            $selectedLive['active_darkroom'] = $this->activeDarkroomSummaryForCreator($creatorId, (int) ($selectedLive['id'] ?? 0));
+            $selectedLive['darkroom_candidates'] = $this->darkroomCandidatesForCreatorLive($creatorId, (int) ($selectedLive['id'] ?? 0));
         }
 
         return [
             'creator' => $this->findCreatorBySlugOrId(null, $creatorId),
             'lives' => $allSorted,
             'filtered_lives' => $filtered,
+            'paginated_lives' => $paginated,
             'selected_live' => $selectedLive,
             'active_live' => array_values(array_filter($allSorted, static fn (array $live): bool => (string) ($live['status'] ?? '') === 'live'))[0] ?? null,
             'messages' => $selectedMessages,
@@ -2419,6 +2862,13 @@ final class PlatformRepository
             'filters' => [
                 'q' => $query,
                 'status' => $status,
+                'page' => $page,
+            ],
+            'pagination' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $filteredTotal,
+                'total_pages' => $totalPages,
             ],
             'summary' => [
                 'scheduled' => count(array_filter($allSorted, static fn (array $live): bool => (string) ($live['status_bucket'] ?? '') === 'scheduled')),
@@ -3069,7 +3519,9 @@ final class PlatformRepository
             'viewer_count' => $this->activeViewerCountForLive($liveId),
             'can_watch' => (bool) ($access['granted'] ?? false),
             'can_chat' => $this->canUserChatInLive($decoratedLive, $userId),
-            'can_tip' => $userId !== null && (bool) ($access['granted'] ?? false),
+            'can_tip' => $userId !== null
+                && (bool) ($access['granted'] ?? false)
+                && (string) (($this->findUserById($userId)['role'] ?? '')) === 'subscriber',
             'chat_audience' => (string) ($decoratedLive['chat_audience'] ?? 'all'),
             'requires_login' => (bool) ($access['requires_login'] ?? false),
             'requires_subscription' => (bool) ($access['requires_subscription'] ?? false),
@@ -3351,7 +3803,6 @@ final class PlatformRepository
         $foundProfile = false;
         $changedUsers = false;
         $changedProfiles = false;
-        $name = trim((string) ($data['name'] ?? ''));
         $headline = trim((string) ($data['headline'] ?? ''));
         $bio = trim((string) ($data['bio'] ?? ''));
         $city = trim((string) ($data['city'] ?? ''));
@@ -3399,7 +3850,7 @@ final class PlatformRepository
         $identityDocument = is_array($data['identity_document'] ?? null) ? $data['identity_document'] : null;
         $verificationReset = false;
 
-        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $creatorId))) {
+        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $creatorId) || $this->usernameReservedForPublicRoute($username, $creatorId))) {
             return false;
         }
 
@@ -3409,11 +3860,6 @@ final class PlatformRepository
             }
 
             $foundCreator = true;
-
-            if ($name !== '' && $name !== (string) $user['name']) {
-                $user['name'] = $name;
-                $changedUsers = true;
-            }
 
             if (array_key_exists('username', $data) && $username !== (string) ($user['username'] ?? '')) {
                 $user['username'] = $username;
@@ -3547,7 +3993,7 @@ final class PlatformRepository
         if (! $foundProfile) {
             $profiles[] = [
                 'user_id' => $creatorId,
-                'slug' => $this->uniqueSlug($slug !== '' ? $slug : ($name !== '' ? $name : ((string) ($this->findUserById($creatorId)['name'] ?? 'criador'))), $creatorId),
+                'slug' => $this->uniqueSlug($slug !== '' ? $slug : ((string) ($this->findUserById($creatorId)['name'] ?? 'criador')), $creatorId),
                 'mood' => $mood !== '' ? $mood : 'Lua Nova',
                 'cover_style' => $coverStyle !== '' ? $coverStyle : 'rose-dawn',
                 'featured' => false,
@@ -3773,7 +4219,7 @@ final class PlatformRepository
                 return true;
             }
 
-            $haystack = mb_strtolower((string) (($user['name'] ?? '') . ' ' . ($user['email'] ?? '') . ' ' . ($user['role'] ?? '')));
+            $haystack = mb_strtolower((string) (($user['name'] ?? '') . ' ' . ($user['username'] ?? '') . ' ' . ($user['email'] ?? '') . ' ' . ($user['role'] ?? '')));
 
             return str_contains($haystack, $search);
         }));
@@ -3822,7 +4268,6 @@ final class PlatformRepository
         $found = false;
         $originalRole = '';
         $targetRole = '';
-        $name = trim((string) ($data['name'] ?? ''));
         $username = $this->normalizeUsername((string) ($data['username'] ?? ''));
         $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
         $headline = trim((string) ($data['headline'] ?? ''));
@@ -3843,7 +4288,7 @@ final class PlatformRepository
         $verificationNote = trim((string) ($data['verification_note'] ?? ''));
         $previousVerificationStatus = '';
 
-        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $userId))) {
+        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $userId) || $this->usernameReservedForPublicRoute($username, $userId))) {
             return false;
         }
 
@@ -4006,7 +4451,7 @@ final class PlatformRepository
         $role = in_array(($data['role'] ?? 'subscriber'), ['subscriber', 'creator', 'admin'], true) ? (string) $data['role'] : 'subscriber';
         $status = in_array(($data['status'] ?? 'active'), ['active', 'suspended'], true) ? (string) $data['status'] : 'active';
 
-        if ($name === '' || $username === '' || $email === '' || $password === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL) || $this->emailInUse($email) || $this->usernameInUse($username)) {
+        if ($name === '' || $username === '' || $email === '' || $password === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL) || $this->emailInUse($email) || $this->usernameInUse($username) || $this->usernameReservedForPublicRoute($username, null)) {
             return false;
         }
 
@@ -4084,7 +4529,7 @@ final class PlatformRepository
         $identityDocument = is_array($data['identity_document'] ?? null) ? $data['identity_document'] : null;
         $verificationReset = false;
 
-        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $userId))) {
+        if (array_key_exists('username', $data) && ($username === '' || $this->usernameInUse($username, $userId) || $this->usernameReservedForPublicRoute($username, $userId))) {
             return false;
         }
 
@@ -4095,7 +4540,7 @@ final class PlatformRepository
 
             $found = true;
 
-            if ($name !== '' && $name !== (string) ($user['name'] ?? '')) {
+            if ($role === 'admin' && $name !== '' && $name !== (string) ($user['name'] ?? '')) {
                 $user['name'] = $name;
                 $changed = true;
             }
@@ -4274,7 +4719,12 @@ final class PlatformRepository
                 return true;
             }
 
-            $haystack = mb_strtolower((string) (($transaction['note'] ?? '') . ' ' . ($transaction['user']['name'] ?? '') . ' ' . ($transaction['type'] ?? '')));
+            $haystack = mb_strtolower((string) (
+                ($transaction['note'] ?? '') . ' ' .
+                ($transaction['user']['name'] ?? '') . ' ' .
+                ($transaction['user']['username'] ?? '') . ' ' .
+                ($transaction['type'] ?? '')
+            ));
 
             return str_contains($haystack, $query);
         }));
@@ -4295,7 +4745,7 @@ final class PlatformRepository
                 'wallet_balance' => $this->walletBalance((int) ($user['id'] ?? 0)),
             ];
         }, $this->users());
-        usort($users, static fn (array $left, array $right): int => strnatcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? '')));
+        usort($users, static fn (array $left, array $right): int => strnatcasecmp((string) ($left['username'] ?? $left['name'] ?? ''), (string) ($right['username'] ?? $right['name'] ?? '')));
 
         return [
             'summary' => [
@@ -4631,7 +5081,7 @@ final class PlatformRepository
             $item['excerpt'] = trim((string) ($data['excerpt'] ?? $item['excerpt']));
             $item['body'] = trim((string) ($data['body'] ?? $item['body']));
             $item['visibility'] = in_array(($data['visibility'] ?? $item['visibility']), ['public', 'subscriber', 'premium'], true) ? (string) ($data['visibility'] ?? $item['visibility']) : (string) $item['visibility'];
-            $item['kind'] = in_array(($data['kind'] ?? $item['kind']), ['gallery', 'video', 'audio', 'article', 'live_teaser'], true) ? (string) ($data['kind'] ?? $item['kind']) : (string) $item['kind'];
+            $item['kind'] = in_array(($data['kind'] ?? $item['kind']), ['gallery', 'video', 'audio', 'article', 'live_teaser', 'pack'], true) ? (string) ($data['kind'] ?? $item['kind']) : (string) $item['kind'];
             $item['status'] = in_array(($data['status'] ?? $item['status']), ['draft', 'pending', 'approved', 'rejected', 'archived'], true) ? (string) ($data['status'] ?? $item['status']) : (string) $item['status'];
             $item['category'] = $this->normalizeAudienceCategory((string) ($data['category'] ?? $item['category'] ?? 'todos'));
             $item['duration'] = trim((string) ($data['duration'] ?? $item['duration'] ?? ''));
@@ -4656,7 +5106,15 @@ final class PlatformRepository
     {
         $items = $this->contentItems();
         $before = count($items);
-        $items = array_values(array_filter($items, static fn (array $item): bool => (int) ($item['id'] ?? 0) !== $contentId));
+        $removed = null;
+        $items = array_values(array_filter($items, static function (array $item) use ($contentId, &$removed): bool {
+            $match = (int) ($item['id'] ?? 0) === $contentId;
+            if ($match) {
+                $removed = $item;
+            }
+
+            return ! $match;
+        }));
 
         if (count($items) === $before) {
             return false;
@@ -4665,6 +5123,16 @@ final class PlatformRepository
         $this->save('content_items', $items);
         $savedItems = array_values(array_filter($this->savedItems(), static fn (array $saved): bool => (int) ($saved['content_id'] ?? 0) !== $contentId));
         $this->save('saved_items', $savedItems);
+        $contentUnlocks = array_values(array_filter($this->contentUnlocks(), static fn (array $unlock): bool => (int) ($unlock['content_id'] ?? 0) !== $contentId));
+        $this->save('content_unlocks', $contentUnlocks);
+        if (is_array($removed)) {
+            $this->deletePublicMediaFile((string) ($removed['media_url'] ?? ''));
+            $this->deletePublicMediaFile((string) ($removed['thumbnail_url'] ?? ''));
+            foreach ($this->normalizePackItems((array) ($removed['pack_items'] ?? [])) as $packItem) {
+                $this->deletePublicMediaFile((string) ($packItem['url'] ?? ''));
+                $this->deletePublicMediaFile((string) ($packItem['thumbnail_url'] ?? ''));
+            }
+        }
 
         return true;
     }
@@ -4920,12 +5388,28 @@ final class PlatformRepository
             $settings['home_banner_countdown_target_at'] = '';
         }
         $settings['home_banner_background_url'] = trim((string) ($data['home_banner_background_url'] ?? $settings['home_banner_background_url'] ?? ''));
+        $settings['home_banner_background_mobile_url'] = trim((string) ($data['home_banner_background_mobile_url'] ?? $settings['home_banner_background_mobile_url'] ?? ''));
         $settings['syncpay_api_base_url'] = rtrim(trim((string) ($data['syncpay_api_base_url'] ?? $settings['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $settings['syncpay_client_id'] = trim((string) ($data['syncpay_client_id'] ?? $settings['syncpay_client_id'] ?? ''));
         $settings['syncpay_client_secret'] = trim((string) ($data['syncpay_client_secret'] ?? $settings['syncpay_client_secret'] ?? ''));
         $settings['syncpay_api_key'] = trim((string) ($data['syncpay_api_key'] ?? $settings['syncpay_api_key'] ?? ''));
         $settings['syncpay_webhook_token'] = trim((string) ($data['syncpay_webhook_token'] ?? $settings['syncpay_webhook_token'] ?? ''));
         $settings['syncpay_pix_expires_in_days'] = max(1, (int) ($data['syncpay_pix_expires_in_days'] ?? $settings['syncpay_pix_expires_in_days'] ?? 2));
+        $settings['google_oauth_enabled'] = ($data['google_oauth_enabled'] ?? '0') === '1';
+        $settings['google_client_id'] = trim((string) ($data['google_client_id'] ?? $settings['google_client_id'] ?? ''));
+        $settings['google_client_secret'] = trim((string) ($data['google_client_secret'] ?? $settings['google_client_secret'] ?? ''));
+        $settings['support_recipient_name'] = trim((string) ($data['support_recipient_name'] ?? $settings['support_recipient_name'] ?? 'SexyLua'));
+        $settings['support_recipient_email'] = trim((string) ($data['support_recipient_email'] ?? $settings['support_recipient_email'] ?? ''));
+        $settings['smtp_host'] = trim((string) ($data['smtp_host'] ?? $settings['smtp_host'] ?? ''));
+        $settings['smtp_port'] = max(1, (int) ($data['smtp_port'] ?? $settings['smtp_port'] ?? 587));
+        $settings['smtp_encryption'] = in_array(($data['smtp_encryption'] ?? $settings['smtp_encryption'] ?? 'tls'), ['none', 'tls', 'ssl'], true)
+            ? (string) ($data['smtp_encryption'] ?? $settings['smtp_encryption'] ?? 'tls')
+            : 'tls';
+        $settings['smtp_username'] = trim((string) ($data['smtp_username'] ?? $settings['smtp_username'] ?? ''));
+        $settings['smtp_password'] = trim((string) ($data['smtp_password'] ?? $settings['smtp_password'] ?? ''));
+        $settings['smtp_from_name'] = trim((string) ($data['smtp_from_name'] ?? $settings['smtp_from_name'] ?? 'SexyLua'));
+        $settings['smtp_from_email'] = trim((string) ($data['smtp_from_email'] ?? $settings['smtp_from_email'] ?? ''));
+        $settings['smtp_timeout_seconds'] = max(5, (int) ($data['smtp_timeout_seconds'] ?? $settings['smtp_timeout_seconds'] ?? 15));
         $settings['syncpay_webhook_url'] = webhook_url($this->config, $settings, '/webhook/syncpay');
         $settings['token_price_brl'] = $settings['luacoin_price_brl'];
         $settings['deposit_min_tokens'] = $settings['deposit_min_luacoins'];
@@ -5005,6 +5489,11 @@ final class PlatformRepository
     private function messageUnlocks(): array
     {
         return $this->readCollection('message_unlocks');
+    }
+
+    private function contentUnlocks(): array
+    {
+        return $this->readCollection('content_unlocks');
     }
 
     private function liveUnlocks(): array
@@ -5143,12 +5632,30 @@ final class PlatformRepository
             }
         }
 
+        $packItems = $this->decoratePackItems((array) ($item['pack_items'] ?? []));
+        $previewMediaUrl = (string) ($item['media_url'] ?? '');
+        $previewThumbnailUrl = (string) ($item['thumbnail_url'] ?? '');
+        if ((string) ($item['kind'] ?? '') === 'pack' && $packItems !== []) {
+            $previewItem = $packItems[0];
+            if ($previewMediaUrl === '') {
+                $previewMediaUrl = (string) ($previewItem['url'] ?? '');
+            }
+            if ($previewThumbnailUrl === '') {
+                $previewThumbnailUrl = (string) ($previewItem['thumbnail_url'] ?? $previewItem['url'] ?? '');
+            }
+        }
+
         return $item + [
             'category' => $this->normalizeAudienceCategory((string) ($item['category'] ?? 'todos')),
             'category_label' => $this->audienceCategoryLabel((string) ($item['category'] ?? 'todos')),
             'creator' => $this->findCreatorBySlugOrId(null, (int) $item['creator_id']),
             'plan' => $plan,
             'is_expired' => $this->contentIsExpired($item),
+            'unlock_price_tokens' => max(0, (int) ($item['unlock_price_tokens'] ?? 0)),
+            'media_url' => $previewMediaUrl,
+            'thumbnail_url' => $previewThumbnailUrl,
+            'pack_items' => $packItems,
+            'pack_count' => (int) ($item['pack_count'] ?? count($packItems)),
         ];
     }
 
@@ -5205,6 +5712,22 @@ final class PlatformRepository
     {
         foreach ($this->contentsWithCreators() as $item) {
             if ((int) $item['id'] === $contentId) {
+                return $item;
+            }
+        }
+
+        return null;
+    }
+
+    public function findPublicContentById(int $contentId): ?array
+    {
+        return $this->findContentWithCreator($contentId);
+    }
+
+    public function findCreatorContentById(int $creatorId, int $contentId): ?array
+    {
+        foreach ($this->contentItems() as $item) {
+            if ((int) ($item['id'] ?? 0) === $contentId && (int) ($item['creator_id'] ?? 0) === $creatorId) {
                 return $item;
             }
         }
@@ -5336,7 +5859,7 @@ final class PlatformRepository
         return false;
     }
 
-    private function usernameInUse(string $username, int $exceptUserId = 0): bool
+    private function usernameInUse(string $username, ?int $exceptUserId = null): bool
     {
         $username = $this->normalizeUsername($username);
 
@@ -5345,7 +5868,7 @@ final class PlatformRepository
         }
 
         foreach ($this->users() as $user) {
-            if ((int) ($user['id'] ?? 0) === $exceptUserId) {
+            if ($exceptUserId !== null && (int) ($user['id'] ?? 0) === $exceptUserId) {
                 continue;
             }
 
@@ -5355,6 +5878,41 @@ final class PlatformRepository
         }
 
         return false;
+    }
+
+    private function usernameReservedForPublicRoute(string $username, ?int $exceptUserId = null): bool
+    {
+        $username = $this->normalizeUsername($username);
+
+        if ($username === '' || ! in_array($username, \public_profile_reserved_usernames(), true)) {
+            return false;
+        }
+
+        if ($exceptUserId !== null) {
+            $existing = $this->findUserByUsername($username);
+            if (is_array($existing) && (int) ($existing['id'] ?? 0) === $exceptUserId) {
+                return false;
+            }
+        }
+
+        $viewerId = $viewerId !== null && $viewerId > 0 ? $viewerId : $senderId;
+        $sentMessage = $messages[array_key_last($messages)] ?? null;
+        if (is_array($sentMessage)) {
+            $sentMessage['sender'] = $sender;
+            $sentMessage = $this->decorateConversationMessage($sentMessage, $conversation, $viewerId);
+        }
+
+        $previewText = excerpt(
+            $body !== '' ? $body : $this->messageNotificationPreview($messageType, $attachment, $unlockPrice, $requiredPlanId),
+            70
+        );
+
+        return [
+            'ok' => true,
+            'message' => 'Mensagem enviada.',
+            'message_data' => is_array($sentMessage) ? $sentMessage : null,
+            'preview_text' => $previewText,
+        ];
     }
 
     private function isFavoriteCreator(int $subscriberId, int $creatorId): bool
@@ -5631,7 +6189,7 @@ final class PlatformRepository
         }
 
         $sender = $this->findUserById($subscriberId);
-        $senderName = trim((string) ($sender['name'] ?? 'Um assinante'));
+        $senderName = user_handle($sender, 'assinante');
         $template = trim((string) ($this->priorityTipMessagesForLive($live)[(string) $tier] ?? ''));
 
         if ($template === '') {
@@ -5728,7 +6286,7 @@ final class PlatformRepository
         $theme = $this->liveMessageHighlightTheme($level);
         $amount = max(1, (int) ($message['tip_amount'] ?? 0));
         $tier = max(1, (int) ($message['highlight_tier'] ?? $amount));
-        $senderName = (string) ($message['sender']['name'] ?? 'Assinante');
+        $senderName = user_handle($message['sender'] ?? [], 'assinante');
 
         return $message + [
             'is_highlighted' => true,
@@ -5762,7 +6320,7 @@ final class PlatformRepository
             'id' => (int) ($latest['id'] ?? 0),
             'body' => (string) ($latest['body'] ?? ''),
             'alert_text' => (string) ($latest['alert_text'] ?? ''),
-            'sender_name' => (string) ($latest['sender']['name'] ?? 'Assinante'),
+            'sender_name' => user_handle($latest['sender'] ?? [], 'assinante'),
             'tip_amount' => (int) ($latest['tip_amount'] ?? 0),
             'created_at' => (string) ($latest['created_at'] ?? ''),
         ];
@@ -6030,12 +6588,28 @@ final class PlatformRepository
             $normalized['home_banner_countdown_target_at'] = '';
         }
         $normalized['home_banner_background_url'] = trim((string) ($normalized['home_banner_background_url'] ?? ''));
+        $normalized['home_banner_background_mobile_url'] = trim((string) ($normalized['home_banner_background_mobile_url'] ?? ''));
         $normalized['syncpay_api_base_url'] = rtrim(trim((string) ($normalized['syncpay_api_base_url'] ?? 'https://api.syncpayments.com.br')), '/');
         $normalized['syncpay_client_id'] = trim((string) ($normalized['syncpay_client_id'] ?? ''));
         $normalized['syncpay_client_secret'] = trim((string) ($normalized['syncpay_client_secret'] ?? ''));
         $normalized['syncpay_api_key'] = trim((string) ($normalized['syncpay_api_key'] ?? ''));
         $normalized['syncpay_webhook_token'] = trim((string) ($normalized['syncpay_webhook_token'] ?? ''));
         $normalized['syncpay_pix_expires_in_days'] = max(1, (int) ($normalized['syncpay_pix_expires_in_days'] ?? 2));
+        $normalized['google_oauth_enabled'] = (bool) ($normalized['google_oauth_enabled'] ?? true);
+        $normalized['google_client_id'] = trim((string) ($normalized['google_client_id'] ?? (getenv('SEXYLUA_GOOGLE_CLIENT_ID') ?: '')));
+        $normalized['google_client_secret'] = trim((string) ($normalized['google_client_secret'] ?? (getenv('SEXYLUA_GOOGLE_CLIENT_SECRET') ?: '')));
+        $normalized['support_recipient_name'] = trim((string) ($normalized['support_recipient_name'] ?? 'SexyLua'));
+        $normalized['support_recipient_email'] = trim((string) ($normalized['support_recipient_email'] ?? ''));
+        $normalized['smtp_host'] = trim((string) ($normalized['smtp_host'] ?? ''));
+        $normalized['smtp_port'] = max(1, (int) ($normalized['smtp_port'] ?? 587));
+        $normalized['smtp_encryption'] = in_array(($normalized['smtp_encryption'] ?? 'tls'), ['none', 'tls', 'ssl'], true)
+            ? (string) ($normalized['smtp_encryption'] ?? 'tls')
+            : 'tls';
+        $normalized['smtp_username'] = trim((string) ($normalized['smtp_username'] ?? ''));
+        $normalized['smtp_password'] = trim((string) ($normalized['smtp_password'] ?? ''));
+        $normalized['smtp_from_name'] = trim((string) ($normalized['smtp_from_name'] ?? 'SexyLua'));
+        $normalized['smtp_from_email'] = trim((string) ($normalized['smtp_from_email'] ?? ''));
+        $normalized['smtp_timeout_seconds'] = max(5, (int) ($normalized['smtp_timeout_seconds'] ?? 15));
         $normalized['syncpay_webhook_url'] = webhook_url($this->config, $normalized, '/webhook/syncpay');
         $normalized['token_price_brl'] = $normalized['luacoin_price_brl'];
         $normalized['deposit_min_tokens'] = $normalized['deposit_min_luacoins'];
@@ -6084,14 +6658,28 @@ final class PlatformRepository
             'home_banner_countdown_seconds' => 172800,
             'home_banner_countdown_target_at' => '',
             'home_banner_background_url' => '',
+            'home_banner_background_mobile_url' => '',
             'syncpay_api_base_url' => 'https://api.syncpayments.com.br',
             'syncpay_client_id' => '',
-            'syncpay_client_secret' => '',
-            'syncpay_api_key' => '',
-            'syncpay_webhook_token' => '',
-            'syncpay_pix_expires_in_days' => 2,
-        ];
-    }
+              'syncpay_client_secret' => '',
+              'syncpay_api_key' => '',
+              'syncpay_webhook_token' => '',
+              'syncpay_pix_expires_in_days' => 2,
+              'google_oauth_enabled' => true,
+              'google_client_id' => trim((string) (getenv('SEXYLUA_GOOGLE_CLIENT_ID') ?: '')),
+              'google_client_secret' => trim((string) (getenv('SEXYLUA_GOOGLE_CLIENT_SECRET') ?: '')),
+              'support_recipient_name' => 'SexyLua',
+              'support_recipient_email' => '',
+              'smtp_host' => '',
+              'smtp_port' => 587,
+              'smtp_encryption' => 'tls',
+              'smtp_username' => '',
+              'smtp_password' => '',
+              'smtp_from_name' => 'SexyLua',
+              'smtp_from_email' => '',
+              'smtp_timeout_seconds' => 15,
+          ];
+      }
 
     private function conversationList(int $subscriberId): array
     {
@@ -6229,6 +6817,7 @@ final class PlatformRepository
             'attachment' => $attachment !== null ? array_merge($attachment, [
                 'href' => $hasAccess ? path_with_query('/messages/asset', ['scope' => 'message', 'id' => (int) ($message['id'] ?? 0)]) : null,
             ]) : null,
+            'created_at_label' => format_datetime((string) ($message['created_at'] ?? ''), 'd/m H:i'),
             'required_plan' => $requiredPlan,
             'required_plan_name' => (string) ($requiredPlan['name'] ?? ''),
             'unlock_price' => $unlockPrice,
@@ -6242,7 +6831,7 @@ final class PlatformRepository
                 ? ($creatorUnlock !== null ? 'Desbloqueado' : 'Aguardando desbloqueio')
                 : '',
             'creator_unlock_at' => is_array($creatorUnlock) ? (string) ($creatorUnlock['created_at'] ?? '') : '',
-            'creator_unlock_user_name' => (string) ($creatorUnlockUser['name'] ?? ''),
+            'creator_unlock_user_name' => (string) ($creatorUnlockUser['handle'] ?? ('@' . ($creatorUnlockUser['username'] ?? ''))),
             'lock_reason' => $unlockPrice > 0
                 ? 'Desbloqueie este conteudo com LuaCoins para visualizar.'
                 : ($requiredPlan !== null ? 'Conteudo liberado apenas para o plano ' . (string) ($requiredPlan['name'] ?? 'selecionado') . '.' : 'Conteudo exclusivo.'),
@@ -6305,6 +6894,17 @@ final class PlatformRepository
     {
         foreach ($this->liveUnlocks() as $unlock) {
             if ((int) ($unlock['live_id'] ?? 0) === $liveId && (int) ($unlock['user_id'] ?? 0) === $userId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasContentUnlock(int $contentId, int $userId): bool
+    {
+        foreach ($this->contentUnlocks() as $unlock) {
+            if ((int) ($unlock['content_id'] ?? 0) === $contentId && (int) ($unlock['user_id'] ?? 0) === $userId) {
                 return true;
             }
         }
@@ -6422,14 +7022,21 @@ final class PlatformRepository
         $rows = $this->sortByDate($rows, 'created_at');
         $items = array_map(function (array $notification): array {
             $marker = $this->feedMarker((string) ($notification['created_at'] ?? ''), (int) ($notification['id'] ?? 0));
+            $title = (string) ($notification['title'] ?? 'Atualizacao');
+            $kind = (string) ($notification['kind'] ?? 'notification');
+            $meta = is_array($notification['meta'] ?? null) ? $notification['meta'] : [];
+
+            if ($kind === 'message' && (int) ($meta['sender_id'] ?? 0) > 0) {
+                $title = 'Nova mensagem de ' . user_handle($this->findUserById((int) $meta['sender_id']), 'usuario');
+            }
 
             return [
                 'id' => (int) ($notification['id'] ?? 0),
                 'marker' => $marker,
-                'title' => (string) ($notification['title'] ?? 'Atualizacao'),
+                'title' => $title,
                 'body' => (string) ($notification['body'] ?? ''),
                 'href' => (string) ($notification['href'] ?? ''),
-                'icon' => $this->notificationIconForKind((string) ($notification['kind'] ?? 'notification')),
+                'icon' => $this->notificationIconForKind($kind),
                 'time' => format_datetime((string) ($notification['created_at'] ?? ''), 'd/m H:i'),
             ];
         }, array_slice($rows, 0, $limit));
@@ -6480,7 +7087,7 @@ final class PlatformRepository
                         (int) ($lastMessage['id'] ?? 0),
                         $this->feedMarker((string) ($conversation['updated_at'] ?? ''), (int) ($conversation['id'] ?? 0))
                     ),
-                    'title' => (string) ($conversation['subscriber']['name'] ?? 'Assinante'),
+                    'title' => user_handle($conversation['subscriber'] ?? [], 'assinante'),
                     'body' => excerpt((string) ($lastMessage['body'] ?? 'Sem mensagens ainda.'), 80),
                     'href' => path_with_query('/creator/messages', ['conversation' => (int) ($conversation['id'] ?? 0)]),
                     'icon' => 'chat',
@@ -6510,7 +7117,7 @@ final class PlatformRepository
                         (int) ($lastMessage['id'] ?? 0),
                         $this->feedMarker((string) ($conversation['updated_at'] ?? ''), (int) ($conversation['id'] ?? 0))
                     ),
-                    'title' => (string) ($conversation['creator']['name'] ?? 'Criador'),
+                    'title' => user_handle($conversation['creator'] ?? [], 'criador'),
                     'body' => excerpt((string) ($lastMessage['body'] ?? 'Sem mensagens ainda.'), 80),
                     'href' => path_with_query('/subscriber/messages', ['conversation' => (int) ($conversation['id'] ?? 0)]),
                     'icon' => 'chat',
@@ -6818,16 +7425,25 @@ final class PlatformRepository
         $user = $userId !== null ? $this->findUserById($userId) : null;
         $isCreatorViewer = $userId !== null && (int) ($live['creator_id'] ?? 0) === $userId;
         $isDarkroomOwner = $activeDarkroom !== null && $userId !== null && (int) ($activeDarkroom['user_id'] ?? 0) === $userId;
+        $darkroomCreatorInitiated = $activeDarkroom !== null && (bool) ($activeDarkroom['creator_initiated'] ?? false);
         $requiresDarkroomWait = false;
+
+        if ($isDarkroomOwner && $darkroomCreatorInitiated && $user !== null) {
+            $base['granted'] = true;
+            $base['requires_login'] = false;
+            $base['requires_subscription'] = false;
+            $base['requires_vip_unlock'] = false;
+            $base['vip_unlocked'] = true;
+        }
 
         if ((bool) ($base['granted'] ?? false) && $activeDarkroom !== null && ! $isDarkroomOwner) {
             $base['granted'] = false;
             $requiresDarkroomWait = true;
         }
 
-        $ownerName = trim((string) ($activeDarkroom['user']['name'] ?? ''));
+        $ownerName = trim((string) ($activeDarkroom['user']['handle'] ?? user_handle($activeDarkroom['user'] ?? [], 'assinante')));
         if ($ownerName === '' && $activeDarkroom !== null) {
-            $ownerName = 'um espectador';
+            $ownerName = '@espectador';
         }
 
         $access = $base + [
@@ -6842,6 +7458,7 @@ final class PlatformRepository
             'darkroom_started_at' => (string) ($activeDarkroom['started_at'] ?? ''),
             'darkroom_ends_at' => (string) ($activeDarkroom['ends_at'] ?? ''),
             'darkroom_viewer_is_creator' => $isCreatorViewer,
+            'darkroom_creator_initiated' => $darkroomCreatorInitiated,
         ];
         $access['access_message'] = $this->liveAccessMessage($live, $access);
 
@@ -6851,7 +7468,7 @@ final class PlatformRepository
     private function liveAccessMessage(array $live, array $access): string
     {
         $creator = $this->findUserById((int) ($live['creator_id'] ?? 0));
-        $creatorName = trim((string) ($creator['name'] ?? 'o criador'));
+        $creatorName = trim((string) ($creator['handle'] ?? user_handle($creator ?? [], 'criador')));
 
         if ((bool) ($access['requires_login'] ?? false)) {
             return (bool) ($access['requires_vip_unlock'] ?? false)
@@ -6938,6 +7555,123 @@ final class PlatformRepository
         $darkroom['user'] = $this->findUserById((int) ($darkroom['user_id'] ?? 0));
 
         return $darkroom;
+    }
+
+    private function activeDarkroomSummaryForCreator(int $creatorId, int $liveId): ?array
+    {
+        $live = $this->findLiveById($liveId);
+        if ($live === null || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+            return null;
+        }
+
+        $darkroom = $this->activeDarkroomForLive($liveId);
+        if ($darkroom === null) {
+            return null;
+        }
+
+        $user = $darkroom['user'] ?? $this->findUserById((int) ($darkroom['user_id'] ?? 0)) ?? [];
+
+        return [
+            'id' => (int) ($darkroom['id'] ?? 0),
+            'user_id' => (int) ($darkroom['user_id'] ?? 0),
+            'user_name' => (string) ($user['name'] ?? 'Assinante'),
+            'user_username' => (string) ($user['username'] ?? ''),
+            'user_avatar_url' => (string) ($user['avatar_url'] ?? ''),
+            'remaining_seconds' => max(0, (int) ($darkroom['remaining_seconds'] ?? 0)),
+            'duration_minutes' => max(0, (int) ($darkroom['duration_minutes'] ?? 0)),
+            'started_at' => (string) ($darkroom['started_at'] ?? ''),
+            'ends_at' => (string) ($darkroom['ends_at'] ?? ''),
+            'creator_initiated' => (bool) ($darkroom['creator_initiated'] ?? false),
+            'amount' => max(0, (int) ($darkroom['amount'] ?? 0)),
+        ];
+    }
+
+    private function darkroomCandidatesForCreatorLive(int $creatorId, int $liveId): array
+    {
+        $live = $this->findLiveById($liveId);
+        if ($live === null || (int) ($live['creator_id'] ?? 0) !== $creatorId) {
+            return [];
+        }
+
+        $candidates = [];
+        $now = time();
+
+        foreach ($this->livePresence() as $row) {
+            if (
+                (int) ($row['live_id'] ?? 0) !== $liveId
+                || (string) ($row['role'] ?? '') !== 'viewer'
+                || (int) ($row['user_id'] ?? 0) <= 0
+                || $this->timestampAgeSeconds((string) ($row['last_seen'] ?? ''), $now) > self::LIVE_PRESENCE_TIMEOUT_SECONDS
+            ) {
+                continue;
+            }
+
+            $user = $this->findUserById((int) ($row['user_id'] ?? 0));
+            if ($user === null || (string) ($user['status'] ?? 'active') !== 'active' || (string) ($user['role'] ?? '') === 'admin' || (int) ($user['id'] ?? 0) === $creatorId) {
+                continue;
+            }
+
+            $candidateId = (int) ($user['id'] ?? 0);
+            if (! isset($candidates[$candidateId])) {
+                $candidates[$candidateId] = [
+                    'id' => $candidateId,
+                    'name' => (string) ($user['name'] ?? 'Usuario'),
+                    'username' => (string) ($user['username'] ?? ''),
+                    'avatar_url' => (string) ($user['avatar_url'] ?? ''),
+                    'is_online' => true,
+                    'labels' => [],
+                ];
+            }
+
+            $candidates[$candidateId]['is_online'] = true;
+            $candidates[$candidateId]['labels']['live'] = 'Ao vivo';
+        }
+
+        foreach ($this->subscriptions() as $subscription) {
+            if ((int) ($subscription['creator_id'] ?? 0) !== $creatorId || (string) ($subscription['status'] ?? '') !== 'active') {
+                continue;
+            }
+
+            $user = $this->findUserById((int) ($subscription['subscriber_id'] ?? 0));
+            if ($user === null || (string) ($user['status'] ?? 'active') !== 'active' || (string) ($user['role'] ?? '') === 'admin' || (int) ($user['id'] ?? 0) === $creatorId) {
+                continue;
+            }
+
+            $candidateId = (int) ($user['id'] ?? 0);
+            if (! isset($candidates[$candidateId])) {
+                $candidates[$candidateId] = [
+                    'id' => $candidateId,
+                    'name' => (string) ($user['name'] ?? 'Usuario'),
+                    'username' => (string) ($user['username'] ?? ''),
+                    'avatar_url' => (string) ($user['avatar_url'] ?? ''),
+                    'is_online' => false,
+                    'labels' => [],
+                ];
+            }
+
+            $plan = $this->findPlanById((int) ($subscription['plan_id'] ?? 0));
+            $planName = trim((string) ($plan['name'] ?? ''));
+            $candidates[$candidateId]['labels']['subscription'] = $planName !== '' ? ('Assinante • ' . $planName) : 'Assinante';
+        }
+
+        $result = array_map(static function (array $candidate): array {
+            $labels = array_values((array) ($candidate['labels'] ?? []));
+            $candidate['badge'] = implode(' • ', $labels);
+            unset($candidate['labels']);
+
+            return $candidate;
+        }, array_values($candidates));
+
+        usort($result, static function (array $left, array $right): int {
+            $onlineComparison = ((int) ($right['is_online'] ?? 0)) <=> ((int) ($left['is_online'] ?? 0));
+            if ($onlineComparison !== 0) {
+                return $onlineComparison;
+            }
+
+            return strcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? ''));
+        });
+
+        return $result;
     }
 
     private function sanitizeDarkroomDurationMinutes(int $minutes): int
@@ -7223,6 +7957,48 @@ final class PlatformRepository
         return $total;
     }
 
+    private function normalizePackItems(array $items): array
+    {
+        $normalized = [];
+
+        foreach ($items as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $url = trim((string) ($item['url'] ?? ''));
+            if ($url === '') {
+                continue;
+            }
+
+            $kind = (string) ($item['kind'] ?? '');
+            if (! in_array($kind, ['image', 'video'], true)) {
+                $kind = media_is_video($url) ? 'video' : 'image';
+            }
+
+            $normalized[] = [
+                'id' => trim((string) ($item['id'] ?? ('pack-' . ($index + 1)))),
+                'title' => trim((string) ($item['title'] ?? ('Item ' . ($index + 1)))),
+                'url' => $url,
+                'thumbnail_url' => trim((string) ($item['thumbnail_url'] ?? ($kind === 'image' ? $url : ''))),
+                'kind' => $kind,
+                'bytes' => max(0, (int) ($item['bytes'] ?? \public_media_file_bytes($url))),
+            ];
+        }
+
+        return array_values($normalized);
+    }
+
+    private function decoratePackItems(array $items): array
+    {
+        return array_map(static function (array $item): array {
+            return $item + [
+                'url' => media_url((string) ($item['url'] ?? '')),
+                'thumbnail_url' => media_url((string) ($item['thumbnail_url'] ?? '')),
+            ];
+        }, $this->normalizePackItems($items));
+    }
+
     private function contentStorageBytes(array $item): int
     {
         $mediaFileBytes = \public_media_file_bytes((string) ($item['media_url'] ?? ''));
@@ -7230,10 +8006,16 @@ final class PlatformRepository
 
         $thumbnailFileBytes = \public_media_file_bytes((string) ($item['thumbnail_url'] ?? ''));
         $thumbnailBytes = $thumbnailFileBytes > 0 ? $thumbnailFileBytes : max(0, (int) ($item['thumbnail_bytes'] ?? 0));
+        $packBytes = array_sum(array_map(static function (array $packItem): int {
+            $fileBytes = \public_media_file_bytes((string) ($packItem['url'] ?? ''));
+            $thumbBytes = \public_media_file_bytes((string) ($packItem['thumbnail_url'] ?? ''));
+
+            return ($fileBytes > 0 ? $fileBytes : max(0, (int) ($packItem['bytes'] ?? 0))) + $thumbBytes;
+        }, $this->normalizePackItems((array) ($item['pack_items'] ?? []))));
 
         $textBytes = strlen((string) ($item['title'] ?? '') . (string) ($item['excerpt'] ?? '') . (string) ($item['body'] ?? ''));
 
-        return $mediaBytes + $thumbnailBytes + $textBytes;
+        return $mediaBytes + $thumbnailBytes + $packBytes + $textBytes;
     }
 
     private function clearReplayReferenceForContent(int $creatorId, array $content): void
@@ -7476,6 +8258,9 @@ final class PlatformRepository
     private function sanitizeUser(array $user): array
     {
         unset($user['password']);
+        $username = $this->normalizeUsername((string) ($user['username'] ?? ''));
+        $user['handle'] = '@' . ($username !== '' ? $username : 'usuario');
+        $user['public_label'] = $user['handle'];
 
         return $user;
     }
@@ -7524,7 +8309,7 @@ final class PlatformRepository
         $username = $base;
         $counter = 2;
 
-        while ($this->usernameInUse($username, $ignoreUserId)) {
+        while ($this->usernameInUse($username, $ignoreUserId) || in_array($username, \public_profile_reserved_usernames(), true)) {
             $username = $base . $counter;
             $counter++;
         }

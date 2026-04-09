@@ -13,6 +13,8 @@ storage/*.txt
 storage/*.log
 storage/tmp/
 Visual.zip
+_backups/
+storage/private/
 storage/data/*.json
 !storage/data/.gitkeep
 public/uploads/*

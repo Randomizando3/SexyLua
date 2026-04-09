@@ -6,12 +6,17 @@ $settings = $data ?? [];
 $admin = $app->auth->user() ?? [];
 $adminAvatarUrl = media_url((string) ($admin['avatar_url'] ?? ''));
 $adminCoverUrl = media_url((string) ($admin['cover_url'] ?? ''));
+$adminCoverIsVideo = media_is_video($adminCoverUrl);
 $siteBaseUrl = (string) ($settings['site_base_url'] ?? app_base_url($app->config, $settings));
 $syncPayWebhookUrl = (string) ($settings['syncpay_webhook_url'] ?? webhook_url($app->config, $settings, '/webhook/syncpay'));
 $seoLogoWhitePreview = media_url((string) ($settings['seo_logo_white_url'] ?? '')) ?: asset('img/sexylualogobranco.png');
 $seoLogoColorPreview = media_url((string) ($settings['seo_logo_color_url'] ?? '')) ?: asset('img/sexylualogomagenta.png');
 $homeBannerPreview = media_url((string) ($settings['home_banner_background_url'] ?? '')) ?: home_banner_default_image_url();
+$homeBannerMobilePreview = media_url((string) ($settings['home_banner_background_mobile_url'] ?? '')) ?: $homeBannerPreview;
+$homeBannerIsVideo = media_is_video($homeBannerPreview);
+$homeBannerMobileIsVideo = media_is_video($homeBannerMobilePreview);
 $homeBannerCountdownTargetAt = trim((string) ($settings['home_banner_countdown_target_at'] ?? ''));
+$googleRedirectUrl = rtrim($siteBaseUrl !== '' ? $siteBaseUrl : app_base_url($app->config, $settings), '/') . '/auth/google/callback';
 ?>
 <!DOCTYPE html>
 <html class="light" lang="pt-BR">
@@ -97,22 +102,13 @@ $homeBannerCountdownTargetAt = trim((string) ($settings['home_banner_countdown_t
 $adminTopbarUser = $admin;
 require BASE_PATH . '/templates/partials/admin_topbar.php';
 ?>
-<aside class="fixed left-0 top-16 hidden h-[calc(100vh-64px)] w-64 flex-col bg-[#f5f3f5] p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:flex">
-    <nav class="space-y-2">
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin"><span class="material-symbols-outlined">dashboard</span><span>Painel</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/users"><span class="material-symbols-outlined">group</span><span>Usuarios</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/moderation"><span class="material-symbols-outlined">gavel</span><span>Moderacao</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/finance"><span class="material-symbols-outlined">payments</span><span>Financeiro</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/operations"><span class="material-symbols-outlined">manufacturing</span><span>Operacoes</span></a>
-        <a class="flex items-center gap-4 rounded-full bg-white px-4 py-3 font-bold text-primary" href="/admin/settings"><span class="material-symbols-outlined">settings</span><span>Configuracoes</span></a>
-        <a class="flex items-center gap-4 rounded-full px-4 py-3 text-slate-500 transition-colors hover:bg-white/60" href="/admin/settings#seo"><span class="material-symbols-outlined">travel_explore</span><span>SEO</span></a>
-    </nav>
-    <div class="mt-auto rounded-3xl bg-white p-5 shadow-sm">
-        <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">LuaCoin hoje</p>
-        <h3 class="mt-3 text-3xl font-extrabold"><?= e(brl_amount((float) ($settings['luacoin_price_brl'] ?? 0.07))) ?></h3>
-        <p class="mt-2 text-sm text-on-surface-variant">Valor de referencia usado para leitura rapida no financeiro do admin.</p>
-    </div>
-</aside>
+<?php
+$adminSidebarCurrent = 'settings';
+$adminSidebarMetricTitle = 'LuaCoin hoje';
+$adminSidebarMetricValue = brl_amount((float) ($settings['luacoin_price_brl'] ?? 0.07));
+$adminSidebarMetricDescription = 'Valor de referencia usado para leitura rapida no financeiro do admin.';
+require BASE_PATH . '/templates/partials/admin_sidebar.php';
+?>
 <main class="min-h-screen px-6 pb-10 pt-24 lg:ml-64 lg:px-10">
     <section class="mb-8">
         <p class="text-xs font-bold uppercase tracking-[0.3em] text-primary">Regras da plataforma</p>
@@ -148,7 +144,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">URL do avatar</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_url" type="text" value="<?= e((string) ($admin['avatar_url'] ?? '')) ?>"></label>
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload do avatar</span><input accept=".jpg,.jpeg,.png,.webp,.gif" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="avatar_file" type="file"></label>
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">URL da capa</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_url" type="text" value="<?= e((string) ($admin['cover_url'] ?? '')) ?>"></label>
-                    <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload da capa</span><input accept=".jpg,.jpeg,.png,.webp,.gif" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="cover_file" type="file"></label>
+                                <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Upload da capa</span><input accept="<?= e(cover_media_accept_attribute()) ?>" class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" data-cover-media-input name="cover_file" type="file"><span class="block text-xs text-on-surface-variant" data-cover-media-feedback><?= e(cover_media_recommendation_text()) ?></span></label>
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Nova senha</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password" type="password"></label>
                     <label class="block space-y-2"><span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Confirmar senha</span><input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="new_password_confirmation" type="password"></label>
                 </div>
@@ -156,7 +152,13 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
             </div>
             <div class="space-y-6">
                 <div class="overflow-hidden rounded-3xl bg-surface-container-low">
-                    <?php if ($adminCoverUrl !== ''): ?><img alt="Capa do admin" class="h-44 w-full object-cover" src="<?= e($adminCoverUrl) ?>"><?php else: ?><div class="flex h-44 w-full items-center justify-center bg-gradient-to-br from-[#ab1155] via-[#D81B60] to-[#f57c91] text-lg font-bold text-white">Control Room</div><?php endif; ?>
+                    <?php if ($adminCoverUrl !== ''): ?>
+                        <?php if ($adminCoverIsVideo): ?>
+                            <video autoplay class="h-44 w-full object-cover" loop muted playsinline src="<?= e($adminCoverUrl) ?>"></video>
+                        <?php else: ?>
+                            <img alt="Capa do admin" class="h-44 w-full object-cover" src="<?= e($adminCoverUrl) ?>">
+                        <?php endif; ?>
+                    <?php else: ?><div class="flex h-44 w-full items-center justify-center bg-gradient-to-br from-[#ab1155] via-[#D81B60] to-[#f57c91] text-lg font-bold text-white">Control Room</div><?php endif; ?>
                 </div>
                 <div class="rounded-3xl bg-surface-container-low p-6 shadow-sm">
                     <div class="flex items-center gap-4">
@@ -171,6 +173,7 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
 
     <form action="/admin/settings/update" class="settings-form space-y-6" enctype="multipart/form-data" method="post">
         <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+        <input name="return_to" type="hidden" value="/admin/settings">
         <section class="sticky top-20 z-20 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-[0px_18px_40px_rgba(27,28,29,0.08)] backdrop-blur">
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -265,6 +268,32 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                         <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Announcement</span>
                         <textarea class="min-h-40 w-full rounded-3xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="announcement"><?= e((string) ($settings['announcement'] ?? '')) ?></textarea>
                     </label>
+                </div>
+                <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm">
+                    <div class="mb-6">
+                        <p class="settings-kicker">Autenticacao</p>
+                        <h3 class="text-2xl font-extrabold">Google Login</h3>
+                        <p class="mt-2 text-sm text-on-surface-variant">Permita entrada e cadastro rapido com Google. Se o e-mail ja existir, a conta e vinculada; se nao existir, o perfil e criado e segue para completar o cadastro.</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                        <label class="flex items-center gap-3 rounded-2xl bg-surface-container-low px-4 py-3 text-sm font-semibold text-on-surface md:col-span-2">
+                            <input class="rounded border-none text-primary focus:ring-primary/20" name="google_oauth_enabled" type="checkbox" value="1" <?= !empty($settings['google_oauth_enabled']) ? 'checked' : '' ?>>
+                            Exibir Google Login nas telas de login e registro
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Client ID Google</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="google_client_id" type="text" value="<?= e((string) ($settings['google_client_id'] ?? '')) ?>">
+                        </label>
+                        <label class="block space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Client Secret Google</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="google_client_secret" type="text" value="<?= e((string) ($settings['google_client_secret'] ?? '')) ?>">
+                        </label>
+                        <label class="block space-y-2 md:col-span-2">
+                            <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Redirect URI para o Google Cloud</span>
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface-variant shadow-sm" readonly type="text" value="<?= e($googleRedirectUrl) ?>">
+                            <span class="block text-xs text-on-surface-variant">Cadastre exatamente esta URL nas credenciais OAuth 2.0 do Google.</span>
+                        </label>
+                    </div>
                 </div>
                 <div class="rounded-3xl bg-surface-container-lowest p-8 shadow-sm" id="seo">
                     <div class="mb-6">
@@ -362,27 +391,56 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
                                         </label>
                                     </div>
                                     <label class="block space-y-2"><span class="settings-mini-label">Imagem do banner URL</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_url" type="text" value="<?= e((string) ($settings['home_banner_background_url'] ?? '')) ?>"></label>
-                                    <label class="block space-y-2"><span class="settings-mini-label">Upload da imagem do banner</span><input accept=".png,.jpg,.jpeg,.webp,.gif" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_file" type="file"></label>
+                                    <label class="block space-y-2"><span class="settings-mini-label">Upload da imagem do banner</span><input accept="<?= e(cover_media_accept_attribute()) ?>" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" data-cover-media-input name="home_banner_background_file" type="file"><span class="block text-xs text-on-surface-variant" data-cover-media-feedback><?= e(cover_media_recommendation_text()) ?></span></label>
                                 </div>
                                 <div class="space-y-4">
-                                    <div class="settings-preview-tile overflow-hidden">
-                                        <img alt="Preview do banner da home" class="h-56 w-full object-cover" src="<?= e($homeBannerPreview) ?>">
-                                        <div class="space-y-3 p-5">
-                                            <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
-                                                <span class="rounded-full bg-[#f5f3f5] px-3 py-1">Preview</span>
-                                                <?php if (!empty($settings['home_banner_countdown_enabled'])): ?>
-                                                    <span class="rounded-full bg-primary/10 px-3 py-1 text-primary">Contador ativo</span>
+                                    <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                                        <div class="settings-preview-tile overflow-hidden">
+                                            <?php if ($homeBannerIsVideo): ?>
+                                                <video autoplay class="h-56 w-full object-cover" loop muted playsinline src="<?= e($homeBannerPreview) ?>"></video>
+                                            <?php else: ?>
+                                                <img alt="Preview desktop do banner da home" class="h-56 w-full object-cover" src="<?= e($homeBannerPreview) ?>">
+                                            <?php endif; ?>
+                                            <div class="space-y-3 p-5">
+                                                <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
+                                                    <span class="rounded-full bg-[#f5f3f5] px-3 py-1">Preview desktop</span>
+                                                    <?php if (!empty($settings['home_banner_countdown_enabled'])): ?>
+                                                        <span class="rounded-full bg-primary/10 px-3 py-1 text-primary">Contador ativo</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <p class="text-2xl font-extrabold text-on-surface"><?= e((string) ($settings['home_banner_title'] ?? 'SexyLua')) ?></p>
+                                                <p class="text-sm leading-6 text-on-surface-variant"><?= e((string) ($settings['home_banner_subtitle'] ?? 'Configure titulo, subtitulo, botoes e fundo para destacar a campanha principal da home.')) ?></p>
+                                                <div class="flex flex-wrap gap-3 pt-1">
+                                                    <span class="rounded-full bg-primary px-4 py-2 text-xs font-bold text-white"><?= e((string) ($settings['home_banner_primary_text'] ?? 'Botao principal')) ?></span>
+                                                    <span class="rounded-full border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600"><?= e((string) ($settings['home_banner_secondary_text'] ?? 'Botao secundario')) ?></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="settings-preview-tile overflow-hidden">
+                                            <div class="mx-auto flex max-w-[260px] justify-center bg-[#f5f3f5] p-4">
+                                                <?php if ($homeBannerMobileIsVideo): ?>
+                                                    <video autoplay class="h-[360px] w-full rounded-[2rem] object-cover" loop muted playsinline src="<?= e($homeBannerMobilePreview) ?>"></video>
+                                                <?php else: ?>
+                                                    <img alt="Preview mobile do banner da home" class="h-[360px] w-full rounded-[2rem] object-cover" src="<?= e($homeBannerMobilePreview) ?>">
                                                 <?php endif; ?>
                                             </div>
-                                            <p class="text-2xl font-extrabold text-on-surface"><?= e((string) ($settings['home_banner_title'] ?? 'SexyLua')) ?></p>
-                                            <p class="text-sm leading-6 text-on-surface-variant"><?= e((string) ($settings['home_banner_subtitle'] ?? 'Configure titulo, subtitulo, botoes e fundo para destacar a campanha principal da home.')) ?></p>
-                                            <div class="flex flex-wrap gap-3 pt-1">
-                                                <span class="rounded-full bg-primary px-4 py-2 text-xs font-bold text-white"><?= e((string) ($settings['home_banner_primary_text'] ?? 'Botao principal')) ?></span>
-                                                <span class="rounded-full border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600"><?= e((string) ($settings['home_banner_secondary_text'] ?? 'Botao secundario')) ?></span>
+                                            <div class="space-y-3 p-5">
+                                                <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
+                                                    <span class="rounded-full bg-[#f5f3f5] px-3 py-1">Preview mobile</span>
+                                                    <?php if ((string) ($settings['home_banner_background_mobile_url'] ?? '') === ''): ?>
+                                                        <span class="rounded-full bg-slate-100 px-3 py-1 text-slate-500">Usando fundo desktop</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <p class="text-sm leading-6 text-on-surface-variant">Use uma arte mais vertical para o celular. Se nada for enviado aqui, a home continua usando o banner desktop como fallback.</p>
+                                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Recomendacao: 1080 x 1440 px</p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <label class="block space-y-2"><span class="settings-mini-label">Imagem do banner mobile URL</span><input class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" name="home_banner_background_mobile_url" type="text" value="<?= e((string) ($settings['home_banner_background_mobile_url'] ?? '')) ?>"></label>
+                                <label class="block space-y-2"><span class="settings-mini-label">Upload da imagem do banner mobile</span><input accept="<?= e(cover_media_accept_attribute()) ?>" class="w-full rounded-2xl border-none bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-primary/20" data-cover-media-input name="home_banner_background_mobile_file" type="file"><span class="block text-xs text-on-surface-variant" data-cover-media-feedback><?= e(cover_media_recommendation_text()) ?></span></label>
                             </div>
                         </section>
                     </div>
@@ -404,5 +462,48 @@ require BASE_PATH . '/templates/partials/admin_topbar.php';
         </div>
     </form>
 </main>
+<script>
+    (() => {
+        document.querySelectorAll('[data-cover-media-input]').forEach((input) => {
+            const feedback = input.parentElement ? input.parentElement.querySelector('[data-cover-media-feedback]') : null;
+            const defaultMessage = feedback ? feedback.textContent : '';
+
+            input.addEventListener('change', () => {
+                const file = input.files && input.files[0] ? input.files[0] : null;
+                if (!feedback) {
+                    return;
+                }
+
+                feedback.classList.remove('text-rose-600');
+
+                if (!file) {
+                    feedback.textContent = defaultMessage;
+                    return;
+                }
+
+                if (!String(file.type || '').startsWith('video/')) {
+                    feedback.textContent = `Arquivo selecionado: ${file.name}`;
+                    return;
+                }
+
+                const objectUrl = URL.createObjectURL(file);
+                const video = document.createElement('video');
+                video.preload = 'metadata';
+                video.src = objectUrl;
+                video.addEventListener('loadedmetadata', () => {
+                    URL.revokeObjectURL(objectUrl);
+                    if (video.duration > 5.05) {
+                        input.value = '';
+                        feedback.textContent = 'Envie um video de capa com ate 5 segundos.';
+                        feedback.classList.add('text-rose-600');
+                        return;
+                    }
+
+                    feedback.textContent = `Video selecionado: ${file.name}`;
+                }, { once: true });
+            });
+        });
+    })();
+</script>
 </body>
 </html>

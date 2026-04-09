@@ -191,7 +191,17 @@ final class SubscriberController extends Controller
         $this->app->auth->requireRole('subscriber');
         $conversationId = (int) $request->input('conversation_id', 0);
         $redirect = path_with_query('/subscriber/messages', ['conversation' => $conversationId]);
-        $this->validateCsrf($request, $redirect);
+        $expectsJson = $this->wantsJson($request);
+        if (! $this->app->csrf->validate((string) $request->input('_token'))) {
+            if ($expectsJson) {
+                $this->json([
+                    'ok' => false,
+                    'message' => 'Sessao expirada. Atualize a conversa e tente novamente.',
+                ], 419);
+            }
+
+            $this->redirect($redirect, 'Sessao expirada. Envie o formulario novamente.', 'error');
+        }
         $options = [];
 
         if ($request->hasFile('attachment_file')) {
@@ -206,9 +216,25 @@ final class SubscriberController extends Controller
             }
         }
 
-        $ok = $this->app->repository->sendConversationMessage($conversationId, (int) $this->user()['id'], (string) $request->input('body'), $options);
+        $result = $this->app->repository->sendConversationMessageWithPayload(
+            $conversationId,
+            (int) $this->user()['id'],
+            (string) $request->input('body'),
+            $options,
+            (int) $this->user()['id']
+        );
 
-        $this->redirect($redirect, $ok ? 'Mensagem enviada.' : 'Nao foi possivel enviar a mensagem.', $ok ? 'success' : 'error');
+        if ($expectsJson) {
+            $this->json([
+                'ok' => (bool) ($result['ok'] ?? false),
+                'message' => (string) ($result['message'] ?? 'Nao foi possivel enviar a mensagem.'),
+                'chat_message' => is_array($result['message_data'] ?? null) ? $result['message_data'] : null,
+                'preview_text' => (string) ($result['preview_text'] ?? ''),
+            ], (bool) ($result['ok'] ?? false) ? 200 : 422);
+        }
+
+        $ok = (bool) ($result['ok'] ?? false);
+        $this->redirect($redirect, $ok ? 'Mensagem enviada.' : ((string) ($result['message'] ?? 'Nao foi possivel enviar a mensagem.')), $ok ? 'success' : 'error');
     }
 
     public function addFunds(Request $request): void
@@ -292,9 +318,11 @@ final class SubscriberController extends Controller
         }
 
         if ($request->hasFile('cover_file')) {
-            $coverPath = store_uploaded_file($request->file('cover_file'), 'subscriber/profile/cover', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
-            if ($coverPath !== null) {
-                $payload['cover_url'] = $coverPath;
+            $coverUpload = store_cover_media_file($request->file('cover_file'), 'subscriber/profile/cover');
+            if (is_array($coverUpload) && (bool) ($coverUpload['ok'] ?? false)) {
+                $payload['cover_url'] = (string) ($coverUpload['path'] ?? '');
+            } elseif (is_array($coverUpload) && trim((string) ($coverUpload['error'] ?? '')) !== '') {
+                $this->redirect('/subscriber/settings', (string) $coverUpload['error'], 'error');
             }
         }
 

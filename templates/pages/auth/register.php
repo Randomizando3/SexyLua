@@ -118,7 +118,8 @@
 
                         <label class="block space-y-2">
                             <span class="px-1 text-sm font-semibold text-on-surface-variant">Usuario</span>
-                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" name="username" placeholder="seuusuario" required type="text">
+                            <input class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 text-on-surface shadow-sm focus:ring-2 focus:ring-primary/20" data-username-input data-username-target="register" name="username" placeholder="seuusuario" required spellcheck="false" type="text">
+                            <span class="block px-1 text-xs text-on-surface-variant" data-username-feedback="register">Use apenas letras, numeros, ponto e underscore.</span>
                         </label>
                     </div>
 
@@ -169,6 +170,23 @@
                     </button>
                 </form>
 
+                <?php if (!empty($google_auth_enabled)): ?>
+                    <div class="my-6 flex items-center gap-3">
+                        <div class="h-px flex-1 bg-slate-200"></div>
+                        <span class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">ou continue com</span>
+                        <div class="h-px flex-1 bg-slate-200"></div>
+                    </div>
+                    <a class="flex w-full items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-6 py-4 font-headline text-base font-bold text-on-surface shadow-sm transition hover:border-primary/30 hover:text-primary" data-google-register href="<?= e((string) ($google_auth_url ?? '/auth/google?intent=register&role=subscriber')) ?>">
+                        <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24">
+                            <path d="M21.8 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.5c-.2 1.2-.9 2.3-1.9 3v2.5h3.1c1.8-1.7 3.1-4.2 3.1-7.3z" fill="#4285F4"/>
+                            <path d="M12 22c2.7 0 4.9-.9 6.6-2.5l-3.1-2.5c-.9.6-2 .9-3.4.9-2.6 0-4.9-1.8-5.7-4.2H3.1v2.6C4.8 19.7 8.1 22 12 22z" fill="#34A853"/>
+                            <path d="M6.3 13.7c-.2-.6-.3-1.1-.3-1.7s.1-1.2.3-1.7V7.7H3.1C2.4 9 2 10.5 2 12s.4 3 1.1 4.3l3.2-2.6z" fill="#FBBC05"/>
+                            <path d="M12 6.1c1.5 0 2.8.5 3.8 1.5l2.8-2.8C16.9 3.2 14.7 2 12 2 8.1 2 4.8 4.3 3.1 7.7l3.2 2.6c.8-2.4 3.1-4.2 5.7-4.2z" fill="#EA4335"/>
+                        </svg>
+                        Criar conta com Google
+                    </a>
+                <?php endif; ?>
+
                 <div class="mt-8 rounded-2xl bg-white/70 p-5">
                     <p class="text-sm text-on-surface-variant">Ja possui conta? <a class="font-bold text-primary hover:underline" href="/login">Entrar agora</a></p>
                 </div>
@@ -187,5 +205,149 @@
         </div>
         <p class="font-['Manrope'] text-center text-xs uppercase tracking-widest text-white/50">© 2026 SexyLua. Cadastro integrado ao mesmo universo visual do prototipo.</p>
     </footer>
+    <?php if (!empty($google_auth_enabled)): ?>
+        <script>
+            (() => {
+                const bindUsernameValidation = (key) => {
+                    const input = document.querySelector(`[data-username-target="${key}"]`);
+                    const feedback = document.querySelector(`[data-username-feedback="${key}"]`);
+                    if (!input || !feedback) {
+                        return;
+                    }
+
+                    let timer = null;
+
+                    const setFeedback = (message, tone = 'neutral') => {
+                        feedback.textContent = message;
+                        feedback.classList.remove('text-on-surface-variant', 'text-emerald-600', 'text-rose-600', 'text-amber-600');
+                        feedback.classList.add(
+                            tone === 'success'
+                                ? 'text-emerald-600'
+                                : (tone === 'error' ? 'text-rose-600' : (tone === 'warning' ? 'text-amber-600' : 'text-on-surface-variant'))
+                        );
+                    };
+
+                    const validate = async () => {
+                        const value = String(input.value || '').trim();
+                        if (value === '') {
+                            setFeedback('Escolha um @usuario para o seu perfil.', 'warning');
+                            return;
+                        }
+
+                        try {
+                            const response = await fetch(`/auth/check-username?username=${encodeURIComponent(value)}`, {
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                credentials: 'same-origin',
+                            });
+                            const payload = await response.json();
+                            const normalized = String(payload.normalized || '').trim();
+                            if (normalized && normalized !== value) {
+                                input.value = normalized;
+                            }
+
+                            if (payload.state === 'available') {
+                                setFeedback('Este @usuario esta disponivel.', 'success');
+                                return;
+                            }
+
+                            if (payload.state === 'taken') {
+                                setFeedback('Este @usuario ja esta em uso.', 'error');
+                                return;
+                            }
+
+                            setFeedback(String(payload.message || 'Digite um @usuario valido.'), payload.state === 'invalid' ? 'error' : 'warning');
+                        } catch {
+                            setFeedback('Nao foi possivel validar o @usuario agora.', 'warning');
+                        }
+                    };
+
+                    input.addEventListener('input', () => {
+                        if (timer) window.clearTimeout(timer);
+                        timer = window.setTimeout(validate, 260);
+                    });
+
+                    validate();
+                };
+
+                const googleButton = document.querySelector('[data-google-register]');
+                const roleSelect = document.querySelector('select[name=\"role\"]');
+                if (!googleButton || !roleSelect) {
+                    bindUsernameValidation('register');
+                    return;
+                }
+
+                const updateHref = () => {
+                    const role = roleSelect.value === 'creator' ? 'creator' : 'subscriber';
+                    googleButton.href = '/auth/google?intent=register&role=' + encodeURIComponent(role);
+                };
+
+                updateHref();
+                roleSelect.addEventListener('change', updateHref);
+                bindUsernameValidation('register');
+            })();
+        </script>
+    <?php else: ?>
+        <script>
+            (() => {
+                const input = document.querySelector('[data-username-target="register"]');
+                const feedback = document.querySelector('[data-username-feedback="register"]');
+                if (!input || !feedback) {
+                    return;
+                }
+
+                let timer = null;
+                const setFeedback = (message, tone = 'neutral') => {
+                    feedback.textContent = message;
+                    feedback.classList.remove('text-on-surface-variant', 'text-emerald-600', 'text-rose-600', 'text-amber-600');
+                    feedback.classList.add(
+                        tone === 'success'
+                            ? 'text-emerald-600'
+                            : (tone === 'error' ? 'text-rose-600' : (tone === 'warning' ? 'text-amber-600' : 'text-on-surface-variant'))
+                    );
+                };
+
+                const validate = async () => {
+                    const value = String(input.value || '').trim();
+                    if (value === '') {
+                        setFeedback('Escolha um @usuario para o seu perfil.', 'warning');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`/auth/check-username?username=${encodeURIComponent(value)}`, {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin',
+                        });
+                        const payload = await response.json();
+                        const normalized = String(payload.normalized || '').trim();
+                        if (normalized && normalized !== value) {
+                            input.value = normalized;
+                        }
+
+                        if (payload.state === 'available') {
+                            setFeedback('Este @usuario esta disponivel.', 'success');
+                            return;
+                        }
+
+                        if (payload.state === 'taken') {
+                            setFeedback('Este @usuario ja esta em uso.', 'error');
+                            return;
+                        }
+
+                        setFeedback(String(payload.message || 'Digite um @usuario valido.'), payload.state === 'invalid' ? 'error' : 'warning');
+                    } catch {
+                        setFeedback('Nao foi possivel validar o @usuario agora.', 'warning');
+                    }
+                };
+
+                input.addEventListener('input', () => {
+                    if (timer) window.clearTimeout(timer);
+                    timer = window.setTimeout(validate, 260);
+                });
+
+                validate();
+            })();
+        </script>
+    <?php endif; ?>
 </body>
 </html>

@@ -38,7 +38,7 @@ $appTopbarSidebarItems = is_array($appTopbarSidebarItems ?? null) ? $appTopbarSi
     ],
     'creator' => [
         ['href' => '/creator', 'label' => 'Metricas', 'icon' => 'insights'],
-        ['href' => '/profile?id=' . (int) ($appTopbarUser['id'] ?? 0), 'label' => 'Minha Pagina', 'icon' => 'public'],
+        ['href' => creator_public_url($appTopbarUser), 'label' => 'Minha Pagina', 'icon' => 'public'],
         ['href' => '/creator/content', 'label' => 'Meu Conteudo', 'icon' => 'movie'],
         ['href' => '/creator/messages', 'label' => 'Mensagens', 'icon' => 'chat'],
         ['href' => '/creator/live', 'label' => 'Configurar Live', 'icon' => 'settings_input_antenna'],
@@ -59,7 +59,7 @@ $appTopbarSidebarItems = is_array($appTopbarSidebarItems ?? null) ? $appTopbarSi
 
 $appTopbarSidebarItems = array_values(array_filter(
     $appTopbarSidebarItems,
-    static fn (array $item): bool => (string) ($item['href'] ?? '') !== '/profile?id=0'
+    static fn (array $item): bool => (string) ($item['href'] ?? '') !== '/profile'
 ));
 $appTopbarMobileSidebarItems = $appTopbarSidebarItems;
 

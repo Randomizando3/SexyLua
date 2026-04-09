@@ -8,8 +8,7 @@ $recentContent = $data['recent_content'] ?? [];
 $lives = $data['lives'] ?? [];
 $transactions = $data['transactions'] ?? [];
 
-$creatorName = trim((string) ($creator['name'] ?? 'Criador'));
-$creatorFirstName = $creatorName !== '' ? explode(' ', $creatorName)[0] : 'Criador';
+$creatorHandle = user_handle($creator, 'criador');
 $creatorHeadline = trim((string) ($creator['headline'] ?? 'Sua presença está crescendo na SexyLua.'));
 $approvedContent = (int) ($metrics['approved_content'] ?? 0);
 $pendingContent = (int) ($metrics['pending_content'] ?? 0);
@@ -101,7 +100,7 @@ include base_path('templates/partials/creator_topbar.php');
     <div class="mx-auto max-w-7xl px-8 py-12">
         <header class="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
-                <h2 class="mb-2 text-4xl font-extrabold tracking-tight text-on-background">Olá, <?= e($creatorFirstName) ?> 👋</h2>
+                <h2 class="mb-2 text-4xl font-extrabold tracking-tight text-on-background">Olá, <?= e($creatorHandle) ?> 👋</h2>
                 <p class="max-w-2xl font-medium text-on-surface-variant"><?= e($creatorHeadline) ?></p>
             </div>
             <div class="flex flex-wrap items-center gap-3">

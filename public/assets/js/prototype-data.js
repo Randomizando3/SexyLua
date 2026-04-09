@@ -240,7 +240,18 @@
     })[value] || 'Conteúdo'
 
     const liveUrl = (id) => `/live?id=${id}`
-    const profileUrl = (id) => `/profile?id=${id}`
+    const profileUrl = (creator) => {
+        if (!creator || typeof creator !== 'object') {
+            return '/profile'
+        }
+
+        const username = String(creator.username || '').replace(/^@/, '').trim()
+        if (username) {
+            return `/${encodeURIComponent(username)}`
+        }
+
+        return `/profile?id=${creator.id}`
+    }
     const conversationUrl = (id) => `/subscriber/messages?conversation=${id}`
 
     const applyNavigationRoute = (element, route) => {
@@ -361,7 +372,7 @@
 
             setText(q('h4', card), creator.name)
             setText(q('p', card), `${compact(creator.followers || creator.subscriber_count || 0)} f�s`)
-            setRoute(card, profileUrl(creator.id))
+                    setRoute(card, profileUrl(creator))
         }
     }
 
@@ -396,7 +407,7 @@
             setText(q('h3', card), creator.name)
             setText(q('p', card), creator.headline || `${compact(creator.followers || 0)} f�s`)
             setInlineLabel(q('.absolute.top-4.left-4 span', card), phaseLabel(creator.mood))
-            setRoute(card, profileUrl(creator.id))
+                    setRoute(card, profileUrl(creator))
         }
     }
 
@@ -440,7 +451,7 @@
 
             setText(q('h3', card), item.title)
             setText(q('p', card), item.excerpt)
-            setRoute(card, profileUrl(creator.id))
+                    setRoute(card, profileUrl(creator))
         }
 
         if (metricsCard) {
@@ -511,9 +522,9 @@
 
             setText(q('h4', card), item.creator && item.creator.name ? item.creator.name : 'Criador')
             setText(q('p.text-white\\/70.text-sm', card), `Pr�xima renova��o: ${shortDate(item.renews_at)}`)
-            setRoute(card, profileUrl(item.creator.id))
+                        setRoute(card, profileUrl(item.creator))
             if (buttons[0]) {
-                setRoute(buttons[0], profileUrl(item.creator.id))
+                            setRoute(buttons[0], profileUrl(item.creator))
             }
         }
 
@@ -542,12 +553,12 @@
             setText(q('p.text-on-surface-variant.text-sm.font-medium', card), handleOf(item.creator))
             setText(q('span.text-primary.font-bold.font-headline', card), brlFromTokens(item.plan && item.plan.price_tokens))
             setText(q('span.text-\\[10px\\].uppercase', card), `Renova em ${shortDate(item.renews_at)}`)
-            setRoute(card, profileUrl(item.creator.id))
+                        setRoute(card, profileUrl(item.creator))
             if (buttons[0]) {
-                setRoute(buttons[0], profileUrl(item.creator.id))
+                            setRoute(buttons[0], profileUrl(item.creator))
             }
             if (buttons[1]) {
-                setRoute(buttons[1], profileUrl(item.creator.id))
+                            setRoute(buttons[1], profileUrl(item.creator))
             }
         }
 
@@ -566,17 +577,17 @@
         for (let index = 0; index < count(folderCards, favoriteCreators); index += 1) {
             setText(q('h3', folderCards[index]), favoriteCreators[index].name)
             setText(q('p', folderCards[index]), `${integer(favoriteCreators[index].content_count || 0)} itens`)
-            setRoute(folderCards[index], profileUrl(favoriteCreators[index].id))
+                    setRoute(folderCards[index], profileUrl(favoriteCreators[index]))
         }
 
         if (savedContent[0]) {
             setText(q('main section .grid.grid-cols-2.lg\\:grid-cols-4.gap-6 > div:first-child p.font-headline.font-bold.text-lg'), savedContent[0].title)
             setText(q('main section .grid.grid-cols-2.lg\\:grid-cols-4.gap-6 > div:first-child p.text-xs.opacity-80'), `${shortDate(savedContent[0].created_at)} • ${titleCaseType(savedContent[0].kind)}`)
-            setRoute(recentCards[0], profileUrl(savedContent[0].creator.id))
+                    setRoute(recentCards[0], profileUrl(savedContent[0].creator))
         }
 
         for (let index = 1; index < count(recentCards, savedContent); index += 1) {
-            setRoute(recentCards[index], profileUrl(savedContent[index].creator.id))
+                            setRoute(recentCards[index], profileUrl(savedContent[index].creator))
         }
     }
 

@@ -113,6 +113,7 @@ final class CreatorController extends Controller
                 'q' => (string) $request->query('q', ''),
                 'status' => (string) $request->query('status', ''),
                 'live' => (int) $request->query('live', 0),
+                'page' => (int) $request->query('page', 1),
             ]),
             'open_form' => $request->query('open_form', '') === '1',
             'form_mode' => (string) $request->query('form_mode', ''),
@@ -183,13 +184,21 @@ final class CreatorController extends Controller
     {
         $this->app->auth->requireRole('creator');
         $this->validateCsrf($request, '/creator/content');
+        $creatorId = (int) $this->user()['id'];
         $payload = $request->all();
+        $contentId = (int) ($payload['id'] ?? 0);
+        $kind = (string) ($payload['kind'] ?? 'gallery');
+        $uploadedMediaUrl = '';
+        $uploadedThumbUrl = '';
+        $uploadedPackItems = [];
+        $removedPackItems = [];
 
         if ($request->hasFile('media_file')) {
             $payload['media_bytes'] = max(0, (int) (($request->file('media_file') ?? [])['size'] ?? 0));
             $mediaPath = store_uploaded_file($request->file('media_file'), 'creator/content', ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm', 'mp3', 'wav', 'm4a']);
             if ($mediaPath !== null) {
                 $payload['media_url'] = $mediaPath;
+                $uploadedMediaUrl = $mediaPath;
             }
         }
 
@@ -198,15 +207,71 @@ final class CreatorController extends Controller
             $thumbPath = store_uploaded_file($request->file('thumbnail_file'), 'creator/content/thumbs', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
             if ($thumbPath !== null) {
                 $payload['thumbnail_url'] = $thumbPath;
+                $uploadedThumbUrl = $thumbPath;
             }
         }
 
-        $result = $this->app->repository->saveContent((int) $this->user()['id'], $payload);
+        if ($kind === 'pack') {
+            $existingItem = $contentId > 0 ? $this->app->repository->findCreatorContentById($creatorId, $contentId) : null;
+            $packItems = array_values(array_filter((array) ($existingItem['pack_items'] ?? []), static fn (mixed $item): bool => is_array($item)));
+            $existingTitles = (array) $request->input('existing_pack_titles', []);
+            $removePackIds = array_map('strval', (array) $request->input('pack_remove_ids', []));
+            $removedPackItems = array_values(array_filter($packItems, static fn (array $item): bool => in_array((string) ($item['id'] ?? ''), $removePackIds, true)));
+            $packItems = array_values(array_filter(array_map(static function (array $item) use ($existingTitles): array {
+                $itemId = (string) ($item['id'] ?? '');
+                if ($itemId !== '' && array_key_exists($itemId, $existingTitles)) {
+                    $title = trim((string) $existingTitles[$itemId]);
+                    if ($title !== '') {
+                        $item['title'] = $title;
+                    }
+                }
+
+                return $item;
+            }, $packItems), static fn (array $item): bool => ! in_array((string) ($item['id'] ?? ''), $removePackIds, true)));
+
+            $newPackTitles = array_values(array_map(static fn (mixed $value): string => trim((string) $value), (array) $request->input('new_pack_titles', [])));
+            $packUploads = normalize_uploaded_files($request->file('new_pack_files'));
+
+            foreach ($packUploads as $index => $packFile) {
+                $packPath = store_uploaded_file($packFile, 'creator/content/packs', ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'webm']);
+                if ($packPath === null) {
+                    continue;
+                }
+
+                $newPackItem = [
+                    'id' => 'pack-' . substr(bin2hex(random_bytes(8)), 0, 12),
+                    'title' => $newPackTitles[$index] ?? trim((string) (($packFile['name'] ?? '') !== '' ? pathinfo((string) $packFile['name'], PATHINFO_FILENAME) : ('Item ' . ($index + 1)))),
+                    'url' => $packPath,
+                    'thumbnail_url' => media_is_video($packPath) ? '' : $packPath,
+                    'kind' => media_is_video($packPath) ? 'video' : 'image',
+                    'bytes' => max(0, (int) ($packFile['size'] ?? public_media_file_bytes($packPath))),
+                ];
+                $packItems[] = $newPackItem;
+                $uploadedPackItems[] = $newPackItem;
+            }
+
+            $payload['pack_items'] = $packItems;
+        }
+
+        $result = $this->app->repository->saveContent($creatorId, $payload);
 
         if (! (bool) ($result['ok'] ?? false)) {
-            delete_public_media_file((string) ($payload['media_url'] ?? ''));
-            delete_public_media_file((string) ($payload['thumbnail_url'] ?? ''));
+            delete_public_media_file($uploadedMediaUrl);
+            delete_public_media_file($uploadedThumbUrl);
+            foreach ($uploadedPackItems as $packItem) {
+                if (is_array($packItem)) {
+                    delete_public_media_file((string) ($packItem['url'] ?? ''));
+                    delete_public_media_file((string) ($packItem['thumbnail_url'] ?? ''));
+                }
+            }
             $this->redirect('/creator/content', (string) ($result['message'] ?? 'Não foi possível salvar o conteúdo.'), 'error');
+        }
+
+        foreach ($removedPackItems as $packItem) {
+            if (is_array($packItem)) {
+                delete_public_media_file((string) ($packItem['url'] ?? ''));
+                delete_public_media_file((string) ($packItem['thumbnail_url'] ?? ''));
+            }
         }
 
         $this->redirect('/creator/content', isset($payload['id']) && (int) $payload['id'] > 0 ? 'Conteúdo atualizado com sucesso.' : 'Conteúdo criado com sucesso.');
@@ -297,7 +362,17 @@ final class CreatorController extends Controller
         $this->app->auth->requireRole('creator');
         $conversationId = (int) $request->input('conversation_id', 0);
         $redirect = path_with_query('/creator/messages', ['conversation' => $conversationId]);
-        $this->validateCsrf($request, $redirect);
+        $expectsJson = $this->wantsJson($request);
+        if (! $this->app->csrf->validate((string) $request->input('_token'))) {
+            if ($expectsJson) {
+                $this->json([
+                    'ok' => false,
+                    'message' => 'Sessao expirada. Atualize a conversa e tente novamente.',
+                ], 419);
+            }
+
+            $this->redirect($redirect, 'Sessao expirada. Envie o formulario novamente.', 'error');
+        }
         $options = [
             'required_plan_id' => (int) $request->input('required_plan_id', 0),
             'unlock_price' => (int) $request->input('unlock_price', 0),
@@ -315,9 +390,25 @@ final class CreatorController extends Controller
             }
         }
 
-        $ok = $this->app->repository->sendConversationMessage($conversationId, (int) ($this->user()['id'] ?? 0), (string) $request->input('body', ''), $options);
+        $result = $this->app->repository->sendConversationMessageWithPayload(
+            $conversationId,
+            (int) ($this->user()['id'] ?? 0),
+            (string) $request->input('body', ''),
+            $options,
+            (int) ($this->user()['id'] ?? 0)
+        );
 
-        $this->redirect($redirect, $ok ? 'Mensagem enviada.' : 'Nao foi possivel enviar a mensagem.', $ok ? 'success' : 'error');
+        if ($expectsJson) {
+            $this->json([
+                'ok' => (bool) ($result['ok'] ?? false),
+                'message' => (string) ($result['message'] ?? 'Nao foi possivel enviar a mensagem.'),
+                'chat_message' => is_array($result['message_data'] ?? null) ? $result['message_data'] : null,
+                'preview_text' => (string) ($result['preview_text'] ?? ''),
+            ], (bool) ($result['ok'] ?? false) ? 200 : 422);
+        }
+
+        $ok = (bool) ($result['ok'] ?? false);
+        $this->redirect($redirect, $ok ? 'Mensagem enviada.' : ((string) ($result['message'] ?? 'Nao foi possivel enviar a mensagem.')), $ok ? 'success' : 'error');
     }
 
     public function saveLive(Request $request): void
@@ -327,9 +418,11 @@ final class CreatorController extends Controller
         $payload = $request->all();
 
         if ($request->hasFile('cover_file')) {
-            $coverPath = store_uploaded_file($request->file('cover_file'), 'creator/live', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
-            if ($coverPath !== null) {
-                $payload['cover_url'] = $coverPath;
+            $coverUpload = store_cover_media_file($request->file('cover_file'), 'creator/live');
+            if (is_array($coverUpload) && (bool) ($coverUpload['ok'] ?? false)) {
+                $payload['cover_url'] = (string) ($coverUpload['path'] ?? '');
+            } elseif (is_array($coverUpload) && trim((string) ($coverUpload['error'] ?? '')) !== '') {
+                $this->redirect('/creator/live', (string) $coverUpload['error'], 'error');
             }
         }
 
@@ -374,6 +467,30 @@ final class CreatorController extends Controller
         $ok = $this->app->repository->updateLiveStudioSettings((int) $this->user()['id'], (int) $request->input('live_id', 0), $request->all());
 
         $this->redirect($redirect, $ok ? 'Configuracoes da sala atualizadas.' : 'Nao foi possivel salvar a sala.', $ok ? 'success' : 'error');
+    }
+
+    public function startLiveDarkroom(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+        $redirect = path_with_query('/creator/live/studio', ['live' => (int) $request->input('live_id', 0)]);
+        $this->validateCsrf($request, $redirect);
+        $result = $this->app->repository->creatorActivateLiveDarkroom(
+            (int) $request->input('live_id', 0),
+            (int) $this->user()['id'],
+            (int) $request->input('target_user_id', 0)
+        );
+
+        $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel iniciar a darkroom.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
+    }
+
+    public function cancelLiveDarkroom(Request $request): void
+    {
+        $this->app->auth->requireRole('creator');
+        $redirect = path_with_query('/creator/live/studio', ['live' => (int) $request->input('live_id', 0)]);
+        $this->validateCsrf($request, $redirect);
+        $result = $this->app->repository->cancelLiveDarkroom((int) $request->input('live_id', 0), (int) $this->user()['id']);
+
+        $this->redirect($redirect, (string) ($result['message'] ?? 'Nao foi possivel encerrar a darkroom.'), (bool) ($result['ok'] ?? false) ? 'success' : 'error');
     }
 
     public function requestPayout(Request $request): void
@@ -433,9 +550,11 @@ final class CreatorController extends Controller
         }
 
         if ($request->hasFile('cover_file')) {
-            $coverPath = store_uploaded_file($request->file('cover_file'), 'creator/profile/cover', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
-            if ($coverPath !== null) {
-                $payload['cover_url'] = $coverPath;
+            $coverUpload = store_cover_media_file($request->file('cover_file'), 'creator/profile/cover');
+            if (is_array($coverUpload) && (bool) ($coverUpload['ok'] ?? false)) {
+                $payload['cover_url'] = (string) ($coverUpload['path'] ?? '');
+            } elseif (is_array($coverUpload) && trim((string) ($coverUpload['error'] ?? '')) !== '') {
+                $this->redirect('/creator/settings', (string) $coverUpload['error'], 'error');
             }
         }
 

@@ -18,6 +18,14 @@ $liveSectionTitle = $liveOnly ? 'Explorando lives' : 'Lives em destaque';
 $liveSectionDescription = $includeScheduled
     ? 'Salas ao vivo primeiro, com as proximas transmissoes agendadas logo em seguida.'
     : 'Apenas as salas que ja estao ao vivo agora.';
+$contentKindLabels = [
+    'gallery' => 'Galeria',
+    'video' => 'Video',
+    'audio' => 'Audio',
+    'article' => 'Artigo',
+    'live_teaser' => 'Teaser',
+    'pack' => 'Pack',
+];
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -55,6 +63,7 @@ $liveSectionDescription = $includeScheduled
                 <option value="audio" <?= $kind === 'audio' ? 'selected' : '' ?>>Audio</option>
                 <option value="article" <?= $kind === 'article' ? 'selected' : '' ?>>Artigo</option>
                 <option value="live_teaser" <?= $kind === 'live_teaser' ? 'selected' : '' ?>>Teaser de live</option>
+                <option value="pack" <?= $kind === 'pack' ? 'selected' : '' ?>>Pack</option>
             </select>
             <select class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="category">
                 <?php foreach ($categoryOptions as $categoryValue => $categoryLabel): ?>
@@ -86,10 +95,15 @@ $liveSectionDescription = $includeScheduled
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
             <?php foreach (array_slice($lives, 0, 8) as $live): ?>
                 <?php $cover = media_url((string) ($live['cover_url'] ?? '')); ?>
+                <?php $coverIsVideo = media_is_video($cover); ?>
                 <a class="group overflow-hidden rounded-3xl bg-white shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
                     <div class="relative aspect-[3/4] bg-slate-900">
                         <?php if ($cover !== ''): ?>
-                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" src="<?= e($cover) ?>">
+                            <?php if ($coverIsVideo): ?>
+                                <video autoplay class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" loop muted playsinline src="<?= e($cover) ?>"></video>
+                            <?php else: ?>
+                                <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" src="<?= e($cover) ?>">
+                            <?php endif; ?>
                         <?php else: ?>
                             <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
                                 <span class="headline text-2xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
@@ -108,7 +122,7 @@ $liveSectionDescription = $includeScheduled
                     </div>
                     <div class="space-y-2 p-5">
                         <p class="headline truncate text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
-                        <p class="text-sm text-slate-500"><?= e((string) ($live['creator']['name'] ?? 'Criador')) ?></p>
+                        <p class="text-sm text-slate-500"><?= e(user_handle($live['creator'] ?? [], 'criador')) ?></p>
                         <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">
                             <?= e((string) (($live['status'] ?? '') === 'live' ? number_format((int) ($live['viewer_count'] ?? 0), 0, ',', '.') . ' viewers' : format_datetime((string) ($live['scheduled_for'] ?? ''), 'd/m H:i'))) ?>
                         </p>
@@ -132,15 +146,15 @@ $liveSectionDescription = $includeScheduled
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                 <?php foreach (array_slice($creators, 0, 8) as $creator): ?>
                     <?php $avatar = media_url((string) ($creator['avatar_url'] ?? '')); ?>
-                    <a class="rounded-3xl bg-white p-5 text-center shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/profile', ['id' => (int) ($creator['id'] ?? 0)])) ?>">
+                    <a class="rounded-3xl bg-white p-5 text-center shadow-sm transition-transform hover:-translate-y-1" href="<?= e(creator_public_url($creator)) ?>">
                         <div class="mx-auto mb-4 flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] bg-[#f7edf2]">
                             <?php if ($avatar !== ''): ?>
-                                <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-full w-full object-cover" src="<?= e($avatar) ?>">
+                                <img alt="<?= e(user_handle($creator, 'criador')) ?>" class="h-full w-full object-cover" src="<?= e($avatar) ?>">
                             <?php else: ?>
-                                <span class="headline text-3xl font-extrabold text-[#ab1155]"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></span>
+                                <span class="headline text-3xl font-extrabold text-[#ab1155]"><?= e(user_avatar_label($creator, 'CR')) ?></span>
                             <?php endif; ?>
                         </div>
-                        <p class="headline truncate text-xl font-extrabold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
+                        <p class="headline truncate text-xl font-extrabold"><?= e(user_handle($creator, 'criador')) ?></p>
                         <p class="mt-2 line-clamp-2 min-h-[2.75rem] text-sm text-slate-500"><?= e((string) ($creator['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
                         <p class="mt-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(number_format((int) ($creator['subscriber_count'] ?? 0), 0, ',', '.')) ?> assinantes</p>
                     </a>
@@ -161,13 +175,13 @@ $liveSectionDescription = $includeScheduled
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                 <?php foreach (array_slice($content, 0, 9) as $item): ?>
                     <?php $thumbnail = media_url((string) ($item['thumbnail_url'] ?? $item['media_url'] ?? '')); ?>
-                    <a class="overflow-hidden rounded-3xl bg-white shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0)])) ?>">
+                    <a class="overflow-hidden rounded-3xl bg-white shadow-sm transition-transform hover:-translate-y-1" href="<?= e(creator_public_url($item['creator'] ?? [])) ?>">
                         <div class="relative aspect-[4/3] bg-slate-900">
                             <?php if ($thumbnail !== ''): ?>
                                 <img alt="<?= e((string) ($item['title'] ?? 'Conteudo')) ?>" class="h-full w-full object-cover <?= $guestPreviewLocked ? 'scale-105 blur-[22px] brightness-85' : '' ?>" src="<?= e($thumbnail) ?>">
                             <?php else: ?>
                                 <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
-                                    <span class="headline text-2xl font-extrabold"><?= e((string) strtoupper((string) ($item['kind'] ?? 'conteudo'))) ?></span>
+                                    <span class="headline text-2xl font-extrabold"><?= e((string) strtoupper((string) ($contentKindLabels[(string) ($item['kind'] ?? '')] ?? 'CONTEUDO'))) ?></span>
                                 </div>
                             <?php endif; ?>
                             <?php if ($guestPreviewLocked): ?>
@@ -181,11 +195,11 @@ $liveSectionDescription = $includeScheduled
                         <div class="space-y-2 p-5">
                             <div class="flex items-center justify-between gap-3">
                                 <p class="headline truncate text-xl font-extrabold"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></p>
-                                <span class="rounded-full bg-[#f8e8ef] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]"><?= e((string) ($item['kind'] ?? 'conteudo')) ?></span>
+                                <span class="rounded-full bg-[#f8e8ef] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]"><?= e((string) ($contentKindLabels[(string) ($item['kind'] ?? '')] ?? 'Conteudo')) ?></span>
                             </div>
                             <p class="line-clamp-2 min-h-[2.75rem] text-sm text-slate-500"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 110)) ?></p>
                             <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">
-                                <span><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></span>
+                                <span><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></span>
                                 <span><?= luacoin_amount_html((int) ($item['price_tokens'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3 w-3 shrink-0') ?></span>
                             </div>
                         </div>

@@ -3,12 +3,19 @@
 declare(strict_types=1);
 
 $creator = $data['creator'] ?? [];
-$lives = $data['filtered_lives'] ?? $data['lives'] ?? [];
+$lives = $data['paginated_lives'] ?? $data['filtered_lives'] ?? $data['lives'] ?? [];
 $selected = $data['selected_live'] ?? null;
 $filters = $data['filters'] ?? [];
+$pagination = $data['pagination'] ?? ['page' => 1, 'per_page' => 15, 'total' => count($lives), 'total_pages' => 1];
 $summary = $data['summary'] ?? [];
 $openForm = (bool) ($open_form ?? false);
 $formMode = (string) ($form_mode ?? '');
+[$pageStart, $pageEnd] = $lives === []
+    ? [0, 0]
+    : [
+        (((int) ($pagination['page'] ?? 1)) - 1) * ((int) ($pagination['per_page'] ?? 15)) + 1,
+        (((int) ($pagination['page'] ?? 1)) - 1) * ((int) ($pagination['per_page'] ?? 15)) + count($lives),
+    ];
 
 $selectedLiveId = (int) ($selected['id'] ?? 0);
 $selectedStatus = (string) ($selected['status'] ?? 'scheduled');
@@ -26,6 +33,7 @@ $selectedLiveDuration = (int) ($selected['duration_seconds'] ?? 0);
 $selectedDurationLabel = $selectedLiveDuration > 0 ? gmdate($selectedLiveDuration >= 3600 ? 'H:i:s' : 'i:s', $selectedLiveDuration) : '00:00';
 $selectedRoomUrl = $selectedLiveId > 0 ? path_with_query('/live', ['id' => $selectedLiveId]) : '';
 $selectedCover = media_url((string) ($selected['cover_url'] ?? ''));
+$selectedCoverIsVideo = media_is_video($selectedCover);
 $selectedIsConcluded = $selectedStatus === 'ended';
 $viewerCount = (int) ($selected['viewer_count'] ?? 0);
 $selectedTipTotalAmount = (int) ($selected['tip_total_amount'] ?? 0);
@@ -56,10 +64,10 @@ $statusTabs = [
 
 $newLiveUrl = path_with_query('/creator/live', ['status' => $filters['status'] ?? 'scheduled', 'q' => $filters['q'] ?? '', 'open_form' => 1, 'form_mode' => 'new']);
 $editLiveUrl = $selectedLiveId > 0
-    ? path_with_query('/creator/live', ['status' => $selectedStatusBucket, 'q' => $filters['q'] ?? '', 'live' => $selectedLiveId, 'open_form' => 1, 'form_mode' => 'edit'])
+    ? path_with_query('/creator/live', ['status' => $selectedStatusBucket, 'q' => $filters['q'] ?? '', 'page' => (int) ($filters['page'] ?? 1), 'live' => $selectedLiveId, 'open_form' => 1, 'form_mode' => 'edit'])
     : '';
 $selectedStudioUrl = $selectedLiveId > 0 ? path_with_query('/creator/live/studio', ['live' => $selectedLiveId]) : '';
-$closeModalUrl = path_with_query('/creator/live', ['status' => $filters['status'] ?? 'scheduled', 'q' => $filters['q'] ?? '', 'live' => $selectedLiveId > 0 ? $selectedLiveId : null]);
+$closeModalUrl = path_with_query('/creator/live', ['status' => $filters['status'] ?? 'scheduled', 'q' => $filters['q'] ?? '', 'page' => (int) ($filters['page'] ?? 1), 'live' => $selectedLiveId > 0 ? $selectedLiveId : null]);
 $formLive = ($openForm && $formMode === 'new') ? null : $selected;
 $formLiveId = (int) ($formLive['id'] ?? 0);
 $formLiveType = (string) ($formLive['live_type'] ?? 'scheduled');
@@ -148,7 +156,7 @@ include base_path('templates/partials/creator_topbar.php');
                     'expired' => 'Expirada',
                     default => 'Agendada',
                 };
-                $selectUrl = path_with_query('/creator/live', ['status' => (string) ($live['status_bucket'] ?? 'scheduled'), 'q' => $filters['q'] ?? '', 'live' => $liveId]);
+                $selectUrl = path_with_query('/creator/live', ['status' => (string) ($live['status_bucket'] ?? 'scheduled'), 'q' => $filters['q'] ?? '', 'page' => (int) ($filters['page'] ?? 1), 'live' => $liveId]);
                 ?>
                 <a class="<?= $isSelected ? 'ring-2 ring-[#D81B60]' : 'ring-1 ring-[#f0e8ee]' ?> overflow-hidden rounded-3xl bg-[#fbf9fb] transition-transform hover:-translate-y-1" href="<?= e($selectUrl) ?>">
                     <div class="p-5">
@@ -180,6 +188,25 @@ include base_path('templates/partials/creator_topbar.php');
                 </div>
             <?php endif; ?>
         </div>
+
+        <?php if ((int) ($pagination['total_pages'] ?? 1) > 1): ?>
+            <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm text-slate-500">Mostrando <?= e((string) $pageStart) ?>-<?= e((string) $pageEnd) ?> de <?= e((string) ((int) ($pagination['total'] ?? count($lives)))) ?> lives</p>
+                <div class="flex flex-wrap gap-2">
+                    <?php for ($pageIndex = 1; $pageIndex <= (int) ($pagination['total_pages'] ?? 1); $pageIndex++): ?>
+                        <?php
+                        $pageUrl = path_with_query('/creator/live', [
+                            'status' => $filters['status'] ?? 'scheduled',
+                            'q' => $filters['q'] ?? '',
+                            'page' => $pageIndex,
+                            'live' => $selectedLiveId > 0 ? $selectedLiveId : null,
+                        ]);
+                        ?>
+                        <a class="<?= $pageIndex === (int) ($pagination['page'] ?? 1) ? 'signature-glow text-white' : 'bg-[#f7f4f7] text-slate-600' ?> inline-flex h-11 min-w-[44px] items-center justify-center rounded-full px-4 text-sm font-bold" href="<?= e($pageUrl) ?>"><?= e((string) $pageIndex) ?></a>
+                    <?php endfor; ?>
+                </div>
+            </div>
+        <?php endif; ?>
     </section>
 
     <section class="mt-8" data-live-details>
@@ -235,7 +262,11 @@ include base_path('templates/partials/creator_topbar.php');
                     <div class="overflow-hidden rounded-3xl bg-[#f7f4f7]">
                         <div class="relative aspect-video bg-slate-950">
                             <?php if ($selectedCover !== ''): ?>
-                                <img alt="Capa da live" class="h-full w-full object-cover" src="<?= e($selectedCover) ?>">
+                                <?php if ($selectedCoverIsVideo): ?>
+                                    <video autoplay class="h-full w-full object-cover" loop muted playsinline src="<?= e($selectedCover) ?>"></video>
+                                <?php else: ?>
+                                    <img alt="Capa da live" class="h-full w-full object-cover" src="<?= e($selectedCover) ?>">
+                                <?php endif; ?>
                             <?php else: ?>
                                 <div class="signature-glow flex h-full w-full items-center justify-center text-white">
                                     <span class="headline text-2xl font-extrabold"><?= e(mb_strtoupper(mb_substr((string) ($selected['title'] ?? 'LIVE'), 0, 18))) ?></span>
@@ -347,7 +378,11 @@ include base_path('templates/partials/creator_topbar.php');
                     <div class="overflow-hidden rounded-3xl bg-[#f7f4f7]">
                         <div class="relative aspect-video bg-slate-950">
                             <?php if ($selectedCover !== ''): ?>
-                                <img alt="Capa da live" class="h-full w-full object-cover" src="<?= e($selectedCover) ?>">
+                                <?php if ($selectedCoverIsVideo): ?>
+                                    <video autoplay class="h-full w-full object-cover" loop muted playsinline src="<?= e($selectedCover) ?>"></video>
+                                <?php else: ?>
+                                    <img alt="Capa da live" class="h-full w-full object-cover" src="<?= e($selectedCover) ?>">
+                                <?php endif; ?>
                             <?php else: ?>
                                 <div class="signature-glow flex h-full w-full items-center justify-center text-white">
                                     <span class="headline text-2xl font-extrabold"><?= e(mb_strtoupper(mb_substr((string) ($selected['title'] ?? 'LIVE'), 0, 18))) ?></span>
@@ -452,14 +487,17 @@ include base_path('templates/partials/creator_topbar.php');
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="cover_url" placeholder="URL da capa (opcional)" type="url" value="<?= e((string) ($formLive['cover_url'] ?? '')) ?>">
-                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" name="cover_file" type="file">
+                <div class="space-y-2">
+                    <input accept="<?= e(cover_media_accept_attribute()) ?>" class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4 file:mr-4 file:rounded-full file:border-0 file:bg-[#D81B60] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white" data-cover-media-input name="cover_file" type="file">
+                    <p class="text-xs text-slate-500" data-cover-media-feedback><?= e(cover_media_recommendation_text()) ?></p>
+                </div>
             </div>
 
             <textarea class="min-h-[92px] w-full rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" name="pinned_notice" placeholder="Aviso fixado"><?= e((string) ($formLive['pinned_notice'] ?? '')) ?></textarea>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="darkroom_price_luacoins" placeholder="Valor para tornar a sala DarkRoom" type="number" value="<?= e($formDarkroomPriceValue) ?>">
-                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="darkroom_duration_minutes" placeholder="Duração da Sala DarkRoom" type="number" value="<?= e($formDarkroomDurationValue) ?>">
+                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="darkroom_price_luacoins" placeholder="Valor para tornar a sala DarkRoom em LuaCoins" type="number" value="<?= e($formDarkroomPriceValue) ?>">
+                <input class="rounded-2xl border-none bg-[#f5f3f5] px-5 py-4" min="0" name="darkroom_duration_minutes" placeholder="Duração da Sala DarkRoom em minutos" type="number" value="<?= e($formDarkroomDurationValue) ?>">
             </div>
 
             <input name="max_bitrate_kbps" type="hidden" value="<?= e((string) ((int) ($formLive['max_bitrate_kbps'] ?? 800))) ?>">
@@ -516,6 +554,42 @@ include base_path('templates/partials/creator_topbar.php');
         });
 
         updateScheduleVisibility();
+
+        const coverInput = form.querySelector('[data-cover-media-input]');
+        const coverFeedback = form.querySelector('[data-cover-media-feedback]');
+        const coverDefaultMessage = coverFeedback ? coverFeedback.textContent : '';
+        if (coverInput && coverFeedback) {
+            coverInput.addEventListener('change', () => {
+                const file = coverInput.files && coverInput.files[0] ? coverInput.files[0] : null;
+                coverFeedback.classList.remove('text-rose-600');
+
+                if (!file) {
+                    coverFeedback.textContent = coverDefaultMessage;
+                    return;
+                }
+
+                if (!String(file.type || '').startsWith('video/')) {
+                    coverFeedback.textContent = `Arquivo selecionado: ${file.name}`;
+                    return;
+                }
+
+                const objectUrl = URL.createObjectURL(file);
+                const video = document.createElement('video');
+                video.preload = 'metadata';
+                video.src = objectUrl;
+                video.addEventListener('loadedmetadata', () => {
+                    URL.revokeObjectURL(objectUrl);
+                    if (video.duration > 5.05) {
+                        coverInput.value = '';
+                        coverFeedback.textContent = 'Envie um video de capa com ate 5 segundos.';
+                        coverFeedback.classList.add('text-rose-600');
+                        return;
+                    }
+
+                    coverFeedback.textContent = `Video selecionado: ${file.name}`;
+                }, { once: true });
+            });
+        }
 
         const detailsSection = document.querySelector('[data-live-details]');
         const params = new URLSearchParams(window.location.search);

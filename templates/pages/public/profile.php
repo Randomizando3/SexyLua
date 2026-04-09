@@ -13,7 +13,8 @@ $isSubscribed = (bool) ($data['is_subscribed'] ?? false);
 $creatorId = (int) ($creator['id'] ?? 0);
 $cover = media_url((string) ($creator['cover_url'] ?? ''));
 $avatar = media_url((string) ($creator['avatar_url'] ?? ''));
-$profileUrl = path_with_query('/profile', ['id' => $creatorId]);
+$coverIsVideo = media_is_video($cover);
+$profileUrl = creator_public_url($creator);
 $primaryPlan = $plans[0] ?? null;
 $canInteractAsSubscriber = ($currentUser['role'] ?? '') === 'subscriber';
 $requestedContentId = isset($_GET['content']) ? (int) $_GET['content'] : 0;
@@ -22,6 +23,8 @@ $selectedLockedPayload = null;
 $viewerId = (int) ($currentUser['id'] ?? 0);
 $viewerRole = (string) ($currentUser['role'] ?? '');
 $guestPreviewLocked = ! is_array($currentUser) || $currentUser === [];
+$creatorHandle = user_handle($creator, 'criador');
+$creatorAvatarLabel = user_avatar_label($creator, 'CR');
 $canAccessContent = static function (array $item) use ($creatorId, $viewerId, $viewerRole, $isSubscribed): bool {
     $visibility = (string) ($item['visibility'] ?? 'public');
     if ($visibility === 'public') {
@@ -36,6 +39,10 @@ $canAccessContent = static function (array $item) use ($creatorId, $viewerId, $v
         return true;
     }
 
+    if ((bool) ($item['viewer_has_unlock'] ?? false)) {
+        return true;
+    }
+
     return $isSubscribed;
 };
 $lockedMessageForContent = static function (array $item) use ($guestPreviewLocked): string {
@@ -44,6 +51,12 @@ $lockedMessageForContent = static function (array $item) use ($guestPreviewLocke
     }
 
     $visibility = (string) ($item['visibility'] ?? 'subscriber');
+    $unlockPrice = max(0, (int) ($item['unlock_price_tokens'] ?? 0));
+    if ((string) ($item['kind'] ?? '') === 'pack' && $unlockPrice > 0) {
+        return $visibility === 'premium'
+            ? 'Este pack exige um plano ativo, mas voce tambem pode comprar avulso por ' . luacoin_value($unlockPrice) . ' LuaCoins e manter acesso permanente.'
+            : 'Este pack e exclusivo para assinantes, mas voce tambem pode comprar avulso por ' . luacoin_value($unlockPrice) . ' LuaCoins e manter acesso permanente.';
+    }
     return $visibility === 'premium'
         ? 'Este conteúdo exige um plano ativo para ser desbloqueado.'
         : 'Este conteúdo é exclusivo para assinantes.';
@@ -67,14 +80,18 @@ if ($requestedContentId > 0) {
                 'body' => (string) ($candidate['body'] ?? ''),
                 'duration' => (string) ($candidate['duration'] ?? ''),
                 'visibility' => (string) ($candidate['visibility'] ?? 'public'),
-                'plan_name' => (string) ($candidatePlan['name'] ?? ''),
+                'plan_name' => (string) ($candidatePlan['name'] ?? ($primaryPlan['name'] ?? '')),
+                'pack_items' => array_values((array) ($candidate['pack_items'] ?? [])),
             ];
         } else {
             $selectedLockedPayload = [
                 'id' => (int) ($candidate['id'] ?? 0),
                 'title' => (string) ($candidate['title'] ?? 'Conteúdo exclusivo'),
+                'kind' => (string) ($candidate['kind'] ?? 'gallery'),
                 'visibility' => (string) ($candidate['visibility'] ?? 'subscriber'),
+                'plan_id' => (int) ($candidatePlan['id'] ?? ($primaryPlan['id'] ?? 0)),
                 'plan_name' => (string) ($candidatePlan['name'] ?? ''),
+                'unlock_price_tokens' => max(0, (int) ($candidate['unlock_price_tokens'] ?? 0)),
                 'message' => $lockedMessageForContent($candidate),
             ];
         }
@@ -87,7 +104,7 @@ if ($requestedContentId > 0) {
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title><?= e((string) ($creator['name'] ?? 'Perfil')) ?> - SexyLua</title>
+    <title><?= e($creatorHandle) ?> - SexyLua</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -104,10 +121,14 @@ if ($requestedContentId > 0) {
 <main class="pt-20">
     <div class="relative z-0 h-[210px] overflow-hidden bg-surface-container-high md:h-[240px] lg:h-[260px]">
         <?php if ($cover !== ''): ?>
-            <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-full w-full object-cover" src="<?= e($cover) ?>">
+            <?php if ($coverIsVideo): ?>
+                <video autoplay class="h-full w-full object-cover" loop muted playsinline src="<?= e($cover) ?>"></video>
+            <?php else: ?>
+                <img alt="<?= e($creatorHandle) ?>" class="h-full w-full object-cover" src="<?= e($cover) ?>">
+            <?php endif; ?>
         <?php else: ?>
             <div class="signature-glow flex h-full w-full items-center justify-center">
-                <span class="headline text-5xl font-extrabold text-white"><?= e((string) ($creator['name'] ?? 'Criador')) ?></span>
+                <span class="headline text-5xl font-extrabold text-white"><?= e($creatorHandle) ?></span>
             </div>
         <?php endif; ?>
         <div class="absolute inset-0 z-10 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
@@ -118,14 +139,14 @@ if ($requestedContentId > 0) {
             <div class="flex flex-col items-center gap-5 text-center md:flex-row md:items-center md:text-left">
                 <div class="relative z-30 rounded-full bg-white p-1 shadow-xl">
                     <?php if ($avatar !== ''): ?>
-                        <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-44 w-44 rounded-full object-cover" src="<?= e($avatar) ?>">
+                        <img alt="<?= e($creatorHandle) ?>" class="h-44 w-44 rounded-full object-cover" src="<?= e($avatar) ?>">
                     <?php else: ?>
-                        <div class="signature-glow flex h-44 w-44 items-center justify-center rounded-full text-4xl font-extrabold text-white"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></div>
+                        <div class="signature-glow flex h-44 w-44 items-center justify-center rounded-full text-4xl font-extrabold text-white"><?= e($creatorAvatarLabel) ?></div>
                     <?php endif; ?>
                 </div>
                 <div class="space-y-1 pt-1 md:pt-0">
-                    <h1 class="headline text-5xl font-extrabold tracking-tight"><?= e((string) ($creator['name'] ?? 'Criador')) ?></h1>
-                    <p class="text-lg text-slate-500">@<?= e((string) ($creator['slug'] ?? 'sexylua')) ?></p>
+                    <h1 class="headline text-5xl font-extrabold tracking-tight"><?= e($creatorHandle) ?></h1>
+                    <p class="text-lg text-slate-500">Perfil publico do criador</p>
                     <p class="max-w-2xl text-slate-700"><?= e((string) ($creator['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
                 </div>
             </div>
@@ -193,12 +214,17 @@ if ($requestedContentId > 0) {
                             <?php foreach ($upcomingLives as $live): ?>
                                 <?php
                                 $liveCover = media_url((string) ($live['cover_url'] ?? ''));
+                                $liveCoverIsVideo = media_is_video($liveCover);
                                 $liveUrl = path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)]);
                                 ?>
                                 <a class="min-w-[260px] max-w-[260px] snap-start overflow-hidden rounded-3xl bg-[#fbf9fb] ring-1 ring-[#f0e8ee] transition-transform hover:-translate-y-1" href="<?= e($liveUrl) ?>">
                                     <div class="relative aspect-[4/3] bg-slate-900">
                                         <?php if ($liveCover !== ''): ?>
-                                            <img alt="<?= e((string) ($live['title'] ?? 'Live agendada')) ?>" class="h-full w-full scale-105 object-cover <?= $guestPreviewLocked ? 'scale-110 blur-[22px] brightness-75' : '' ?>" src="<?= e($liveCover) ?>">
+                                            <?php if ($liveCoverIsVideo): ?>
+                                                <video autoplay class="h-full w-full scale-105 object-cover <?= $guestPreviewLocked ? 'scale-110 blur-[22px] brightness-75' : '' ?>" loop muted playsinline src="<?= e($liveCover) ?>"></video>
+                                            <?php else: ?>
+                                                <img alt="<?= e((string) ($live['title'] ?? 'Live agendada')) ?>" class="h-full w-full scale-105 object-cover <?= $guestPreviewLocked ? 'scale-110 blur-[22px] brightness-75' : '' ?>" src="<?= e($liveCover) ?>">
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <div class="signature-glow flex h-full w-full items-center justify-center text-white">
                                                 <span class="headline px-6 text-center text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
@@ -243,18 +269,20 @@ if ($requestedContentId > 0) {
                         </div>
                     </div>
                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <?php foreach (array_slice($content, 0, 6) as $item): ?>
+                        <?php foreach ($content as $item): ?>
                             <?php
                             $itemId = (int) ($item['id'] ?? 0);
                             $kind = (string) ($item['kind'] ?? 'gallery');
                             $itemPlan = is_array($item['plan'] ?? null) ? $item['plan'] : null;
                             $itemAccessible = $canAccessContent($item) && ! $guestPreviewLocked;
+                            $thumbnail = media_url((string) ($item['thumbnail_url'] ?? $item['media_url'] ?? ''));
+                            $media = media_url((string) ($item['media_url'] ?? ''));
+                            $packItems = array_values((array) ($item['pack_items'] ?? []));
+                            $packCount = max(0, (int) ($item['pack_count'] ?? count($packItems)));
                             $contentPayload = null;
                             $lockedPayload = null;
 
                             if ($itemAccessible) {
-                                $thumbnail = media_url((string) ($item['thumbnail_url'] ?? $item['media_url'] ?? ''));
-                                $media = media_url((string) ($item['media_url'] ?? ''));
                                 $contentPayload = [
                                     'id' => $itemId,
                                     'title' => (string) ($item['title'] ?? 'Conteúdo'),
@@ -265,14 +293,18 @@ if ($requestedContentId > 0) {
                                     'body' => (string) ($item['body'] ?? ''),
                                     'duration' => (string) ($item['duration'] ?? ''),
                                     'visibility' => (string) ($item['visibility'] ?? 'public'),
-                                    'plan_name' => (string) ($itemPlan['name'] ?? ''),
+                                    'plan_name' => (string) ($itemPlan['name'] ?? ($primaryPlan['name'] ?? '')),
+                                    'pack_items' => $packItems,
                                 ];
                             } else {
                                 $lockedPayload = [
                                     'id' => $itemId,
                                     'title' => (string) ($item['title'] ?? 'Conteúdo exclusivo'),
+                                    'kind' => $kind,
                                     'visibility' => (string) ($item['visibility'] ?? 'subscriber'),
+                                    'plan_id' => (int) ($itemPlan['id'] ?? ($primaryPlan['id'] ?? 0)),
                                     'plan_name' => (string) ($itemPlan['name'] ?? ''),
+                                    'unlock_price_tokens' => max(0, (int) ($item['unlock_price_tokens'] ?? 0)),
                                     'message' => $lockedMessageForContent($item),
                                 ];
                             }
@@ -303,6 +335,16 @@ if ($requestedContentId > 0) {
                                         <div class="absolute inset-0 flex items-center justify-center">
                                             <span class="flex h-16 w-16 items-center justify-center rounded-full bg-black/55 text-white shadow-lg">
                                                 <span class="material-symbols-outlined text-4xl">play_arrow</span>
+                                            </span>
+                                        </div>
+                                    <?php elseif ($kind === 'pack'): ?>
+                                        <div class="absolute inset-x-4 top-4 flex items-start justify-between gap-3">
+                                            <span class="inline-flex items-center gap-2 rounded-full bg-black/55 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.24em] text-white shadow-lg">
+                                                <span class="material-symbols-outlined text-[18px]">collections</span>
+                                                Pack
+                                            </span>
+                                            <span class="inline-flex items-center rounded-full bg-white/90 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.24em] text-slate-700 shadow-lg">
+                                                <?= e((string) max(1, $packCount)) ?> <?= max(1, $packCount) === 1 ? 'item' : 'itens' ?>
                                             </span>
                                         </div>
                                     <?php elseif (! $itemAccessible): ?>
@@ -336,6 +378,12 @@ if ($requestedContentId > 0) {
                                         <span><?= e((string) ($item['kind'] ?? 'conteúdo')) ?></span>
                                         <?php if ($itemPlan): ?>
                                             <span class="rounded-full bg-white px-3 py-1 text-[10px] text-[#ab1155]"><?= e((string) ($itemPlan['name'] ?? 'Plano')) ?></span>
+                                        <?php endif; ?>
+                                        <?php if ($kind === 'pack'): ?>
+                                            <span class="rounded-full bg-white px-3 py-1 text-[10px] text-slate-500"><?= e((string) max(1, $packCount)) ?> <?= max(1, $packCount) === 1 ? 'item' : 'itens' ?></span>
+                                        <?php endif; ?>
+                                        <?php if ((string) ($item['kind'] ?? '') === 'pack' && (int) ($item['unlock_price_tokens'] ?? 0) > 0): ?>
+                                            <span class="rounded-full bg-amber-50 px-3 py-1 text-[10px] text-amber-700">Avulso <?= e(luacoin_value((int) ($item['unlock_price_tokens'] ?? 0))) ?></span>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -400,16 +448,16 @@ if ($requestedContentId > 0) {
                     <div class="mt-6 space-y-4">
                         <?php foreach (array_slice($relatedCreators, 0, 4) as $related): ?>
                             <?php $relatedAvatar = media_url((string) ($related['avatar_url'] ?? '')); ?>
-                            <a class="flex items-center gap-4 rounded-3xl bg-[#fbf9fb] p-4 shadow-sm ring-1 ring-[#f0e8ee]" href="<?= e(path_with_query('/profile', ['id' => (int) ($related['id'] ?? 0)])) ?>">
+                                <a class="flex items-center gap-4 rounded-3xl bg-[#fbf9fb] p-4 shadow-sm ring-1 ring-[#f0e8ee]" href="<?= e(creator_public_url($related)) ?>">
                                 <div class="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#f7edf2]">
                                     <?php if ($relatedAvatar !== ''): ?>
-                                        <img alt="<?= e((string) ($related['name'] ?? 'Criador')) ?>" class="h-full w-full object-cover" src="<?= e($relatedAvatar) ?>">
+                                        <img alt="<?= e(user_handle($related, 'criador')) ?>" class="h-full w-full object-cover" src="<?= e($relatedAvatar) ?>">
                                     <?php else: ?>
-                                        <span class="headline text-lg font-extrabold text-[#ab1155]"><?= e(avatar_initials((string) ($related['name'] ?? 'Criador'))) ?></span>
+                                        <span class="headline text-lg font-extrabold text-[#ab1155]"><?= e(user_avatar_label($related, 'CR')) ?></span>
                                     <?php endif; ?>
                                 </div>
                                 <div class="min-w-0">
-                                    <p class="headline truncate text-lg font-extrabold"><?= e((string) ($related['name'] ?? 'Criador')) ?></p>
+                                    <p class="headline truncate text-lg font-extrabold"><?= e(user_handle($related, 'criador')) ?></p>
                                     <p class="truncate text-sm text-slate-500"><?= e((string) ($related['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
                                 </div>
                             </a>
@@ -427,18 +475,22 @@ if ($requestedContentId > 0) {
 </main>
 
 <div class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 py-8" data-profile-content-modal>
-    <div class="w-full max-w-5xl overflow-hidden rounded-[2rem] bg-white shadow-[0px_30px_80px_rgba(27,28,29,0.24)]">
-        <div class="flex items-center justify-between border-b border-[#f0e8ee] px-6 py-5">
-            <div class="min-w-0">
+    <div class="w-full max-w-6xl overflow-hidden rounded-[2rem] bg-white shadow-[0px_30px_80px_rgba(27,28,29,0.24)]">
+        <div class="flex flex-col gap-4 border-b border-[#f0e8ee] px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
+            <div class="min-w-0 flex-1">
                 <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]" data-profile-modal-kind>Conteudo</p>
                 <h3 class="headline mt-2 truncate text-2xl font-extrabold" data-profile-modal-title>Conteudo</h3>
+            </div>
+            <div class="hidden w-full max-w-sm rounded-3xl bg-[#fbf9fb] p-5 lg:block" data-profile-pack-summary-card>
+                <p class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Resumo do pack</p>
+                <p class="mt-3 text-sm leading-relaxed text-slate-600" data-profile-pack-summary></p>
             </div>
             <button class="flex h-11 w-11 items-center justify-center rounded-full bg-[#f5f3f5] text-slate-500" data-profile-content-close type="button">
                 <span class="material-symbols-outlined">close</span>
             </button>
         </div>
-        <div class="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-            <div class="bg-slate-950">
+        <div class="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]" data-profile-modal-body>
+            <div class="bg-slate-950" data-profile-modal-media>
                 <div class="hidden aspect-video h-full w-full" data-profile-modal-video-wrap>
                     <video class="h-full w-full bg-black object-contain" controls data-profile-modal-video playsinline></video>
                 </div>
@@ -450,13 +502,27 @@ if ($requestedContentId > 0) {
                 <div class="hidden aspect-video h-full w-full" data-profile-modal-image-wrap>
                     <img alt="" class="h-full w-full object-contain" data-profile-modal-image src="">
                 </div>
+                <div class="hidden h-full min-h-[320px] w-full bg-slate-950 p-4 lg:p-5" data-profile-modal-pack-wrap>
+                    <div class="grid h-full grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+                        <div class="relative flex min-h-[320px] items-center justify-center rounded-[1.75rem] bg-black/35 p-4" data-profile-pack-stage-wrap>
+                            <div class="h-full w-full" data-profile-pack-stage></div>
+                            <button class="absolute right-4 top-4 hidden h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white shadow-lg transition hover:bg-black/70" data-profile-pack-fullscreen type="button">
+                                <span class="material-symbols-outlined text-[22px]">fullscreen</span>
+                            </button>
+                        </div>
+                        <div class="overflow-hidden rounded-[1.75rem] bg-white/5">
+                            <div class="border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.25em] text-white/70">Itens do pack</div>
+                            <div class="max-h-[420px] space-y-2 overflow-y-auto p-3" data-profile-pack-index></div>
+                        </div>
+                    </div>
+                </div>
                 <div class="hidden flex h-full min-h-[320px] items-start justify-center bg-white p-8" data-profile-modal-article-wrap>
                     <article class="prose max-w-none text-slate-700">
                         <p data-profile-modal-article></p>
                     </article>
                 </div>
             </div>
-            <div class="space-y-5 p-6">
+            <div class="space-y-5 p-6" data-profile-modal-side>
                 <div class="rounded-3xl bg-[#fbf9fb] p-5">
                     <p class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Resumo</p>
                     <p class="mt-3 text-sm leading-relaxed text-slate-600" data-profile-modal-excerpt></p>
@@ -508,21 +574,27 @@ if ($requestedContentId > 0) {
                         <p class="text-sm font-bold uppercase tracking-[0.22em] text-slate-400" data-profile-locked-visibility>Assinantes</p>
                         <p class="mt-2 text-base leading-relaxed text-slate-600" data-profile-locked-message>Assine para liberar este conteúdo.</p>
                         <p class="mt-3 text-sm font-semibold text-[#ab1155]" data-profile-locked-plan></p>
+                        <p class="mt-2 hidden text-sm font-semibold text-amber-700" data-profile-locked-price></p>
                     </div>
                 </div>
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
                 <?php if (! $currentUser): ?>
-                    <a class="rounded-full bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white" href="/login">Entrar para assinar</a>
-                <?php elseif ($canInteractAsSubscriber && $primaryPlan && ! $isSubscribed): ?>
-                    <form action="/profile/subscribe" method="post">
+                    <a class="rounded-full bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white" href="/login">Entrar para continuar</a>
+                <?php elseif ($canInteractAsSubscriber): ?>
+                    <form action="/profile/subscribe" class="hidden" data-profile-locked-subscribe-form method="post">
                         <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
-                        <input name="plan_id" type="hidden" value="<?= e((string) ((int) ($primaryPlan['id'] ?? 0))) ?>">
+                        <input data-profile-locked-plan-id name="plan_id" type="hidden" value="">
                         <button class="signature-glow rounded-full px-6 py-4 text-sm font-bold text-white" type="submit">Adquirir plano</button>
                     </form>
-                <?php elseif ($isSubscribed): ?>
-                    <span class="rounded-full bg-emerald-50 px-6 py-4 text-center text-sm font-bold text-emerald-700">Seu plano já está ativo</span>
+                    <form action="/profile/content/unlock" class="hidden" data-profile-locked-buy-form method="post">
+                        <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
+                        <input data-profile-locked-content-id name="content_id" type="hidden" value="">
+                        <input data-profile-locked-redirect name="redirect" type="hidden" value="<?= e($profileUrl) ?>">
+                        <button class="rounded-full bg-slate-900 px-6 py-4 text-sm font-bold text-white" data-profile-locked-buy-button type="submit">Comprar pack</button>
+                    </form>
+                    <span class="hidden rounded-full bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white" data-profile-locked-empty>Este conteúdo não tem compra avulsa disponível agora.</span>
                 <?php else: ?>
                     <span class="rounded-full bg-slate-900 px-6 py-4 text-center text-sm font-bold text-white">Acesse com uma conta de assinante</span>
                 <?php endif; ?>
@@ -558,6 +630,10 @@ if ($requestedContentId > 0) {
         const titleNode = modal.querySelector('[data-profile-modal-title]');
         const kindNode = modal.querySelector('[data-profile-modal-kind]');
         const kindLabelNode = modal.querySelector('[data-profile-modal-kind-label]');
+        const modalBody = modal.querySelector('[data-profile-modal-body]');
+        const modalSide = modal.querySelector('[data-profile-modal-side]');
+        const packSummaryCard = modal.querySelector('[data-profile-pack-summary-card]');
+        const packSummaryNode = modal.querySelector('[data-profile-pack-summary]');
         const excerptNode = modal.querySelector('[data-profile-modal-excerpt]');
         const durationNode = modal.querySelector('[data-profile-modal-duration]');
         const visibilityNode = modal.querySelector('[data-profile-modal-visibility]');
@@ -568,27 +644,43 @@ if ($requestedContentId > 0) {
         const audio = modal.querySelector('[data-profile-modal-audio]');
         const imageWrap = modal.querySelector('[data-profile-modal-image-wrap]');
         const image = modal.querySelector('[data-profile-modal-image]');
+        const packWrap = modal.querySelector('[data-profile-modal-pack-wrap]');
+        const packStageWrap = modal.querySelector('[data-profile-pack-stage-wrap]');
+        const packStage = modal.querySelector('[data-profile-pack-stage]');
+        const packIndex = modal.querySelector('[data-profile-pack-index]');
+        const packFullscreenButton = modal.querySelector('[data-profile-pack-fullscreen]');
         const articleWrap = modal.querySelector('[data-profile-modal-article-wrap]');
         const article = modal.querySelector('[data-profile-modal-article]');
         const lockedTitleNode = lockedModal.querySelector('[data-profile-locked-title]');
         const lockedVisibilityNode = lockedModal.querySelector('[data-profile-locked-visibility]');
         const lockedMessageNode = lockedModal.querySelector('[data-profile-locked-message]');
         const lockedPlanNode = lockedModal.querySelector('[data-profile-locked-plan]');
+        const lockedPriceNode = lockedModal.querySelector('[data-profile-locked-price]');
+        const lockedSubscribeForm = lockedModal.querySelector('[data-profile-locked-subscribe-form]');
+        const lockedPlanIdInput = lockedModal.querySelector('[data-profile-locked-plan-id]');
+        const lockedBuyForm = lockedModal.querySelector('[data-profile-locked-buy-form]');
+        const lockedBuyButton = lockedModal.querySelector('[data-profile-locked-buy-button]');
+        const lockedContentIdInput = lockedModal.querySelector('[data-profile-locked-content-id]');
+        const lockedRedirectInput = lockedModal.querySelector('[data-profile-locked-redirect]');
+        const lockedEmptyNode = lockedModal.querySelector('[data-profile-locked-empty]');
         const labels = {
             gallery: 'Galeria',
             video: 'Video',
             audio: 'Audio',
             article: 'Artigo',
             live_teaser: 'Live',
+            pack: 'Pack',
         };
         const visibilityLabels = {
             public: 'Publico',
             subscriber: 'Assinantes',
             premium: 'Plano vinculado',
         };
+        let currentPackItems = [];
+        let currentPackIndex = 0;
 
         const resetMedia = () => {
-            [videoWrap, audioWrap, imageWrap, articleWrap].forEach((node) => node.classList.add('hidden'));
+            [videoWrap, audioWrap, imageWrap, packWrap, articleWrap].forEach((node) => node.classList.add('hidden'));
             video.pause();
             video.removeAttribute('src');
             video.load();
@@ -596,7 +688,139 @@ if ($requestedContentId > 0) {
             audio.removeAttribute('src');
             audio.load();
             image.setAttribute('src', '');
+            if (packStage) {
+                packStage.innerHTML = '';
+            }
+            if (packIndex) {
+                packIndex.innerHTML = '';
+            }
+            currentPackItems = [];
+            currentPackIndex = 0;
+            if (packSummaryCard) {
+                packSummaryCard.classList.add('hidden');
+            }
+            if (packSummaryNode) {
+                packSummaryNode.textContent = '';
+            }
+            if (modalSide) {
+                modalSide.classList.remove('hidden');
+            }
+            if (modalBody) {
+                modalBody.classList.add('lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]');
+                modalBody.classList.remove('lg:grid-cols-1');
+            }
+            if (packFullscreenButton) {
+                packFullscreenButton.classList.add('hidden');
+            }
             article.textContent = '';
+        };
+
+        const updatePackIndexButtons = () => {
+            if (!packIndex) return;
+            packIndex.querySelectorAll('[data-pack-item-button]').forEach((button) => {
+                const buttonIndex = Number(button.getAttribute('data-pack-index') || '-1');
+                const isActive = buttonIndex === currentPackIndex;
+                button.classList.toggle('bg-white/8', !isActive);
+                button.classList.toggle('bg-white/18', isActive);
+                button.classList.toggle('ring-1', isActive);
+                button.classList.toggle('ring-white/20', isActive);
+            });
+        };
+
+        const renderPackStage = (item, index = 0) => {
+            if (!packStage) return;
+            packStage.innerHTML = '';
+            if (!item) return;
+            currentPackIndex = index;
+            if (packFullscreenButton) {
+                packFullscreenButton.classList.remove('hidden');
+            }
+
+            if (item.kind === 'video') {
+                const videoNode = document.createElement('video');
+                videoNode.className = 'h-full max-h-[520px] w-full rounded-[1.5rem] bg-black object-contain';
+                videoNode.controls = true;
+                videoNode.playsInline = true;
+                videoNode.src = item.url || item.thumbnail_url || '';
+                packStage.appendChild(videoNode);
+                videoNode.play().catch(() => {});
+                updatePackIndexButtons();
+                return;
+            }
+
+            const imageNode = document.createElement('img');
+            imageNode.className = 'h-full max-h-[520px] w-full rounded-[1.5rem] object-contain';
+            imageNode.alt = item.title || 'Item do pack';
+            imageNode.src = item.url || item.thumbnail_url || '';
+            packStage.appendChild(imageNode);
+            updatePackIndexButtons();
+        };
+
+        const renderPack = (items) => {
+            if (!packWrap || !packStage || !packIndex) return;
+            const normalizedItems = Array.isArray(items) ? items.filter(Boolean) : [];
+            currentPackItems = normalizedItems;
+            currentPackIndex = 0;
+            packWrap.classList.remove('hidden');
+            packIndex.innerHTML = '';
+            renderPackStage(normalizedItems[0] || null, 0);
+
+            normalizedItems.forEach((item, index) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'flex w-full items-center gap-3 rounded-2xl bg-white/8 px-3 py-3 text-left text-white transition hover:bg-white/12';
+                button.setAttribute('data-pack-item-button', '1');
+                button.setAttribute('data-pack-index', String(index));
+
+                const thumbWrap = document.createElement('div');
+                thumbWrap.className = 'flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/10';
+
+                if (item.kind === 'video') {
+                    const icon = document.createElement('span');
+                    icon.className = 'material-symbols-outlined text-2xl';
+                    icon.textContent = 'play_circle';
+                    thumbWrap.appendChild(icon);
+                } else if (item.thumbnail_url || item.url) {
+                    const img = document.createElement('img');
+                    img.className = 'h-full w-full object-cover';
+                    img.alt = item.title || `Item ${index + 1}`;
+                    img.src = item.thumbnail_url || item.url || '';
+                    thumbWrap.appendChild(img);
+                }
+
+                const textWrap = document.createElement('div');
+                textWrap.className = 'min-w-0';
+                const title = document.createElement('p');
+                title.className = 'truncate text-sm font-bold';
+                title.textContent = item.title || `Item ${index + 1}`;
+                const meta = document.createElement('p');
+                meta.className = 'mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/60';
+                meta.textContent = item.kind === 'video' ? 'Video' : 'Imagem';
+                textWrap.appendChild(title);
+                textWrap.appendChild(meta);
+
+                button.appendChild(thumbWrap);
+                button.appendChild(textWrap);
+                button.addEventListener('click', () => renderPackStage(item, index));
+                packIndex.appendChild(button);
+            });
+            updatePackIndexButtons();
+        };
+
+        const openPackFullscreen = () => {
+            const target = packWrap || packStageWrap;
+            if (!target) return;
+            const requestFullscreen = target.requestFullscreen
+                || target.webkitRequestFullscreen
+                || target.msRequestFullscreen
+                || target.mozRequestFullScreen;
+
+            if (typeof requestFullscreen === 'function') {
+                try {
+                    requestFullscreen.call(target);
+                } catch (error) {
+                }
+            }
         };
 
         const closeLockedModal = () => {
@@ -618,10 +842,28 @@ if ($requestedContentId > 0) {
             visibilityNode.textContent = visibilityLabels[payload.visibility] || 'Publico';
             planNode.textContent = payload.plan_name || 'Sem plano';
 
+            if (payload.kind === 'pack') {
+                if (modalSide) {
+                    modalSide.classList.add('hidden');
+                }
+                if (modalBody) {
+                    modalBody.classList.remove('lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]');
+                    modalBody.classList.add('lg:grid-cols-1');
+                }
+                if (packSummaryCard) {
+                    packSummaryCard.classList.remove('hidden');
+                }
+                if (packSummaryNode) {
+                    packSummaryNode.textContent = payload.excerpt || payload.body || 'Abra os itens do pack pelo indice lateral e use tela cheia para navegar com mais conforto.';
+                }
+            }
+
             if (payload.kind === 'video' || payload.kind === 'live_teaser') {
                 videoWrap.classList.remove('hidden');
                 video.src = payload.media_url || payload.thumbnail_url || '';
                 video.play().catch(() => {});
+            } else if (payload.kind === 'pack') {
+                renderPack(payload.pack_items || []);
             } else if (payload.kind === 'audio') {
                 audioWrap.classList.remove('hidden');
                 audio.src = payload.media_url || '';
@@ -642,6 +884,16 @@ if ($requestedContentId > 0) {
         };
 
         const closeModal = () => {
+            const exitFullscreen = document.exitFullscreen
+                || document.webkitExitFullscreen
+                || document.msExitFullscreen
+                || document.mozCancelFullScreen;
+            if ((document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || document.mozFullScreenElement) && typeof exitFullscreen === 'function') {
+                try {
+                    exitFullscreen.call(document);
+                } catch (error) {
+                }
+            }
             resetMedia();
             modal.classList.add('hidden');
             document.body.classList.remove('overflow-hidden');
@@ -656,6 +908,32 @@ if ($requestedContentId > 0) {
             lockedVisibilityNode.textContent = visibilityLabels[payload.visibility] || 'Assinantes';
             lockedMessageNode.textContent = payload.message || 'Adquira um plano para visualizar este conteúdo.';
             lockedPlanNode.textContent = payload.plan_name ? `Plano sugerido: ${payload.plan_name}` : '';
+            if (lockedPriceNode) {
+                const unlockPrice = Number(payload.unlock_price_tokens || 0);
+                lockedPriceNode.textContent = unlockPrice > 0 ? `Compra avulsa permanente: ${unlockPrice} LuaCoins` : '';
+                lockedPriceNode.classList.toggle('hidden', unlockPrice <= 0);
+            }
+            if (lockedSubscribeForm && lockedPlanIdInput) {
+                const planId = Number(payload.plan_id || 0);
+                lockedPlanIdInput.value = planId > 0 ? String(planId) : '';
+                lockedSubscribeForm.classList.toggle('hidden', planId <= 0);
+            }
+            if (lockedBuyForm && lockedContentIdInput && lockedRedirectInput) {
+                const unlockPrice = Number(payload.unlock_price_tokens || 0);
+                lockedContentIdInput.value = String(payload.id || '');
+                const nextUrl = new URL(window.location.href);
+                nextUrl.searchParams.set('content', String(payload.id || ''));
+                lockedRedirectInput.value = `${nextUrl.pathname}${nextUrl.search}`;
+                lockedBuyForm.classList.toggle('hidden', unlockPrice <= 0);
+                if (lockedBuyButton) {
+                    lockedBuyButton.textContent = unlockPrice > 0 ? `Comprar pack por ${unlockPrice} LuaCoins` : 'Comprar pack';
+                }
+            }
+            if (lockedEmptyNode) {
+                const planId = Number(payload.plan_id || 0);
+                const unlockPrice = Number(payload.unlock_price_tokens || 0);
+                lockedEmptyNode.classList.toggle('hidden', planId > 0 || unlockPrice > 0);
+            }
             lockedModal.classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
             const nextUrl = new URL(window.location.href);
@@ -680,6 +958,10 @@ if ($requestedContentId > 0) {
                 }
             });
         });
+
+        if (packFullscreenButton) {
+            packFullscreenButton.addEventListener('click', openPackFullscreen);
+        }
 
         modal.querySelectorAll('[data-profile-content-close]').forEach((button) => button.addEventListener('click', closeModal));
         lockedModal.querySelectorAll('[data-profile-locked-close]').forEach((button) => button.addEventListener('click', closeLockedModal));

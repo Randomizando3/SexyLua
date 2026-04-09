@@ -222,10 +222,10 @@ include base_path('templates/partials/creator_topbar.php');
                     <article class="rounded-2xl bg-[#f5f3f5] p-5">
                         <div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.7fr)_minmax(0,1.15fr)_auto]">
                             <div class="flex min-w-0 gap-4">
-                                <div class="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#ab1155]/20 to-[#fd6c9c]/35 text-xl font-bold text-[#ab1155]"><?= e(avatar_initials((string) ($subscriber['name'] ?? 'Assinante'))) ?></div>
+                                <div class="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#ab1155]/20 to-[#fd6c9c]/35 text-xl font-bold text-[#ab1155]"><?= e(user_avatar_label($subscriber, 'AS')) ?></div>
                                 <div class="min-w-0">
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <h4 class="truncate text-lg font-bold"><?= e((string) ($subscriber['name'] ?? 'Assinante')) ?></h4>
+                                        <h4 class="truncate text-lg font-bold"><?= e(user_handle($subscriber, 'assinante')) ?></h4>
                                         <span class="<?= e($statusClass) ?> rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest"><?= e($status) ?></span>
                                         <?php if ((bool) ($subscription['vip'] ?? false)): ?>
                                             <span class="rounded-full bg-[#ab1155]/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#ab1155]">VIP</span>
@@ -268,7 +268,7 @@ include base_path('templates/partials/creator_topbar.php');
                                 </form>
                                 <button class="w-full rounded-full bg-white px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1b1c1d]" data-member-message='<?= e((string) json_encode([
                                     'subscriber_id' => (int) ($subscriber['id'] ?? 0),
-                                    'subscriber_name' => (string) ($subscriber['name'] ?? 'Assinante'),
+                                    'subscriber_name' => user_handle($subscriber, 'assinante'),
                                 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>' type="button">Mensagem</button>
                                 <form action="/creator/memberships/subscription" method="post">
                                     <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">

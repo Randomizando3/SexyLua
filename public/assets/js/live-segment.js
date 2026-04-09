@@ -60,6 +60,14 @@
         tipTotal: document.querySelector('[data-live-tip-total]'),
         liveStartedAt: document.querySelector('[data-live-started-at]'),
         liveElapsed: document.querySelector('[data-live-elapsed]'),
+        walletModal: document.querySelector('[data-live-wallet-modal]'),
+        walletModalText: document.querySelector('[data-live-wallet-modal-text]'),
+        walletModalGo: document.querySelector('[data-live-wallet-modal-go]'),
+        walletModalStay: document.querySelector('[data-live-wallet-modal-stay]'),
+        walletModalClose: document.querySelector('[data-live-wallet-modal-close]'),
+        studioDarkroomPanel: document.querySelector('[data-live-studio-darkroom-panel]'),
+        studioDarkroomBody: document.querySelector('[data-live-studio-darkroom-body]'),
+        studioDarkroomCancelForm: document.querySelector('[data-live-studio-darkroom-cancel-form]'),
     }
 
     const state = {
@@ -72,11 +80,12 @@
         stateTimer: null,
         pollIntervalMs: 1500,
         heartbeatIntervalMs: 10000,
-        stateIntervalMs: 2000,
+        stateIntervalMs: 1000,
         currentUrl: '',
         currentType: '',
         hls: null,
         broadcasting: false,
+        liveStatus: root.dataset.initialStatus || '',
         startedAt: '',
         elapsedTimer: null,
         lastPriorityAlertId: 0,
@@ -90,13 +99,30 @@
         darkroomActive: root.dataset.darkroomActive === '1',
         darkroomIsOwner: root.dataset.darkroomIsOwner === '1',
         requiresDarkroomWait: root.dataset.requiresDarkroomWait === '1',
+        darkroomEndsAt: root.dataset.darkroomEndsAt || '',
+        darkroomPriceTokens: 0,
+        darkroomDurationMinutes: 0,
+        activeDarkroom: null,
+        darkroomCandidates: [],
         inlineAlertTimer: null,
+        darkroomReloadTimer: null,
+        darkroomBannerTimer: null,
+        darkroomBannerTimerFor: '',
+        darkroomOwnerBannerDismissedFor: '',
+        walletModalUrl: '',
     }
 
     const video = () => mode === 'creator' ? el.previewVideo : el.remoteVideo
     const esc = (v) => String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;')
     const setText = (node, value) => { if (node) node.textContent = String(value ?? '') }
     const luacoinHtml = (value, size = 'h-4 w-4') => `<span class="inline-flex items-center gap-1.5 whitespace-nowrap"><span>${Math.max(0, Number(value || 0))}</span><img alt="LuaCoin" class="${size} shrink-0" src="/assets/img/luacoin.png"><span class="sr-only">LuaCoins</span></span>`
+    const displayHandle = (entity, fallback = 'usuario') => {
+        const handle = String(entity?.handle || '').trim()
+        if (handle) return handle
+        const username = String(entity?.username || '').trim()
+        if (username) return `@${username}`
+        return `@${fallback}`
+    }
     const setCount = (value) => el.viewerCounts.forEach((node) => { node.textContent = String(Math.max(0, Number(value || 0))) })
     const statusLabel = (status) => {
         if (status === 'live') return 'Ao vivo'
@@ -117,6 +143,7 @@
         const s = value % 60
         return h > 0 ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
     }
+    const studioDarkroomDurationLabel = (minutes) => `${Math.max(0, Number(minutes || 0))} min`
 
     const showError = (message = '') => {
         if (!el.error) return
@@ -129,7 +156,7 @@
         el.error.textContent = String(message)
     }
 
-    const showInlineAlert = (message = '', tone = 'success', kicker = 'Atualizacao da sala') => {
+    const showInlineAlert = (message = '', tone = 'success', kicker = 'Atualizacao da sala', durationMs = 6500) => {
         if (!el.inlineAlert || !el.inlineAlertText || !message) return
         const toneClass = tone === 'info' ? 'bg-sky-600/90' : (tone === 'error' ? 'bg-rose-500/90' : 'bg-emerald-500/90')
         el.inlineAlert.classList.remove('hidden', 'bg-emerald-500/90', 'bg-sky-600/90', 'bg-rose-500/90')
@@ -139,7 +166,27 @@
         if (state.inlineAlertTimer) window.clearTimeout(state.inlineAlertTimer)
         state.inlineAlertTimer = window.setTimeout(() => {
             if (el.inlineAlert) el.inlineAlert.classList.add('hidden')
-        }, 6500)
+        }, Math.max(1200, Number(durationMs || 6500)))
+    }
+
+    const closeWalletModal = () => {
+        if (!el.walletModal) return
+        el.walletModal.classList.add('hidden')
+        el.walletModal.classList.remove('flex')
+        state.walletModalUrl = ''
+    }
+
+    const openWalletModal = (message = '', walletUrl = '') => {
+        if (!el.walletModal) {
+            if (walletUrl) window.location.assign(String(walletUrl))
+            return
+        }
+        state.walletModalUrl = String(walletUrl || '')
+        if (el.walletModalText) {
+            el.walletModalText.textContent = String(message || 'Voce nao tem saldo suficiente para concluir essa acao.')
+        }
+        el.walletModal.classList.remove('hidden')
+        el.walletModal.classList.add('flex')
     }
 
     const payloadNeedsRejoin = (payload) => {
@@ -166,9 +213,22 @@
         if (el.waitBox) el.waitBox.classList.add('hidden')
     }
 
+    const darkroomBannerSignature = () => `${state.darkroomActive ? '1' : '0'}|${state.darkroomIsOwner ? '1' : '0'}|${String(state.darkroomEndsAt || '')}`
+
     const syncDarkroomBanner = () => {
         if (!el.darkroomBanner || !el.darkroomBannerText) return
         if (!state.darkroomActive) {
+            if (state.darkroomBannerTimer) {
+                window.clearTimeout(state.darkroomBannerTimer)
+                state.darkroomBannerTimer = null
+            }
+            state.darkroomBannerTimerFor = ''
+            state.darkroomOwnerBannerDismissedFor = ''
+            el.darkroomBanner.classList.add('hidden')
+            return
+        }
+        const signature = darkroomBannerSignature()
+        if (state.darkroomIsOwner && state.darkroomOwnerBannerDismissedFor === signature) {
             el.darkroomBanner.classList.add('hidden')
             return
         }
@@ -176,6 +236,24 @@
         el.darkroomBannerText.textContent = String(state.accessMessage || (state.darkroomIsOwner ? 'Seu darkroom esta ativo agora.' : 'A live entrou em darkroom temporariamente.'))
         if (el.darkroomBannerKicker) {
             el.darkroomBannerKicker.textContent = state.darkroomIsOwner ? 'Darkroom ativo para voce' : 'Darkroom ativo'
+        }
+        if (state.darkroomIsOwner) {
+            if (!state.darkroomBannerTimer || state.darkroomBannerTimerFor !== signature) {
+                if (state.darkroomBannerTimer) {
+                    window.clearTimeout(state.darkroomBannerTimer)
+                }
+                state.darkroomBannerTimerFor = signature
+                state.darkroomBannerTimer = window.setTimeout(() => {
+                    state.darkroomOwnerBannerDismissedFor = signature
+                    state.darkroomBannerTimer = null
+                    state.darkroomBannerTimerFor = ''
+                    if (el.darkroomBanner) el.darkroomBanner.classList.add('hidden')
+                }, 5000)
+            }
+        } else if (state.darkroomBannerTimer) {
+            window.clearTimeout(state.darkroomBannerTimer)
+            state.darkroomBannerTimer = null
+            state.darkroomBannerTimerFor = ''
         }
     }
 
@@ -195,6 +273,15 @@
             }
         }
         syncDarkroomBanner()
+    }
+
+    const scheduleDarkroomReload = () => {
+        if (mode !== 'viewer' || state.darkroomReloadTimer) return
+        state.darkroomReloadTimer = window.setTimeout(() => {
+            try {
+                window.location.reload()
+            } catch {}
+        }, 220)
     }
 
     const isDarkroomBlockedViewer = () => mode === 'viewer' && state.darkroomActive && !state.darkroomIsOwner
@@ -373,7 +460,7 @@
         }
 
         el.chatStream.innerHTML = items.map((message) => {
-            const sender = esc(message?.sender?.name || 'Visitante')
+        const sender = esc(displayHandle(message?.sender, 'visitante'))
             const body = esc(message?.body || '')
             const theme = message?.highlight_theme || {}
             const isHighlighted = Boolean(message?.is_highlighted)
@@ -406,7 +493,7 @@
         }
 
         el.tipsStream.innerHTML = items.map((tip) => {
-            const sender = esc(tip?.sender?.name || 'Fan')
+            const sender = esc(displayHandle(tip?.sender, 'fan'))
             const amount = Number(tip?.amount || 0)
             return variant === 'creator'
                 ? `<div class="flex items-center justify-between rounded-2xl bg-[#f5f3f5] px-4 py-3 text-sm"><span class="font-bold text-slate-700">${sender}</span><span class="font-black text-[#D81B60] inline-flex items-center gap-1 whitespace-nowrap">${amount}<img alt="LuaCoin" class="h-4 w-4 shrink-0" src="/assets/img/luacoin.png"></span></div>`
@@ -428,15 +515,122 @@
         }
 
         el.supportersStream.innerHTML = items.map((supporter) => {
-            const name = esc(supporter?.user?.name || 'Fan')
+            const name = esc(displayHandle(supporter?.user, 'fan'))
             const amount = Number(supporter?.amount || 0)
-            const initials = esc((String(name).match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() || 'FN')
+            const initials = esc(String(name).replace('@', '').slice(0, 2).toUpperCase() || 'FN')
             return variant === 'creator'
                 ? `<div class="rounded-2xl bg-[#f5f3f5] p-4 text-center"><div class="signature-glow mx-auto flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white">${initials}</div><p class="mt-3 text-sm font-bold text-slate-800">${name}</p><p class="mt-1 text-xs font-semibold text-[#D81B60] inline-flex items-center gap-1 whitespace-nowrap">${amount}<img alt="LuaCoin" class="h-4 w-4 shrink-0" src="/assets/img/luacoin.png"></p></div>`
                 : `<div class="flex flex-col items-center"><div class="signature-glow flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white">${initials}</div><span class="mt-2 text-[10px] font-bold text-[#ab1155]">${name}</span><span class="text-[10px] text-slate-500 inline-flex items-center gap-1 whitespace-nowrap">${amount}<img alt="LuaCoin" class="h-3 w-3 shrink-0" src="/assets/img/luacoin.png"></span></div>`
         }).join('')
 
         if (el.supportersEmpty) el.supportersEmpty.classList.add('hidden')
+    }
+
+    const renderCreatorStudioDarkroom = (payload = {}) => {
+        if (mode !== 'creator' || !el.studioDarkroomBody) return
+
+        const active = payload.active_darkroom && typeof payload.active_darkroom === 'object' ? payload.active_darkroom : null
+        const candidates = Array.isArray(payload.darkroom_candidates) ? payload.darkroom_candidates : []
+        const liveIsLive = state.liveStatus === 'live'
+        const durationMinutes = Math.max(0, Number(payload.darkroom_duration_minutes ?? state.darkroomDurationMinutes ?? 0))
+        const priceTokens = Math.max(0, Number(payload.darkroom_price_tokens ?? state.darkroomPriceTokens ?? 0))
+
+        state.activeDarkroom = active
+        state.darkroomCandidates = candidates
+        state.darkroomDurationMinutes = durationMinutes
+        state.darkroomPriceTokens = priceTokens
+
+        if (el.studioDarkroomCancelForm) {
+            el.studioDarkroomCancelForm.classList.toggle('hidden', !active)
+        }
+
+        const activeCard = active ? `
+            <div class="mt-5 rounded-3xl bg-white p-4 shadow-sm">
+                <div class="flex items-center gap-4">
+                    <div class="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-[#f5f3f5]">
+                        ${active.user_avatar_url ? `<img alt="${esc(active.user_name || 'Assinante')}" class="h-full w-full object-cover" src="${esc(active.user_avatar_url)}">` : `<div class="signature-glow flex h-full w-full items-center justify-center text-sm font-bold text-white">${esc((String(active.user_name || 'Assinante').match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() || 'AS')}</div>`}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Darkroom em andamento</p>
+                        <p class="mt-2 text-base font-bold text-slate-800">${esc(active.user_name || 'Assinante')}</p>
+                        <p class="mt-1 text-sm text-slate-500">@${esc(active.user_username || 'sem-username')}</p>
+                    </div>
+                    <div class="rounded-2xl bg-[#f5f3f5] px-4 py-3 text-right">
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Tempo restante</p>
+                        <p class="mt-2 text-sm font-bold text-slate-800">${esc(formElapsed(Number(active.remaining_seconds || 0)))}</p>
+                    </div>
+                </div>
+                <div class="mt-4 flex flex-wrap gap-3 text-sm text-slate-500">
+                    <span class="rounded-full bg-[#f5f3f5] px-4 py-2 font-semibold">${active.creator_initiated ? 'Iniciada pelo criador' : 'Ativada por pagamento'}</span>
+                    <span class="rounded-full bg-[#f5f3f5] px-4 py-2 font-semibold">${Number(active.amount || 0) > 0 ? luacoinHtml(active.amount || 0, 'h-4 w-4') : 'Sem cobranca automatica'}</span>
+                    <span class="rounded-full bg-[#f5f3f5] px-4 py-2 font-semibold">${esc(studioDarkroomDurationLabel(active.duration_minutes || 0))}</span>
+                </div>
+            </div>
+        ` : `
+            <div class="mt-5 rounded-3xl bg-white p-4 text-sm text-slate-500 shadow-sm">
+                Nenhuma darkroom esta ativa agora. Quando quiser abrir uma sala privada manualmente, escolha um usuario abaixo.
+            </div>
+        `
+
+        let detailsContent = ''
+        if (active) {
+            detailsContent = `<p class="rounded-2xl bg-[#f8f4f7] px-4 py-3 text-sm text-slate-500">Cancele a darkroom atual antes de iniciar outra.</p>`
+        } else if (!liveIsLive) {
+            detailsContent = `<p class="rounded-2xl bg-[#f8f4f7] px-4 py-3 text-sm text-slate-500">A darkroom manual fica disponivel assim que a live estiver ao vivo.</p>`
+        } else if (candidates.length === 0) {
+            detailsContent = `<p class="rounded-2xl bg-[#f8f4f7] px-4 py-3 text-sm text-slate-500">Nenhum assinante ou espectador elegivel apareceu ainda nesta sala.</p>`
+        } else {
+            const options = candidates.map((candidate, index) => {
+                const name = String(candidate?.name || 'Usuario')
+                const username = String(candidate?.username || '')
+                const badge = String(candidate?.badge || '')
+                const label = `${name}${username ? ` (@${username})` : ''}${badge ? ` • ${badge}` : ''}`
+                const search = `${name} ${username} ${badge}`.trim().toLowerCase()
+                return `<option ${index === 0 ? 'selected' : ''} data-search="${esc(search)}" value="${esc(candidate?.id || 0)}">${esc(label)}</option>`
+            }).join('')
+
+            detailsContent = `
+                <form action="/creator/live/darkroom/start" class="space-y-4" method="post">
+                    <input name="_token" type="hidden" value="${esc(csrf)}">
+                    <input name="live_id" type="hidden" value="${esc(liveId)}">
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Pesquisar usuario</span>
+                        <input class="rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 text-sm font-semibold text-slate-700" data-darkroom-user-search placeholder="Digite nome ou @usuario" type="search">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Usuario para a darkroom</span>
+                        <select class="min-h-[220px] rounded-2xl border-none bg-[#f5f3f5] px-4 py-3 text-sm font-semibold text-slate-700" data-darkroom-user-select name="target_user_id" size="6">
+                            ${options}
+                        </select>
+                    </label>
+                    <div class="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+                        <span class="rounded-full bg-[#f5f3f5] px-4 py-2 font-semibold">${esc(studioDarkroomDurationLabel(durationMinutes))} configurados</span>
+                        <span class="rounded-full bg-[#f5f3f5] px-4 py-2 font-semibold">${priceTokens > 0 ? luacoinHtml(priceTokens, 'h-4 w-4') : 'Sem cobranca automatica'}</span>
+                    </div>
+                    <button class="rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Iniciar darkroom agora</button>
+                </form>
+            `
+        }
+
+        el.studioDarkroomBody.innerHTML = `
+            ${activeCard}
+            <details class="group mt-5 rounded-3xl bg-white p-4 shadow-sm" data-live-studio-darkroom-details ${active ? '' : 'open'}>
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 marker:content-none">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Nova darkroom manual</p>
+                        <p class="mt-2 text-sm font-semibold text-slate-700">Escolha um espectador atual ou assinante com pesquisa</p>
+                    </div>
+                    <span class="material-symbols-outlined rounded-full bg-[#f5f3f5] p-2 text-slate-700 transition-transform group-open:rotate-180">expand_more</span>
+                </summary>
+                <div class="pt-4">
+                    ${detailsContent}
+                </div>
+            </details>
+        `
+
+        if (typeof window.sexyluaBindDarkroomSearch === 'function') {
+            window.sexyluaBindDarkroomSearch(el.studioDarkroomBody)
+        }
     }
 
     const updateElapsed = () => {
@@ -514,6 +708,7 @@
 
     const applyStatus = (stream = {}, live = {}) => {
         const status = String(stream.status || live.status || 'idle')
+        state.liveStatus = status
         state.broadcasting = status === 'live'
         state.startedAt = String(stream.started_at || live.started_at || '')
         setCount(stream.viewer_count || live.viewer_count || 0)
@@ -576,6 +771,7 @@
             return
         }
         const wasDarkroomActive = state.darkroomActive
+        const wasDarkroomOwner = state.darkroomIsOwner
         const wasCanWatch = state.canWatch
         showError('')
         state.canWatch = payload.can_watch !== undefined ? Boolean(payload.can_watch) : state.canWatch
@@ -585,14 +781,38 @@
         state.darkroomActive = payload.darkroom_active !== undefined ? Boolean(payload.darkroom_active) : state.darkroomActive
         state.darkroomIsOwner = payload.darkroom_is_owner !== undefined ? Boolean(payload.darkroom_is_owner) : state.darkroomIsOwner
         state.requiresDarkroomWait = payload.requires_darkroom_wait !== undefined ? Boolean(payload.requires_darkroom_wait) : state.requiresDarkroomWait
+        state.darkroomEndsAt = payload.darkroom_ends_at !== undefined ? String(payload.darkroom_ends_at || '') : state.darkroomEndsAt
+        state.darkroomPriceTokens = payload.darkroom_price_tokens !== undefined ? Math.max(0, Number(payload.darkroom_price_tokens || 0)) : state.darkroomPriceTokens
+        state.darkroomDurationMinutes = payload.darkroom_duration_minutes !== undefined ? Math.max(0, Number(payload.darkroom_duration_minutes || 0)) : state.darkroomDurationMinutes
+        state.activeDarkroom = payload.active_darkroom !== undefined ? (payload.active_darkroom || null) : state.activeDarkroom
+        state.darkroomCandidates = payload.darkroom_candidates !== undefined ? (Array.isArray(payload.darkroom_candidates) ? payload.darkroom_candidates : []) : state.darkroomCandidates
         if (isDarkroomBlockedViewer()) {
             state.canWatch = false
             state.requiresDarkroomWait = true
         }
         syncDarkroomUi()
+        const shouldForceDarkroomRefresh = mode === 'viewer'
+            && Boolean(payload.darkroom_active)
+            && (
+                Boolean(el.darkroomForm)
+                || (Boolean(payload.requires_darkroom_wait) && (!el.darkroomBanner || el.darkroomBanner.classList.contains('hidden')))
+            )
+
+        if (
+            mode === 'viewer'
+            && (
+                wasDarkroomActive !== state.darkroomActive
+                || (state.darkroomActive && wasDarkroomOwner !== state.darkroomIsOwner)
+                || (state.darkroomActive && wasCanWatch !== state.canWatch)
+            )
+        ) {
+            scheduleDarkroomReload()
+        } else if (shouldForceDarkroomRefresh) {
+            scheduleDarkroomReload()
+        }
         if (!wasDarkroomActive && state.darkroomActive) {
             if (state.darkroomIsOwner) {
-                showInlineAlert(state.accessMessage || 'Darkroom ativado com sucesso.', 'success', 'Darkroom ativado')
+                showInlineAlert(state.accessMessage || 'Darkroom ativado com sucesso.', 'success', 'Darkroom ativado', 5000)
             } else if (state.requiresDarkroomWait) {
                 showInlineAlert(state.accessMessage || 'A live entrou em darkroom temporariamente.', 'info', 'Darkroom ativo')
             }
@@ -602,6 +822,7 @@
         renderChat(payload.chat_messages || [])
         renderTips(payload.recent_tips || [])
         renderSupporters(payload.top_supporters || [])
+        renderCreatorStudioDarkroom(payload)
         if (el.tipTotal) el.tipTotal.innerHTML = luacoinHtml(payload.tip_total_amount || 0)
         showPriorityAlert(payload.priority_alert || null)
         applyStatus(payload.stream || {}, payload.live || {})
@@ -630,13 +851,13 @@
     }
 
     const refreshRoomState = async () => {
-        if (mode !== 'viewer' || liveId <= 0 || !stateUrl) return
+        if (liveId <= 0 || !stateUrl) return
         const separator = stateUrl.includes('?') ? '&' : '?'
         applyPayload(await getJson(`${stateUrl}${separator}id=${encodeURIComponent(liveId)}`))
     }
 
     const startStateLoop = () => {
-        if (mode !== 'viewer') return
+        if (!stateUrl || liveId <= 0) return
         if (state.stateTimer) window.clearInterval(state.stateTimer)
         state.stateTimer = window.setInterval(() => { refreshRoomState().catch(() => {}) }, state.stateIntervalMs)
     }
@@ -729,6 +950,10 @@
         formData.set('amount', String(amount))
         const payload = await postForm(el.tipForm.action, Object.fromEntries(formData.entries()))
         if (!payload.ok) {
+            if (payload.wallet_url) {
+                openWalletModal(payload.message || 'Voce nao tem LuaCoins suficientes para enviar essa gorjeta.', String(payload.wallet_url))
+                return
+            }
             showError(payload.message || 'Nao foi possivel enviar a gorjeta.')
             return
         }
@@ -742,7 +967,7 @@
         const payload = await postForm(el.darkroomForm.action, Object.fromEntries(new FormData(el.darkroomForm).entries()))
         if (!payload.ok) {
             if (payload.wallet_url) {
-                window.location.assign(String(payload.wallet_url))
+                openWalletModal(payload.message || 'Voce nao tem LuaCoins suficientes para ativar o darkroom.', String(payload.wallet_url))
                 return
             }
             showError(payload.message || 'Nao foi possivel ativar o darkroom.')
@@ -758,6 +983,16 @@
     if (el.chatForm) el.chatForm.addEventListener('submit', sendChat)
     if (el.tipForm) el.tipForm.addEventListener('submit', sendTip)
     if (el.darkroomForm) el.darkroomForm.addEventListener('submit', sendDarkroom)
+    if (el.walletModalStay) el.walletModalStay.addEventListener('click', closeWalletModal)
+    if (el.walletModalClose) el.walletModalClose.addEventListener('click', closeWalletModal)
+    if (el.walletModalGo) el.walletModalGo.addEventListener('click', () => {
+        const nextUrl = String(state.walletModalUrl || '')
+        closeWalletModal()
+        if (nextUrl) window.location.assign(nextUrl)
+    })
+    if (el.walletModal) el.walletModal.addEventListener('click', (event) => {
+        if (event.target === el.walletModal) closeWalletModal()
+    })
     tipPresetButtons().forEach((button) => {
         button.addEventListener('click', () => {
             applyTipPreset(button.dataset.liveTipPreset || '1', button.dataset.liveTipMessage || '')

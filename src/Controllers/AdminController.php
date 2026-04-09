@@ -148,6 +148,34 @@ final class AdminController extends Controller
         ], null);
     }
 
+    public function integrations(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+
+        $this->render('pages/admin/integrations', [
+            'title' => 'Integracoes do Sistema',
+            'data' => $this->app->repository->settings(),
+            'sidebar_role' => 'admin',
+            'prototype' => [
+                'page' => 'admin.integrations',
+            ],
+        ], null);
+    }
+
+    public function seo(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+
+        $this->render('pages/admin/seo', [
+            'title' => 'SEO e Branding',
+            'data' => $this->app->repository->settings(),
+            'sidebar_role' => 'admin',
+            'prototype' => [
+                'page' => 'admin.seo',
+            ],
+        ], null);
+    }
+
     public function updateUser(Request $request): void
     {
         $this->app->auth->requireRole('admin');
@@ -201,7 +229,8 @@ final class AdminController extends Controller
     public function updateSettings(Request $request): void
     {
         $this->app->auth->requireRole('admin');
-        $this->validateCsrf($request, '/admin/settings');
+        $returnTo = (string) $request->input('return_to', '/admin/settings');
+        $this->validateCsrf($request, $returnTo);
         $payload = $request->all();
 
         if ($request->hasFile('seo_logo_white_file')) {
@@ -219,15 +248,26 @@ final class AdminController extends Controller
         }
 
         if ($request->hasFile('home_banner_background_file')) {
-            $bannerPath = store_uploaded_file($request->file('home_banner_background_file'), 'admin/branding', ['png', 'jpg', 'jpeg', 'webp', 'gif']);
-            if ($bannerPath !== null) {
-                $payload['home_banner_background_url'] = $bannerPath;
+            $bannerUpload = store_cover_media_file($request->file('home_banner_background_file'), 'admin/branding');
+            if (is_array($bannerUpload) && (bool) ($bannerUpload['ok'] ?? false)) {
+                $payload['home_banner_background_url'] = (string) ($bannerUpload['path'] ?? '');
+            } elseif (is_array($bannerUpload) && trim((string) ($bannerUpload['error'] ?? '')) !== '') {
+                $this->redirect($returnTo, (string) $bannerUpload['error'], 'error');
+            }
+        }
+
+        if ($request->hasFile('home_banner_background_mobile_file')) {
+            $bannerMobileUpload = store_cover_media_file($request->file('home_banner_background_mobile_file'), 'admin/branding');
+            if (is_array($bannerMobileUpload) && (bool) ($bannerMobileUpload['ok'] ?? false)) {
+                $payload['home_banner_background_mobile_url'] = (string) ($bannerMobileUpload['path'] ?? '');
+            } elseif (is_array($bannerMobileUpload) && trim((string) ($bannerMobileUpload['error'] ?? '')) !== '') {
+                $this->redirect($returnTo, (string) $bannerMobileUpload['error'], 'error');
             }
         }
 
         $this->app->repository->updateSettings($payload);
 
-        $this->redirect('/admin/settings', 'Configuracoes salvas.');
+        $this->redirect($returnTo, 'Configuracoes salvas.');
     }
 
     public function updateProfile(Request $request): void
@@ -257,9 +297,11 @@ final class AdminController extends Controller
         }
 
         if ($request->hasFile('cover_file')) {
-            $coverPath = store_uploaded_file($request->file('cover_file'), 'admin/profile/cover', ['jpg', 'jpeg', 'png', 'webp', 'gif']);
-            if ($coverPath !== null) {
-                $payload['cover_url'] = $coverPath;
+            $coverUpload = store_cover_media_file($request->file('cover_file'), 'admin/profile/cover');
+            if (is_array($coverUpload) && (bool) ($coverUpload['ok'] ?? false)) {
+                $payload['cover_url'] = (string) ($coverUpload['path'] ?? '');
+            } elseif (is_array($coverUpload) && trim((string) ($coverUpload['error'] ?? '')) !== '') {
+                $this->redirect('/admin/settings#perfil', (string) $coverUpload['error'], 'error');
             }
         }
 

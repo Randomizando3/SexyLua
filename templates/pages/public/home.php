@@ -19,6 +19,10 @@ $liveSectionDescription = $liveNow !== []
 $bannerEnabled = !empty($settings['home_banner_enabled']);
 $bannerBackground = media_url((string) ($settings['home_banner_background_url'] ?? ''));
 $bannerBackground = $bannerBackground !== '' ? $bannerBackground : home_banner_default_image_url();
+$bannerMobileBackground = media_url((string) ($settings['home_banner_background_mobile_url'] ?? ''));
+$bannerMobileBackground = $bannerMobileBackground !== '' ? $bannerMobileBackground : $bannerBackground;
+$bannerBackgroundIsVideo = media_is_video($bannerBackground);
+$bannerMobileBackgroundIsVideo = media_is_video($bannerMobileBackground);
 $bannerTitle = (string) ($settings['home_banner_title'] ?? 'Cadastre-se hoje e ganhe 10 LuaCoins gratis');
 $bannerSubtitle = (string) ($settings['home_banner_subtitle'] ?? 'Crie sua conta agora, receba 10 LuaCoins no cadastro e aproveite bonus extra em cada deposito para entrar na SexyLua com mais liberdade.');
 $bannerPrimaryText = (string) ($settings['home_banner_primary_text'] ?? 'Explorar agora');
@@ -34,6 +38,14 @@ if ($bannerCountdownTargetTimestamp === false || $bannerCountdownTargetTimestamp
 }
 $bannerCountdownRemaining = max(0, $bannerCountdownTargetTimestamp - time());
 $bannerCountdownHours = (int) floor($bannerCountdownRemaining / 3600);
+$contentKindLabels = [
+    'gallery' => 'Galeria',
+    'video' => 'Video',
+    'audio' => 'Audio',
+    'article' => 'Artigo',
+    'live_teaser' => 'Teaser',
+    'pack' => 'Pack',
+];
 $bannerCountdownMinutes = (int) floor(($bannerCountdownRemaining % 3600) / 60);
 $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bannerCountdownMinutes, $bannerCountdownRemaining % 60);
 ?>
@@ -62,7 +74,17 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
         <section class="relative overflow-hidden px-4 pt-6 sm:px-8">
             <div class="mx-auto max-w-7xl overflow-hidden rounded-[2.25rem] bg-slate-950 shadow-[0px_24px_56px_rgba(27,28,29,0.16)]">
                 <div class="relative min-h-[340px] md:min-h-[390px]">
-                    <img alt="Banner SexyLua" class="absolute inset-0 h-full w-full object-cover" src="<?= e($bannerBackground) ?>">
+                    <div class="absolute inset-0 block h-full w-full">
+                        <?php if ($bannerMobileBackgroundIsVideo || $bannerBackgroundIsVideo): ?>
+                            <video autoplay class="h-full w-full object-cover md:hidden" loop muted playsinline src="<?= e($bannerMobileBackground) ?>"></video>
+                            <video autoplay class="hidden h-full w-full object-cover md:block" loop muted playsinline src="<?= e($bannerBackground) ?>"></video>
+                        <?php else: ?>
+                            <picture class="block h-full w-full">
+                                <source media="(max-width: 767px)" srcset="<?= e($bannerMobileBackground) ?>">
+                                <img alt="Banner SexyLua" class="h-full w-full object-cover" src="<?= e($bannerBackground) ?>">
+                            </picture>
+                        <?php endif; ?>
+                    </div>
                     <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(33,7,20,0.88)_0%,rgba(33,7,20,0.55)_42%,rgba(33,7,20,0.2)_100%)]"></div>
                     <div class="relative z-10 flex min-h-[340px] flex-col justify-between gap-8 px-6 py-7 md:min-h-[390px] md:px-10 md:py-9">
                         <div class="flex flex-wrap items-center gap-3">
@@ -99,7 +121,7 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
         </section>
     <?php endif; ?>
 
-    <section class="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(216,27,96,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(171,17,85,0.12),_transparent_35%),linear-gradient(180deg,#fff5f8_0%,#fbf9fb_100%)] px-8 py-20">
+    <section class="relative overflow-hidden px-8 py-20">
         <div class="mx-auto max-w-5xl text-center">
             <div class="flex justify-center">
                 <div class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60] shadow-sm">
@@ -120,52 +142,6 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
         </div>
     </section>
 
-    <section class="mx-auto max-w-7xl px-8 py-16">
-        <div class="mb-8 flex items-end justify-between gap-6">
-            <div>
-                <h2 class="headline text-3xl font-extrabold"><?= e($liveSectionTitle) ?></h2>
-                <p class="mt-2 text-sm text-slate-500"><?= e($liveSectionDescription) ?></p>
-            </div>
-            <a class="text-sm font-bold text-[#ab1155] underline" href="<?= e(path_with_query('/explore', ['category' => $audienceCategory])) ?>">Ver tudo</a>
-        </div>
-        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-            <?php foreach (array_slice($liveShowcase, 0, 4) as $live): ?>
-                <?php $cover = media_url((string) ($live['cover_url'] ?? '')); ?>
-                <a class="group overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)] transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
-                    <div class="relative aspect-[3/4] bg-slate-900">
-                        <?php if ($cover !== ''): ?>
-                            <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" src="<?= e($cover) ?>">
-                        <?php else: ?>
-                            <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
-                                <span class="headline text-2xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
-                            </div>
-                        <?php endif; ?>
-                        <?php if ($guestPreviewLocked): ?>
-                            <div class="absolute inset-0 bg-slate-950/45 backdrop-blur-[4px]"></div>
-                        <?php endif; ?>
-                        <div class="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-white">Ao vivo</div>
-                        <div class="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]"><?= e((string) ($live['category_label'] ?? 'Todos')) ?></div>
-                        <?php if ($guestPreviewLocked): ?>
-                            <div class="absolute inset-x-4 bottom-4 rounded-full bg-white/90 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]">
-                                Entre para liberar
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="space-y-2 p-5">
-                        <p class="headline truncate text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
-                        <p class="text-sm text-slate-500"><?= e((string) ($live['creator']['name'] ?? 'Criador')) ?></p>
-                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(number_format((int) ($live['viewer_count'] ?? 0), 0, ',', '.')) ?> viewers</p>
-                    </div>
-                </a>
-            <?php endforeach; ?>
-            <?php if ($liveShowcase === []): ?>
-                <div class="col-span-full rounded-3xl bg-white p-8 text-sm text-slate-500 shadow-sm">
-                    Nenhuma live ao vivo neste momento para a categoria <?= e($audienceLabel) ?>. Explore criadores e acompanhe as proximas salas pelo explorar.
-                </div>
-            <?php endif; ?>
-        </div>
-    </section>
-
     <section class="bg-[#fff6f8] py-16">
         <div class="mx-auto max-w-7xl px-8">
             <div class="mb-8 flex items-end justify-between gap-6">
@@ -178,15 +154,15 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-5">
                 <?php foreach (array_slice($featuredCreators, 0, 5) as $creator): ?>
                     <?php $avatar = media_url((string) ($creator['avatar_url'] ?? '')); ?>
-                    <a class="rounded-3xl bg-white p-5 text-center shadow-sm transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/profile', ['id' => (int) ($creator['id'] ?? 0)])) ?>">
+                    <a class="rounded-3xl bg-white p-5 text-center shadow-sm transition-transform hover:-translate-y-1" href="<?= e(creator_public_url($creator)) ?>">
                         <div class="mx-auto mb-4 flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] border border-[#f4d9e3] bg-[#f7edf2]">
                             <?php if ($avatar !== ''): ?>
-                                <img alt="<?= e((string) ($creator['name'] ?? 'Criador')) ?>" class="h-full w-full object-cover" src="<?= e($avatar) ?>">
+                                <img alt="<?= e(user_handle($creator, 'criador')) ?>" class="h-full w-full object-cover" src="<?= e($avatar) ?>">
                             <?php else: ?>
-                                <span class="headline text-2xl font-extrabold text-[#ab1155]"><?= e(avatar_initials((string) ($creator['name'] ?? 'Criador'))) ?></span>
+                                <span class="headline text-2xl font-extrabold text-[#ab1155]"><?= e(user_avatar_label($creator, 'CR')) ?></span>
                             <?php endif; ?>
                         </div>
-                        <p class="headline truncate text-lg font-extrabold"><?= e((string) ($creator['name'] ?? 'Criador')) ?></p>
+                        <p class="headline truncate text-lg font-extrabold"><?= e(user_handle($creator, 'criador')) ?></p>
                         <p class="mt-2 line-clamp-2 min-h-[2.75rem] text-sm text-slate-500"><?= e((string) ($creator['headline'] ?? 'Perfil criativo na SexyLua.')) ?></p>
                         <p class="mt-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(number_format((int) ($creator['subscriber_count'] ?? 0), 0, ',', '.')) ?> assinantes</p>
                     </a>
@@ -212,7 +188,7 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
             <?php foreach (array_slice($featuredContent, 0, 6) as $item): ?>
                 <?php
                 $thumbnail = media_url((string) ($item['thumbnail_url'] ?? $item['media_url'] ?? ''));
-                $creatorUrl = path_with_query('/profile', ['id' => (int) ($item['creator']['id'] ?? 0)]);
+                $creatorUrl = creator_public_url($item['creator'] ?? []);
                 ?>
                 <a class="overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)] transition-transform hover:-translate-y-1" href="<?= e($creatorUrl) ?>">
                     <div class="relative aspect-[4/3] bg-slate-900">
@@ -220,7 +196,7 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
                             <img alt="<?= e((string) ($item['title'] ?? 'Conteudo')) ?>" class="h-full w-full object-cover <?= $guestPreviewLocked ? 'scale-105 blur-[22px] brightness-85' : '' ?>" src="<?= e($thumbnail) ?>">
                         <?php else: ?>
                             <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#cc326e] via-[#ab1155] to-[#5a0d31] p-6 text-center text-white">
-                                <span class="headline text-2xl font-extrabold"><?= e((string) strtoupper((string) ($item['kind'] ?? 'conteudo'))) ?></span>
+                                <span class="headline text-2xl font-extrabold"><?= e((string) strtoupper((string) ($contentKindLabels[(string) ($item['kind'] ?? '')] ?? 'CONTEUDO'))) ?></span>
                             </div>
                         <?php endif; ?>
                         <?php if ($guestPreviewLocked): ?>
@@ -238,7 +214,7 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
                         </div>
                         <p class="line-clamp-2 min-h-[2.75rem] text-sm text-slate-500"><?= e((string) excerpt((string) ($item['excerpt'] ?? ''), 110)) ?></p>
                         <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">
-                            <span><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></span>
+                            <span><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></span>
                             <span><?= luacoin_amount_html((int) ($item['price_tokens'] ?? 0), 'inline-flex items-center gap-1 whitespace-nowrap', '', 'h-3 w-3 shrink-0') ?></span>
                         </div>
                     </div>
@@ -247,6 +223,57 @@ $bannerCountdownDisplay = sprintf('%02d:%02d:%02d', $bannerCountdownHours, $bann
             <?php if ($featuredContent === []): ?>
                 <div class="col-span-full rounded-3xl bg-white p-8 text-sm text-slate-500 shadow-sm">
                     Ainda nao ha conteudos aprovados para a categoria <?= e($audienceLabel) ?>.
+                </div>
+            <?php endif; ?>
+        </div>
+    </section>
+
+    <section class="mx-auto max-w-7xl px-8 py-16">
+        <div class="mb-8 flex items-end justify-between gap-6">
+            <div>
+                <h2 class="headline text-3xl font-extrabold"><?= e($liveSectionTitle) ?></h2>
+                <p class="mt-2 text-sm text-slate-500"><?= e($liveSectionDescription) ?></p>
+            </div>
+            <a class="text-sm font-bold text-[#ab1155] underline" href="<?= e(path_with_query('/explore', ['category' => $audienceCategory])) ?>">Ver tudo</a>
+        </div>
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <?php foreach (array_slice($liveShowcase, 0, 4) as $live): ?>
+                <?php $cover = media_url((string) ($live['cover_url'] ?? '')); ?>
+                <?php $coverIsVideo = media_is_video($cover); ?>
+                <a class="group overflow-hidden rounded-3xl bg-white shadow-[0px_20px_40px_rgba(27,28,29,0.06)] transition-transform hover:-translate-y-1" href="<?= e(path_with_query('/live', ['id' => (int) ($live['id'] ?? 0)])) ?>">
+                    <div class="relative aspect-[3/4] bg-slate-900">
+                        <?php if ($cover !== ''): ?>
+                            <?php if ($coverIsVideo): ?>
+                                <video autoplay class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" loop muted playsinline src="<?= e($cover) ?>"></video>
+                            <?php else: ?>
+                                <img alt="<?= e((string) ($live['title'] ?? 'Live')) ?>" class="h-full w-full scale-105 object-cover transition-transform duration-500 group-hover:scale-[1.08] <?= $guestPreviewLocked ? 'scale-110 blur-[30px] brightness-70' : '' ?>" src="<?= e($cover) ?>">
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <div class="signature-glow flex h-full w-full items-center justify-center p-6 text-center text-white">
+                                <span class="headline text-2xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($guestPreviewLocked): ?>
+                            <div class="absolute inset-0 bg-slate-950/45 backdrop-blur-[4px]"></div>
+                        <?php endif; ?>
+                        <div class="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-white">Ao vivo</div>
+                        <div class="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]"><?= e((string) ($live['category_label'] ?? 'Todos')) ?></div>
+                        <?php if ($guestPreviewLocked): ?>
+                            <div class="absolute inset-x-4 bottom-4 rounded-full bg-white/90 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.25em] text-[#ab1155]">
+                                Entre para liberar
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="space-y-2 p-5">
+                        <p class="headline truncate text-xl font-extrabold"><?= e((string) ($live['title'] ?? 'Live')) ?></p>
+                        <p class="text-sm text-slate-500"><?= e(user_handle($live['creator'] ?? [], 'criador')) ?></p>
+                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400"><?= e(number_format((int) ($live['viewer_count'] ?? 0), 0, ',', '.')) ?> viewers</p>
+                    </div>
+                </a>
+            <?php endforeach; ?>
+            <?php if ($liveShowcase === []): ?>
+                <div class="col-span-full rounded-3xl bg-white p-8 text-sm text-slate-500 shadow-sm">
+                    Nenhuma live ao vivo neste momento para a categoria <?= e($audienceLabel) ?>. Explore criadores e acompanhe as proximas salas pelo explorar.
                 </div>
             <?php endif; ?>
         </div>

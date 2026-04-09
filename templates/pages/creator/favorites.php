@@ -90,10 +90,10 @@ include base_path('templates/partials/creator_topbar.php');
                 <?php foreach ($favoriteCreators as $favoriteCreator): ?>
                     <div class="group overflow-hidden rounded-2xl bg-surface-container-lowest p-5 shadow-[0px_20px_40px_rgba(27,28,29,0.05)] transition-transform hover:-translate-y-1">
                         <div class="mb-4 flex items-center gap-4">
-                            <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) $favoriteCreator['name'])) ?></div>
+                            <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(user_avatar_label($favoriteCreator, 'CR')) ?></div>
                             <div class="min-w-0">
-                                <h4 class="truncate text-lg font-bold"><?= e((string) $favoriteCreator['name']) ?></h4>
-                                <p class="truncate text-sm text-on-surface-variant">@<?= e((string) ($favoriteCreator['slug'] ?? 'criador')) ?></p>
+                                <h4 class="truncate text-lg font-bold"><?= e(user_handle($favoriteCreator, 'criador')) ?></h4>
+                                <p class="truncate text-sm text-on-surface-variant"><?= e((string) ($favoriteCreator['headline'] ?? '')) ?></p>
                             </div>
                         </div>
                         <p class="mb-4 text-sm leading-relaxed text-on-surface-variant"><?= e(excerpt((string) ($favoriteCreator['headline'] ?? ''), 90)) ?></p>
@@ -102,7 +102,7 @@ include base_path('templates/partials/creator_topbar.php');
                             <span><?= e((string) ($favoriteCreator['subscriber_count'] ?? 0)) ?> assinantes</span>
                         </div>
                         <div class="flex items-center gap-3">
-                            <a class="flex-1 rounded-full bg-surface-container-low px-4 py-3 text-center text-sm font-bold text-on-surface transition-colors hover:bg-surface-container" href="<?= e('/profile?id=' . (int) $favoriteCreator['id']) ?>">Abrir perfil</a>
+                                <a class="flex-1 rounded-full bg-surface-container-low px-4 py-3 text-center text-sm font-bold text-on-surface transition-colors hover:bg-surface-container" href="<?= e(creator_public_url($favoriteCreator)) ?>">Abrir perfil</a>
                             <form action="/creator/favorites/toggle" method="post" class="flex-1" data-prototype-skip="1">
                                 <input name="_token" type="hidden" value="<?= e($app->csrf->token()) ?>">
                                 <input name="creator_id" type="hidden" value="<?= e((string) ($favoriteCreator['id'] ?? 0)) ?>">
@@ -132,10 +132,10 @@ include base_path('templates/partials/creator_topbar.php');
                                     <span class="material-symbols-outlined"><?= e($item['kind'] === 'video' ? 'play_circle' : ($item['kind'] === 'audio' ? 'headphones' : 'photo_library')) ?></span>
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <a class="truncate text-base font-bold hover:text-primary" href="<?= e('/profile?id=' . (int) ($item['creator']['id'] ?? $item['creator_id'])) ?>"><?= e((string) $item['title']) ?></a>
+                            <a class="truncate text-base font-bold hover:text-primary" href="<?= e(creator_public_url($item['creator'] ?? ['id' => (int) ($item['creator_id'] ?? 0)])) ?>"><?= e((string) $item['title']) ?></a>
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 110)) ?></p>
                                     <div class="mt-3 flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                                        <span><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></span>
+                                        <span><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></span>
                                         <span><?= e(format_datetime((string) ($item['created_at'] ?? ''), 'd/m')) ?></span>
                                         <span><?= e((string) ($item['saved_count'] ?? 0)) ?> saves</span>
                                     </div>
@@ -166,10 +166,10 @@ include base_path('templates/partials/creator_topbar.php');
                                     <span class="material-symbols-outlined"><?= e($item['kind'] === 'video' ? 'smart_display' : ($item['kind'] === 'audio' ? 'graphic_eq' : 'collections')) ?></span>
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <a class="truncate text-base font-bold hover:text-primary" href="<?= e('/profile?id=' . (int) ($item['creator']['id'] ?? $item['creator_id'])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
+                            <a class="truncate text-base font-bold hover:text-primary" href="<?= e(creator_public_url($item['creator'] ?? ['id' => (int) ($item['creator_id'] ?? 0)])) ?>"><?= e((string) ($item['title'] ?? 'Conteudo')) ?></a>
                                     <p class="mt-1 text-sm text-on-surface-variant"><?= e(excerpt((string) ($item['excerpt'] ?? ''), 110)) ?></p>
                                     <div class="mt-3 flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                                        <span><?= e((string) ($item['creator']['name'] ?? 'Criador')) ?></span>
+                                        <span><?= e(user_handle($item['creator'] ?? [], 'criador')) ?></span>
                                         <span><?= e((string) ($item['kind'] ?? 'post')) ?></span>
                                         <span><?= e((string) ($item['saved_count'] ?? 0)) ?> saves</span>
                                     </div>
@@ -205,7 +205,7 @@ include base_path('templates/partials/creator_topbar.php');
                                     <p class="font-bold"><?= e((string) $live['title']) ?></p>
                                     <span class="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest <?= ($live['status'] ?? '') === 'live' ? 'bg-rose-100 text-rose-600' : 'bg-slate-200 text-slate-600' ?>"><?= e((string) ($live['status'] ?? 'scheduled')) ?></span>
                                 </div>
-                                <p class="text-sm text-on-surface-variant"><?= e((string) ($live['creator']['name'] ?? 'Criador')) ?> • <?= e((string) ($live['viewer_count'] ?? 0)) ?> viewers</p>
+                                <p class="text-sm text-on-surface-variant"><?= e(user_handle($live['creator'] ?? [], 'criador')) ?> • <?= e((string) ($live['viewer_count'] ?? 0)) ?> viewers</p>
                                 <p class="mt-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant"><?= e(format_datetime((string) ($live['scheduled_for'] ?? ''), 'd/m H:i')) ?></p>
                             </a>
                         <?php endforeach; ?>
@@ -224,10 +224,10 @@ include base_path('templates/partials/creator_topbar.php');
                         <?php foreach ($suggestedCreators as $suggestedCreator): ?>
                             <div class="rounded-2xl bg-surface-container-low p-4">
                                 <div class="flex items-center gap-4">
-                                    <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(avatar_initials((string) ($suggestedCreator['name'] ?? 'Criador'))) ?></div>
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 font-bold text-primary"><?= e(user_avatar_label($suggestedCreator, 'CR')) ?></div>
                                     <div class="min-w-0 flex-1">
-                                        <p class="truncate font-bold"><?= e((string) ($suggestedCreator['name'] ?? 'Criador')) ?></p>
-                                        <p class="truncate text-sm text-on-surface-variant">@<?= e((string) ($suggestedCreator['slug'] ?? 'criador')) ?></p>
+                                        <p class="truncate font-bold"><?= e(user_handle($suggestedCreator, 'criador')) ?></p>
+                                        <p class="truncate text-sm text-on-surface-variant"><?= e((string) ($suggestedCreator['headline'] ?? '')) ?></p>
                                     </div>
                                 </div>
                                 <p class="mt-3 text-sm text-on-surface-variant"><?= e(excerpt((string) ($suggestedCreator['headline'] ?? ''), 80)) ?></p>

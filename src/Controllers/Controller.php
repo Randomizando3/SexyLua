@@ -47,4 +47,12 @@ abstract class Controller
         echo (string) json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
+
+    protected function wantsJson(Request $request): bool
+    {
+        $requestedWith = strtolower((string) $request->server('HTTP_X_REQUESTED_WITH', ''));
+        $accept = strtolower((string) $request->server('HTTP_ACCEPT', ''));
+
+        return $requestedWith === 'xmlhttprequest' || str_contains($accept, 'application/json');
+    }
 }
