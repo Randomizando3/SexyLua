@@ -217,17 +217,12 @@ require BASE_PATH . '/templates/partials/admin_sidebar.php';
             <h2 class="mt-2 text-5xl font-extrabold tracking-tight">Visao <span class="italic text-primary">Financeira</span></h2>
             <p class="mt-4 max-w-2xl text-on-surface-variant">Acompanhe volume bruto, repasses, recargas, saques e ajustes de carteira com foco operacional.</p>
         </div>
-        <div class="flex items-start gap-3">
-            <a class="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-container-lowest text-slate-700 shadow-sm" href="/admin/finance/export" title="Exportar CSV">
-                <span class="material-symbols-outlined">download</span>
-            </a>
-            <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-                <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Volume</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['gross_volume'] ?? 0), $luacoinPriceBrl, 'inline-flex flex-col items-center gap-1 leading-tight', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-primary', 'block text-xs font-bold leading-tight text-slate-500') ?></div></article>
-                <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Repasse</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['creator_income'] ?? 0), $luacoinPriceBrl, 'inline-flex flex-col items-center gap-1 leading-tight', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-emerald-600', 'block text-xs font-bold leading-tight text-slate-500') ?></div></article>
-                <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Resultado</p><div class="mt-2 text-[2rem] font-extrabold leading-tight md:text-3xl"><?= luacoin_brl_pair_html((int) ($summary['platform_result'] ?? 0), $luacoinPriceBrl, 'inline-flex flex-col items-center gap-1 leading-tight', 'inline-flex items-center justify-center gap-2 whitespace-nowrap text-primary', 'block text-xs font-bold leading-tight text-slate-500') ?></div></article>
-                <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Recargas</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-primary md:text-3xl"><?= e((string) ($summary['top_ups'] ?? 0)) ?></p></article>
-                <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Saques pendentes</p><p class="mt-2 text-[2rem] font-extrabold leading-tight text-amber-600 md:text-3xl"><?= e((string) ($summary['pending_payout_count'] ?? 0)) ?></p></article>
-            </div>
+        <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Volume</p><div class="mt-2"><?= luacoin_brl_pair_html((int) ($summary['gross_volume'] ?? 0), $luacoinPriceBrl, 'inline-flex max-w-full flex-col items-center gap-1 leading-tight', 'inline-flex max-w-full items-center justify-center gap-1 whitespace-nowrap text-[1.55rem] font-extrabold leading-none tracking-tight text-primary md:text-[1.9rem]', 'block text-[11px] font-bold leading-tight text-slate-500') ?></div></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Repasse</p><div class="mt-2"><?= luacoin_brl_pair_html((int) ($summary['creator_income'] ?? 0), $luacoinPriceBrl, 'inline-flex max-w-full flex-col items-center gap-1 leading-tight', 'inline-flex max-w-full items-center justify-center gap-1 whitespace-nowrap text-[1.55rem] font-extrabold leading-none tracking-tight text-emerald-600 md:text-[1.9rem]', 'block text-[11px] font-bold leading-tight text-slate-500') ?></div></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Resultado</p><div class="mt-2"><?= luacoin_brl_pair_html((int) ($summary['platform_result'] ?? 0), $luacoinPriceBrl, 'inline-flex max-w-full flex-col items-center gap-1 leading-tight', 'inline-flex max-w-full items-center justify-center gap-1 whitespace-nowrap text-[1.55rem] font-extrabold leading-none tracking-tight text-primary md:text-[1.9rem]', 'block text-[11px] font-bold leading-tight text-slate-500') ?></div></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Recargas</p><p class="mt-2 text-[1.8rem] font-extrabold leading-tight tracking-tight text-primary md:text-[2.1rem]"><?= e((string) ($summary['top_ups'] ?? 0)) ?></p></article>
+            <article class="rounded-3xl bg-surface-container-lowest p-5 text-center shadow-sm"><p class="min-h-[1.9rem] text-[10px] font-bold uppercase tracking-[0.18em] leading-tight text-slate-400">Saques pendentes</p><p class="mt-2 text-[1.8rem] font-extrabold leading-tight tracking-tight text-amber-600 md:text-[2.1rem]"><?= e((string) ($summary['pending_payout_count'] ?? 0)) ?></p></article>
         </div>
     </section>
 
@@ -243,6 +238,10 @@ require BASE_PATH . '/templates/partials/admin_sidebar.php';
                 <?= e((string) $tabMeta['label']) ?>
             </a>
         <?php endforeach; ?>
+        <button class="inline-flex items-center gap-2 rounded-full bg-surface-container-lowest px-5 py-3 text-sm font-bold text-slate-700 shadow-sm" data-prototype-skip="1" data-report-open type="button">
+            <span class="material-symbols-outlined text-[18px]">analytics</span>
+            Relatorios
+        </button>
     </nav>
 
     <?php if ($currentTab === 'topups'): ?>
@@ -255,9 +254,76 @@ require BASE_PATH . '/templates/partials/admin_sidebar.php';
         <?php include base_path('templates/partials/admin_finance_adjustments.php'); ?>
     <?php endif; ?>
 </main>
+<div class="fixed inset-0 z-[95] hidden items-end justify-center bg-slate-900/45 p-3 sm:items-center sm:p-6" data-report-modal hidden>
+    <div class="flex w-full max-w-xl flex-col overflow-hidden rounded-[2rem] bg-surface-container-lowest shadow-2xl">
+        <div class="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-6">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-[0.25em] text-primary">Relatorios</p>
+                <h3 class="mt-2 text-2xl font-extrabold">Exportar planilha financeira</h3>
+                <p class="mt-2 text-sm text-on-surface-variant">Escolha o periodo e o conjunto de dados. Se selecionar <strong>Todos</strong>, a planilha sai com abas separadas.</p>
+            </div>
+            <button class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface-container-low text-slate-500" data-prototype-skip="1" data-report-close type="button">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <form action="/admin/finance/export" class="space-y-6 px-5 py-5 sm:px-6" method="get">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Periodo</p>
+                <div class="mt-3 grid grid-cols-3 gap-3">
+                    <?php foreach ([1 => '1 dia', 7 => '7 dias', 30 => '30 dias'] as $daysValue => $daysLabel): ?>
+                        <label class="cursor-pointer">
+                            <input <?= $daysValue === 7 ? 'checked' : '' ?> class="peer sr-only" name="days" type="radio" value="<?= e((string) $daysValue) ?>">
+                            <span class="flex items-center justify-center rounded-2xl bg-surface-container-low px-4 py-4 text-sm font-bold text-slate-600 transition peer-checked:bg-primary peer-checked:text-white"><?= e($daysLabel) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <label class="block space-y-2">
+                <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">Conteudo da planilha</span>
+                <select class="w-full rounded-2xl border-none bg-surface-container-low px-5 py-4 shadow-sm focus:ring-2 focus:ring-primary/20" name="item">
+                    <option value="all">Todos (abas separadas)</option>
+                    <option value="topups">Recargas</option>
+                    <option value="payouts">Saques</option>
+                    <option value="transactions">Transacoes</option>
+                    <option value="adjustments">Ajustes de carteira</option>
+                </select>
+            </label>
+            <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button class="rounded-full bg-surface-container-low px-6 py-4 text-sm font-bold text-slate-600" data-prototype-skip="1" data-report-close type="button">Cancelar</button>
+                <button class="rounded-full bg-primary px-6 py-4 text-sm font-bold text-white" data-prototype-skip="1" type="submit">Baixar XLSX</button>
+            </div>
+        </form>
+    </div>
+</div>
 <script>
     (() => {
         const walletUsers = <?= json_encode($walletPickerUsers, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        const reportModal = document.querySelector('[data-report-modal]');
+        const reportOpen = document.querySelector('[data-report-open]');
+        const reportCloseButtons = document.querySelectorAll('[data-report-close]');
+
+        if (reportModal && reportOpen) {
+            const openReportModal = () => {
+                reportModal.hidden = false;
+                reportModal.classList.remove('hidden');
+                reportModal.classList.add('flex');
+                document.body.classList.add('overflow-hidden');
+            };
+            const closeReportModal = () => {
+                reportModal.hidden = true;
+                reportModal.classList.add('hidden');
+                reportModal.classList.remove('flex');
+                document.body.classList.remove('overflow-hidden');
+            };
+            reportOpen.addEventListener('click', openReportModal);
+            reportCloseButtons.forEach((button) => button.addEventListener('click', closeReportModal));
+            reportModal.addEventListener('click', (event) => {
+                if (event.target === reportModal) {
+                    closeReportModal();
+                }
+            });
+        }
+
         const modal = document.querySelector('[data-wallet-user-modal]');
         const openButton = document.querySelector('[data-wallet-user-open]');
         const closeButton = document.querySelector('[data-wallet-user-close]');

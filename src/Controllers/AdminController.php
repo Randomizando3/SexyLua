@@ -129,54 +129,26 @@ final class AdminController extends Controller
         $finance = $this->app->repository->financeData();
         $transactions = is_array($finance['transactions'] ?? null) ? $finance['transactions'] : [];
         $luacoinPriceBrl = (float) ($finance['luacoin_price_brl'] ?? 0.07);
+        $days = $this->financeReportDaysValue((int) $request->query('days', 7));
+        $item = $this->financeReportItemValue((string) $request->query('item', 'all'));
+        $filteredTransactions = $this->financeFilterTransactionsByDays($transactions, $days);
+        $sheets = $this->financeReportSheets($filteredTransactions, $luacoinPriceBrl, $item);
 
-        header('Content-Type: text/csv; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="sexylua-financeiro-' . date('Ymd-His') . '.csv"');
-
-        $output = fopen('php://output', 'wb');
-        if ($output === false) {
+        if (! class_exists(\ZipArchive::class)) {
+            http_response_code(500);
+            echo 'A extensao ZIP do PHP nao esta disponivel para gerar o relatorio XLSX.';
             exit;
         }
 
-        fwrite($output, "\xEF\xBB\xBF");
-        fputcsv($output, [
-            'ID',
-            'Data',
-            'Tipo',
-            'Status',
-            'Direcao',
-            'LuaCoins',
-            'Valor BRL',
-            'Usuario',
-            'Email do usuario',
-            'Criador',
-            'Chave PIX',
-            'Nota',
-            'Nota admin',
-        ], ';');
+        $xlsxPath = $this->buildFinanceWorkbookXlsx($sheets);
+        $fileSuffix = $item === 'all' ? 'geral' : $item;
 
-        foreach ($transactions as $transaction) {
-            $user = is_array($transaction['user'] ?? null) ? $transaction['user'] : [];
-            $creator = is_array($transaction['creator'] ?? null) ? $transaction['creator'] : [];
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="sexylua-relatorio-' . $fileSuffix . '-' . $days . 'd-' . date('Ymd-His') . '.xlsx"');
+        header('Content-Length: ' . (string) filesize($xlsxPath));
 
-            fputcsv($output, [
-                (string) ((int) ($transaction['id'] ?? 0)),
-                (string) ($transaction['created_at'] ?? ''),
-                (string) ($transaction['type'] ?? ''),
-                (string) ($transaction['status'] ?? 'completed'),
-                (string) ($transaction['direction'] ?? 'in'),
-                (string) ((int) ($transaction['amount'] ?? 0)),
-                number_format(luacoin_to_brl((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl), 2, ',', '.'),
-                user_handle($user, 'usuario'),
-                (string) ($user['email'] ?? ''),
-                user_handle($creator, ''),
-                (string) ($transaction['payout_key'] ?? ''),
-                (string) ($transaction['note'] ?? ''),
-                (string) ($transaction['admin_note'] ?? ''),
-            ], ';');
-        }
-
-        fclose($output);
+        readfile($xlsxPath);
+        @unlink($xlsxPath);
         exit;
     }
 
@@ -486,8 +458,400 @@ final class AdminController extends Controller
         return in_array($tab, ['topups', 'payouts', 'transactions', 'adjustments'], true) ? $tab : 'payouts';
     }
 
+    private function financeReportDaysValue(int $days): int
+    {
+        return in_array($days, [1, 7, 30], true) ? $days : 7;
+    }
+
+    private function financeReportItemValue(string $item): string
+    {
+        return in_array($item, ['all', 'topups', 'payouts', 'transactions', 'adjustments'], true) ? $item : 'all';
+    }
+
     private function adminFinanceRedirectUrl(string $tab): string
     {
         return path_with_query('/admin/finance', ['tab' => $this->financeTabValue($tab)]);
+    }
+
+    private function financeFilterTransactionsByDays(array $transactions, int $days): array
+    {
+        $cutoff = (new \DateTimeImmutable())->modify('-' . max(1, $days) . ' days');
+
+        return array_values(array_filter($transactions, static function (array $transaction) use ($cutoff): bool {
+            $createdAt = trim((string) ($transaction['created_at'] ?? ''));
+            if ($createdAt === '') {
+                return false;
+            }
+
+            try {
+                return new \DateTimeImmutable($createdAt) >= $cutoff;
+            } catch (\Throwable) {
+                return false;
+            }
+        }));
+    }
+
+    private function financeReportSheets(array $transactions, float $luacoinPriceBrl, string $item): array
+    {
+        $groups = match ($item) {
+            'topups' => ['topups'],
+            'payouts' => ['payouts'],
+            'adjustments' => ['adjustments'],
+            'transactions' => ['transactions'],
+            default => ['topups', 'payouts', 'transactions', 'adjustments'],
+        };
+
+        $sheets = [];
+
+        foreach ($groups as $group) {
+            $sheets[] = match ($group) {
+                'topups' => $this->financeTopupsSheet($transactions, $luacoinPriceBrl),
+                'payouts' => $this->financePayoutsSheet($transactions, $luacoinPriceBrl),
+                'adjustments' => $this->financeAdjustmentsSheet($transactions, $luacoinPriceBrl),
+                default => $this->financeTransactionsSheet($transactions, $luacoinPriceBrl),
+            };
+        }
+
+        return $sheets;
+    }
+
+    private function financeTopupsSheet(array $transactions, float $luacoinPriceBrl): array
+    {
+        $rows = [];
+
+        foreach ($transactions as $transaction) {
+            $type = (string) ($transaction['type'] ?? '');
+            if (! in_array($type, ['top_up_pending', 'top_up'], true)) {
+                continue;
+            }
+
+            $user = is_array($transaction['user'] ?? null) ? $transaction['user'] : [];
+            $rows[] = [
+                (string) ((int) ($transaction['id'] ?? 0)),
+                (string) ($transaction['created_at'] ?? ''),
+                user_handle($user, 'usuario'),
+                (string) ($user['email'] ?? ''),
+                (string) ($transaction['status'] ?? ($type === 'top_up_pending' ? 'pending' : 'approved')),
+                (string) ($transaction['provider'] ?? 'syncpay'),
+                (string) ((int) ($transaction['amount'] ?? 0)),
+                brl_amount(luacoin_to_brl((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl)),
+                (string) ($transaction['external_reference'] ?? ''),
+                (string) ($transaction['note'] ?? ''),
+                (string) ($transaction['admin_note'] ?? ''),
+            ];
+        }
+
+        return [
+            'title' => 'Recargas',
+            'headers' => ['ID', 'Data', 'Usuario', 'E-mail', 'Status', 'Provedor', 'LuaCoins', 'Valor BRL', 'Referencia', 'Nota', 'Nota admin'],
+            'rows' => $rows,
+        ];
+    }
+
+    private function financePayoutsSheet(array $transactions, float $luacoinPriceBrl): array
+    {
+        $rows = [];
+
+        foreach ($transactions as $transaction) {
+            if ((string) ($transaction['type'] ?? '') !== 'payout_request') {
+                continue;
+            }
+
+            $user = is_array($transaction['user'] ?? null) ? $transaction['user'] : [];
+            $rows[] = [
+                (string) ((int) ($transaction['id'] ?? 0)),
+                (string) ($transaction['created_at'] ?? ''),
+                user_handle($user, 'usuario'),
+                (string) ($user['email'] ?? ''),
+                (string) ($transaction['status'] ?? 'pending'),
+                (string) ($transaction['payout_method'] ?? 'pix'),
+                (string) ($transaction['payout_key'] ?? ''),
+                (string) ((int) ($transaction['amount'] ?? 0)),
+                brl_amount(luacoin_to_brl((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl)),
+                (string) ($transaction['note'] ?? ''),
+                (string) ($transaction['admin_note'] ?? ''),
+            ];
+        }
+
+        return [
+            'title' => 'Saques',
+            'headers' => ['ID', 'Data', 'Usuario', 'E-mail', 'Status', 'Metodo', 'Chave PIX', 'LuaCoins', 'Valor BRL', 'Nota', 'Nota admin'],
+            'rows' => $rows,
+        ];
+    }
+
+    private function financeTransactionsSheet(array $transactions, float $luacoinPriceBrl): array
+    {
+        $rows = [];
+
+        foreach ($transactions as $transaction) {
+            $user = is_array($transaction['user'] ?? null) ? $transaction['user'] : [];
+            $creator = is_array($transaction['creator'] ?? null) ? $transaction['creator'] : [];
+
+            $rows[] = [
+                (string) ((int) ($transaction['id'] ?? 0)),
+                (string) ($transaction['created_at'] ?? ''),
+                (string) ($transaction['type'] ?? ''),
+                (string) ($transaction['status'] ?? 'completed'),
+                (string) ($transaction['direction'] ?? 'in'),
+                user_handle($user, 'usuario'),
+                (string) ($user['email'] ?? ''),
+                user_handle($creator, ''),
+                (string) ((int) ($transaction['amount'] ?? 0)),
+                brl_amount(luacoin_to_brl((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl)),
+                (string) ($transaction['external_reference'] ?? ''),
+                (string) ($transaction['note'] ?? ''),
+                (string) ($transaction['admin_note'] ?? ''),
+            ];
+        }
+
+        return [
+            'title' => 'Transacoes',
+            'headers' => ['ID', 'Data', 'Tipo', 'Status', 'Direcao', 'Usuario', 'E-mail', 'Criador', 'LuaCoins', 'Valor BRL', 'Referencia', 'Nota', 'Nota admin'],
+            'rows' => $rows,
+        ];
+    }
+
+    private function financeAdjustmentsSheet(array $transactions, float $luacoinPriceBrl): array
+    {
+        $rows = [];
+
+        foreach ($transactions as $transaction) {
+            if (! in_array((string) ($transaction['type'] ?? ''), ['admin_credit', 'admin_debit'], true)) {
+                continue;
+            }
+
+            $user = is_array($transaction['user'] ?? null) ? $transaction['user'] : [];
+            $rows[] = [
+                (string) ((int) ($transaction['id'] ?? 0)),
+                (string) ($transaction['created_at'] ?? ''),
+                (string) ($transaction['type'] ?? ''),
+                (string) ($transaction['direction'] ?? 'in'),
+                user_handle($user, 'usuario'),
+                (string) ($user['email'] ?? ''),
+                (string) ((int) ($transaction['amount'] ?? 0)),
+                brl_amount(luacoin_to_brl((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl)),
+                (string) ($transaction['note'] ?? ''),
+                (string) ($transaction['admin_note'] ?? ''),
+            ];
+        }
+
+        return [
+            'title' => 'Ajustes',
+            'headers' => ['ID', 'Data', 'Tipo', 'Direcao', 'Usuario', 'E-mail', 'LuaCoins', 'Valor BRL', 'Nota', 'Nota admin'],
+            'rows' => $rows,
+        ];
+    }
+
+    private function buildFinanceWorkbookXlsx(array $sheets): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'sexylua-finance-');
+        if ($path === false) {
+            throw new \RuntimeException('Nao foi possivel criar o arquivo temporario do relatorio.');
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($path, \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Nao foi possivel abrir o arquivo XLSX para escrita.');
+        }
+
+        $sheetCount = count($sheets);
+        $sheetNames = [];
+        foreach ($sheets as $index => $sheet) {
+            $sheetNames[] = $this->sanitizeWorksheetTitle((string) ($sheet['title'] ?? ('Planilha ' . ($index + 1))));
+            $zip->addFromString('xl/worksheets/sheet' . ($index + 1) . '.xml', $this->financeWorksheetXml($sheet['headers'] ?? [], $sheet['rows'] ?? []));
+        }
+
+        $zip->addFromString('[Content_Types].xml', $this->financeWorkbookContentTypesXml($sheetCount));
+        $zip->addFromString('_rels/.rels', $this->financeWorkbookRootRelsXml());
+        $zip->addFromString('docProps/app.xml', $this->financeWorkbookAppPropsXml($sheetNames));
+        $zip->addFromString('docProps/core.xml', $this->financeWorkbookCorePropsXml());
+        $zip->addFromString('xl/workbook.xml', $this->financeWorkbookXml($sheetNames));
+        $zip->addFromString('xl/_rels/workbook.xml.rels', $this->financeWorkbookRelsXml($sheetCount));
+        $zip->addFromString('xl/styles.xml', $this->financeWorkbookStylesXml());
+        $zip->close();
+
+        return $path;
+    }
+
+    private function financeWorksheetXml(array $headers, array $rows): string
+    {
+        $rowCount = max(1, count($rows) + 1);
+        $columnCount = max(1, count($headers));
+        $lastCell = $this->xlsxColumnName($columnCount) . $rowCount;
+        $widths = [];
+
+        for ($index = 0; $index < $columnCount; $index++) {
+            $maxLength = mb_strlen((string) ($headers[$index] ?? ''), 'UTF-8');
+            foreach ($rows as $row) {
+                $maxLength = max($maxLength, mb_strlen((string) ($row[$index] ?? ''), 'UTF-8'));
+            }
+            $widths[] = min(42, max(12, $maxLength + 2));
+        }
+
+        $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            . '<dimension ref="A1:' . $lastCell . '"/>'
+            . '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+            . '<sheetFormatPr defaultRowHeight="20"/>'
+            . '<cols>';
+
+        foreach ($widths as $index => $width) {
+            $column = $index + 1;
+            $xml .= '<col min="' . $column . '" max="' . $column . '" width="' . number_format((float) $width, 2, '.', '') . '" customWidth="1"/>';
+        }
+
+        $xml .= '</cols><sheetData>';
+
+        $allRows = array_merge([$headers], $rows);
+        foreach ($allRows as $rowIndex => $row) {
+            $xml .= '<row r="' . ($rowIndex + 1) . '">';
+            for ($columnIndex = 0; $columnIndex < $columnCount; $columnIndex++) {
+                $cellRef = $this->xlsxColumnName($columnIndex + 1) . ($rowIndex + 1);
+                $cellValue = (string) ($row[$columnIndex] ?? '');
+                $style = $rowIndex === 0 ? ' s="1"' : '';
+                $xml .= '<c r="' . $cellRef . '" t="inlineStr"' . $style . '><is><t xml:space="preserve">' . $this->xlsxXml($cellValue) . '</t></is></c>';
+            }
+            $xml .= '</row>';
+        }
+
+        $xml .= '</sheetData><autoFilter ref="A1:' . $lastCell . '"/>'
+            . '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>'
+            . '</worksheet>';
+
+        return $xml;
+    }
+
+    private function financeWorkbookContentTypesXml(int $sheetCount): string
+    {
+        $overrides = '';
+        for ($sheet = 1; $sheet <= $sheetCount; $sheet++) {
+            $overrides .= '<Override PartName="/xl/worksheets/sheet' . $sheet . '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            . '<Default Extension="xml" ContentType="application/xml"/>'
+            . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+            . '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+            . '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'
+            . $overrides
+            . '</Types>';
+    }
+
+    private function financeWorkbookRootRelsXml(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'
+            . '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>'
+            . '</Relationships>';
+    }
+
+    private function financeWorkbookAppPropsXml(array $sheetNames): string
+    {
+        $parts = '';
+        foreach ($sheetNames as $sheetName) {
+            $parts .= '<vt:lpstr>' . $this->xlsxXml($sheetName) . '</vt:lpstr>';
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">'
+            . '<Application>SexyLua</Application>'
+            . '<DocSecurity>0</DocSecurity>'
+            . '<ScaleCrop>false</ScaleCrop>'
+            . '<HeadingPairs><vt:vector size="2" baseType="variant"><vt:variant><vt:lpstr>Worksheets</vt:lpstr></vt:variant><vt:variant><vt:i4>' . count($sheetNames) . '</vt:i4></vt:variant></vt:vector></HeadingPairs>'
+            . '<TitlesOfParts><vt:vector size="' . count($sheetNames) . '" baseType="lpstr">' . $parts . '</vt:vector></TitlesOfParts>'
+            . '<Company>SexyLua</Company>'
+            . '<LinksUpToDate>false</LinksUpToDate><SharedDoc>false</SharedDoc><HyperlinksChanged>false</HyperlinksChanged><AppVersion>1.0</AppVersion>'
+            . '</Properties>';
+    }
+
+    private function financeWorkbookCorePropsXml(): string
+    {
+        $created = date('Y-m-d\TH:i:s\Z');
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            . '<dc:title>Relatorio financeiro SexyLua</dc:title>'
+            . '<dc:creator>SexyLua</dc:creator>'
+            . '<cp:lastModifiedBy>SexyLua</cp:lastModifiedBy>'
+            . '<dcterms:created xsi:type="dcterms:W3CDTF">' . $created . '</dcterms:created>'
+            . '<dcterms:modified xsi:type="dcterms:W3CDTF">' . $created . '</dcterms:modified>'
+            . '</cp:coreProperties>';
+    }
+
+    private function financeWorkbookXml(array $sheetNames): string
+    {
+        $sheetsXml = '';
+        foreach ($sheetNames as $index => $sheetName) {
+            $sheetId = $index + 1;
+            $sheetsXml .= '<sheet name="' . $this->xlsxXml($sheetName) . '" sheetId="' . $sheetId . '" r:id="rId' . $sheetId . '"/>';
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<bookViews><workbookView xWindow="0" yWindow="0" windowWidth="28800" windowHeight="16020"/></bookViews>'
+            . '<sheets>' . $sheetsXml . '</sheets>'
+            . '</workbook>';
+    }
+
+    private function financeWorkbookRelsXml(int $sheetCount): string
+    {
+        $relationships = '';
+        for ($sheet = 1; $sheet <= $sheetCount; $sheet++) {
+            $relationships .= '<Relationship Id="rId' . $sheet . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' . $sheet . '.xml"/>';
+        }
+
+        $relationships .= '<Relationship Id="rId' . ($sheetCount + 1) . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . $relationships
+            . '</Relationships>';
+    }
+
+    private function financeWorkbookStylesXml(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            . '<fonts count="2"><font><sz val="11"/><name val="Aptos"/></font><font><b/><sz val="11"/><name val="Aptos"/></font></fonts>'
+            . '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
+            . '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+            . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+            . '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>'
+            . '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+            . '</styleSheet>';
+    }
+
+    private function sanitizeWorksheetTitle(string $title): string
+    {
+        $title = preg_replace('/[\\\\\\/*?:\\[\\]]+/', '-', trim($title)) ?? 'Planilha';
+        $title = trim($title);
+        if ($title === '') {
+            $title = 'Planilha';
+        }
+
+        return mb_substr($title, 0, 31, 'UTF-8');
+    }
+
+    private function xlsxColumnName(int $index): string
+    {
+        $name = '';
+        while ($index > 0) {
+            $index--;
+            $name = chr(65 + ($index % 26)) . $name;
+            $index = intdiv($index, 26);
+        }
+
+        return $name !== '' ? $name : 'A';
+    }
+
+    private function xlsxXml(string $value): string
+    {
+        return htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
     }
 }
