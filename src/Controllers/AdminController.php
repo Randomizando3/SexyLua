@@ -88,20 +88,96 @@ final class AdminController extends Controller
     public function finance(Request $request): void
     {
         $this->app->auth->requireRole('admin');
+        $finance = $this->app->repository->financeData();
         $filters = [
-            'q' => (string) $request->query('q', ''),
-            'type' => (string) $request->query('type', ''),
-            'status' => (string) $request->query('status', ''),
+            'tab' => $this->financeTabValue((string) $request->query('tab', 'payouts')),
+            'topups' => [
+                'q' => (string) $request->query('topup_q', ''),
+                'status' => (string) $request->query('topup_status', ''),
+                'page' => (int) $request->query('topup_page', 1),
+            ],
+            'payouts' => [
+                'q' => (string) $request->query('payout_q', ''),
+                'status' => (string) $request->query('payout_status', ''),
+                'page' => (int) $request->query('payout_page', 1),
+            ],
+            'transactions' => [
+                'q' => (string) $request->query('transaction_q', ''),
+                'type' => (string) $request->query('transaction_type', ''),
+                'status' => (string) $request->query('transaction_status', ''),
+                'page' => (int) $request->query('transaction_page', 1),
+            ],
+            'adjustments' => [
+                'q' => (string) $request->query('adjustment_q', ''),
+                'page' => (int) $request->query('adjustment_page', 1),
+            ],
         ];
 
         $this->render('pages/admin/finance', [
             'title' => 'Relatorios Financeiros',
-            'data' => $this->app->repository->financeData($filters),
+            'data' => array_merge($finance, ['filters' => $filters]),
             'sidebar_role' => 'admin',
             'prototype' => [
                 'page' => 'admin.finance',
             ],
         ], null);
+    }
+
+    public function exportFinanceCsv(Request $request): void
+    {
+        $this->app->auth->requireRole('admin');
+        $finance = $this->app->repository->financeData();
+        $transactions = is_array($finance['transactions'] ?? null) ? $finance['transactions'] : [];
+        $luacoinPriceBrl = (float) ($finance['luacoin_price_brl'] ?? 0.07);
+
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="sexylua-financeiro-' . date('Ymd-His') . '.csv"');
+
+        $output = fopen('php://output', 'wb');
+        if ($output === false) {
+            exit;
+        }
+
+        fwrite($output, "\xEF\xBB\xBF");
+        fputcsv($output, [
+            'ID',
+            'Data',
+            'Tipo',
+            'Status',
+            'Direcao',
+            'LuaCoins',
+            'Valor BRL',
+            'Usuario',
+            'Email do usuario',
+            'Criador',
+            'Chave PIX',
+            'Nota',
+            'Nota admin',
+        ], ';');
+
+        foreach ($transactions as $transaction) {
+            $user = is_array($transaction['user'] ?? null) ? $transaction['user'] : [];
+            $creator = is_array($transaction['creator'] ?? null) ? $transaction['creator'] : [];
+
+            fputcsv($output, [
+                (string) ((int) ($transaction['id'] ?? 0)),
+                (string) ($transaction['created_at'] ?? ''),
+                (string) ($transaction['type'] ?? ''),
+                (string) ($transaction['status'] ?? 'completed'),
+                (string) ($transaction['direction'] ?? 'in'),
+                (string) ((int) ($transaction['amount'] ?? 0)),
+                number_format(luacoin_to_brl((int) ($transaction['amount'] ?? 0), $luacoinPriceBrl), 2, ',', '.'),
+                user_handle($user, 'usuario'),
+                (string) ($user['email'] ?? ''),
+                user_handle($creator, ''),
+                (string) ($transaction['payout_key'] ?? ''),
+                (string) ($transaction['note'] ?? ''),
+                (string) ($transaction['admin_note'] ?? ''),
+            ], ';');
+        }
+
+        fclose($output);
+        exit;
     }
 
     public function operations(Request $request): void
@@ -320,7 +396,7 @@ final class AdminController extends Controller
             (string) $request->input('admin_note', '')
         );
 
-        $this->redirect('/admin/finance', $ok ? 'Saque atualizado.' : 'Nao foi possivel atualizar o saque.', $ok ? 'success' : 'error');
+        $this->redirect($this->adminFinanceRedirectUrl((string) $request->input('tab', 'payouts')), $ok ? 'Saque atualizado.' : 'Nao foi possivel atualizar o saque.', $ok ? 'success' : 'error');
     }
 
     public function adjustWallet(Request $request): void
@@ -335,7 +411,7 @@ final class AdminController extends Controller
             (string) $request->input('note', '')
         );
 
-        $this->redirect('/admin/finance', $ok ? 'Carteira atualizada.' : 'Nao foi possivel ajustar a carteira.', $ok ? 'success' : 'error');
+        $this->redirect($this->adminFinanceRedirectUrl((string) $request->input('tab', 'adjustments')), $ok ? 'Carteira atualizada.' : 'Nao foi possivel ajustar a carteira.', $ok ? 'success' : 'error');
     }
 
     public function reviewTopUp(Request $request): void
@@ -348,7 +424,7 @@ final class AdminController extends Controller
             (string) $request->input('admin_note', '')
         );
 
-        $this->redirect('/admin/finance', $ok ? 'Recarga atualizada.' : 'Nao foi possivel revisar a recarga.', $ok ? 'success' : 'error');
+        $this->redirect($this->adminFinanceRedirectUrl((string) $request->input('tab', 'topups')), $ok ? 'Recarga atualizada.' : 'Nao foi possivel revisar a recarga.', $ok ? 'success' : 'error');
     }
 
     public function saveManagedContent(Request $request): void
@@ -403,5 +479,15 @@ final class AdminController extends Controller
         $ok = $this->app->repository->adminDeleteLive((int) $request->input('live_id', 0));
 
         $this->redirect('/admin/operations', $ok ? 'Live removida.' : 'Nao foi possivel remover a live.', $ok ? 'success' : 'error');
+    }
+
+    private function financeTabValue(string $tab): string
+    {
+        return in_array($tab, ['topups', 'payouts', 'transactions', 'adjustments'], true) ? $tab : 'payouts';
+    }
+
+    private function adminFinanceRedirectUrl(string $tab): string
+    {
+        return path_with_query('/admin/finance', ['tab' => $this->financeTabValue($tab)]);
     }
 }

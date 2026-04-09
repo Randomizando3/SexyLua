@@ -97,6 +97,7 @@ $router->get('/admin/users', [AdminController::class, 'users']);
 $router->get('/admin/moderation', [AdminController::class, 'moderation']);
 $router->get('/admin/messages', [AdminController::class, 'messages']);
 $router->get('/admin/finance', [AdminController::class, 'finance']);
+$router->get('/admin/finance/export', [AdminController::class, 'exportFinanceCsv']);
 $router->get('/admin/operations', [AdminController::class, 'operations']);
 $router->get('/admin/settings', [AdminController::class, 'settings']);
 $router->get('/admin/integrations', [AdminController::class, 'integrations']);
