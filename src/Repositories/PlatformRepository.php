@@ -1956,38 +1956,43 @@ final class PlatformRepository
         $content = $this->findContentWithCreator($contentId);
 
         if ($content === null || (string) ($content['status'] ?? '') !== 'approved' || $this->contentIsExpired($content)) {
-            return ['ok' => false, 'message' => 'Pack nao encontrado.'];
-        }
-
-        if ((string) ($content['kind'] ?? '') !== 'pack') {
-            return ['ok' => false, 'message' => 'A compra avulsa esta disponivel apenas para packs.'];
+            return ['ok' => false, 'message' => 'Conteudo nao encontrado.'];
         }
 
         $unlockPrice = max(0, (int) ($content['unlock_price_tokens'] ?? 0));
         if ($unlockPrice <= 0) {
-            return ['ok' => false, 'message' => 'Este pack nao possui compra avulsa disponivel.'];
+            return ['ok' => false, 'message' => 'Este conteudo nao possui compra avulsa disponivel.'];
         }
 
         if ($this->hasContentUnlock($contentId, $userId)) {
-            return ['ok' => true, 'message' => 'Pack ja desbloqueado para sua conta.'];
+            return ['ok' => true, 'message' => 'Conteudo ja desbloqueado para sua conta.'];
         }
 
         $user = $this->findUserById($userId);
         if ($user === null || (string) ($user['status'] ?? 'active') !== 'active') {
-            return ['ok' => false, 'message' => 'Sua conta nao pode desbloquear este pack agora.'];
+            return ['ok' => false, 'message' => 'Sua conta nao pode desbloquear este conteudo agora.'];
         }
 
         $creatorId = (int) ($content['creator_id'] ?? 0);
         if ($creatorId <= 0) {
-            return ['ok' => false, 'message' => 'Criador nao encontrado para este pack.'];
+            return ['ok' => false, 'message' => 'Criador nao encontrado para este conteudo.'];
         }
 
         if ($this->walletBalance($userId) < $unlockPrice) {
-            return ['ok' => false, 'message' => 'Saldo insuficiente para desbloquear este pack.'];
+            return ['ok' => false, 'message' => 'Saldo insuficiente para desbloquear este conteudo.'];
         }
 
-        $title = trim((string) ($content['title'] ?? 'Pack exclusivo'));
-        $this->chargeSubscriberAndCreditCreator($userId, $creatorId, $unlockPrice, 'instant_content', 'Compra avulsa do pack ' . $title);
+        $title = trim((string) ($content['title'] ?? 'Conteudo exclusivo'));
+        $kind = (string) ($content['kind'] ?? 'gallery');
+        $kindLabel = match ($kind) {
+            'pack' => 'pack',
+            'video' => 'video',
+            'audio' => 'audio',
+            'article' => 'artigo',
+            'live_teaser' => 'teaser',
+            default => 'conteudo',
+        };
+        $this->chargeSubscriberAndCreditCreator($userId, $creatorId, $unlockPrice, 'instant_content', 'Compra avulsa do ' . $kindLabel . ' ' . $title);
 
         $unlocks = $this->contentUnlocks();
         $unlocks[] = [
@@ -2004,8 +2009,8 @@ final class PlatformRepository
         $this->notifyUser(
             $creatorId,
             'sale',
-            'Pack desbloqueado',
-            user_handle($buyer, 'assinante') . ' comprou seu pack por ' . $unlockPrice . ' LuaCoins.',
+            'Conteudo desbloqueado',
+            user_handle($buyer, 'assinante') . ' comprou seu ' . $kindLabel . ' por ' . $unlockPrice . ' LuaCoins.',
             creator_public_url($creator, ['content' => $contentId]),
             [
                 'content_id' => $contentId,
@@ -2014,7 +2019,7 @@ final class PlatformRepository
             ]
         );
 
-        return ['ok' => true, 'message' => 'Pack desbloqueado com acesso permanente.'];
+        return ['ok' => true, 'message' => 'Conteudo desbloqueado com acesso permanente.'];
     }
 
     public function activateLiveDarkroom(int $liveId, int $userId): array
@@ -2452,7 +2457,7 @@ final class PlatformRepository
             'duration' => trim((string) ($data['duration'] ?? '')),
             'plan_id' => $planId,
             'price_tokens' => $plan ? (int) ($plan['price_tokens'] ?? 0) : max(0, (int) ($data['price_tokens'] ?? $data['price_luacoins'] ?? 0)),
-            'unlock_price_tokens' => $kind === 'pack' ? $unlockPriceTokens : 0,
+            'unlock_price_tokens' => $visibility === 'public' ? 0 : $unlockPriceTokens,
             'media_url' => $mediaUrl,
             'thumbnail_url' => $thumbnailUrl,
             'media_bytes' => max(0, (int) ($data['media_bytes'] ?? ($mediaUrl !== '' ? \public_media_file_bytes($mediaUrl) : 0))),
@@ -3681,7 +3686,7 @@ final class PlatformRepository
             0
         );
 
-        return $wallet + [
+        return array_merge($wallet, [
             'creator' => $creator,
             'transactions_filtered' => $transactions,
             'can_withdraw' => $wallet['balance'] >= $minWithdrawal && $verificationStatus === 'approved',
@@ -3690,12 +3695,12 @@ final class PlatformRepository
                 'q' => $query,
                 'type' => $type,
             ],
-            'summary' => [
+            'summary' => array_merge($wallet['summary'] ?? [], [
                 'subscription_income' => $subscriptionIncome,
                 'tips_income' => $tipsIncome,
                 'pending_payouts' => $pendingPayouts,
                 'available_brl' => round((float) $wallet['balance'] * (float) ($this->settings()['luacoin_price_brl'] ?? 0.07), 2),
-            ],
+            ]),
             'payout_profile' => [
                 'method' => (string) ($creator['payout_method'] ?? 'pix'),
                 'key' => (string) ($creator['payout_key'] ?? ''),
@@ -3704,7 +3709,7 @@ final class PlatformRepository
                 'status' => $verificationStatus,
                 'identity_document' => is_array($creator['identity_document'] ?? null) ? $creator['identity_document'] : null,
             ],
-        ];
+        ]);
     }
 
     public function creatorFavoritesData(int $creatorId): array
