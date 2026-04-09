@@ -416,9 +416,17 @@ include base_path('templates/partials/creator_topbar.php');
                 </section>
 
                 <section class="rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)]">
-                    <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Ingest do MediaMTX</p>
-                    <h3 class="headline mt-2 text-2xl font-extrabold">Servidor RTMP e chave</h3>
-                    <p class="mt-3 text-sm text-slate-500">Use estes dados no OBS ou no seu encoder. O público assiste por HLS, mas a entrada é RTMP.</p>
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-[0.25em] text-[#D81B60]">Ingest do MediaMTX</p>
+                            <h3 class="headline mt-2 text-2xl font-extrabold">Servidor RTMP e chave</h3>
+                            <p class="mt-3 text-sm text-slate-500">Use estes dados no OBS ou no seu encoder. O público assiste por HLS, mas a entrada é RTMP.</p>
+                        </div>
+                        <button class="inline-flex items-center justify-center gap-2 rounded-full bg-[#f5f3f5] px-5 py-3 text-sm font-bold text-slate-700" data-live-tools-open type="button">
+                            <span class="material-symbols-outlined text-lg">construction</span>
+                            Ferramentas
+                        </button>
+                    </div>
 
                     <div class="mt-6 space-y-4">
                         <button class="relative rounded-2xl bg-[#f5f3f5] p-4 text-left transition hover:bg-[#f0eaee]" data-copy-feedback="Servidor copiado" data-copy-text="<?= e($ingestServer) ?>" type="button">
@@ -449,6 +457,13 @@ include base_path('templates/partials/creator_topbar.php');
         </div>
     <?php endif; ?>
 </main>
+
+<?php
+$liveToolsContext = 'studio';
+$liveToolsIngestServer = $ingestServer;
+$liveToolsStreamKey = $streamKey;
+include base_path('templates/partials/live_tools_modal.php');
+?>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <script src="<?= e(asset('js/live-segment.js')) ?>"></script>

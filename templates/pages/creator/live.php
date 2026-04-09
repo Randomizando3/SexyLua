@@ -117,10 +117,16 @@ include base_path('templates/partials/creator_topbar.php');
             <h1 class="headline mt-2 text-4xl font-extrabold">Minhas lives</h1>
             <p class="mt-3 max-w-3xl text-slate-500">Crie lives instantâneas ou agendadas, acompanhe a agenda em ordem cronológica e abra o estúdio só quando a sala estiver pronta.</p>
         </div>
-        <a class="signature-glow inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-white xl:w-auto" href="<?= e($newLiveUrl) ?>">
-            <span class="material-symbols-outlined text-lg">add</span>
-            Nova live
-        </a>
+        <div class="flex w-full flex-col gap-3 sm:flex-row sm:justify-end xl:w-auto">
+            <button class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#f5f3f5] px-6 py-3 text-sm font-bold text-slate-700 xl:w-auto" data-live-tools-open type="button">
+                <span class="material-symbols-outlined text-lg">construction</span>
+                Ferramentas
+            </button>
+            <a class="signature-glow inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-white xl:w-auto" href="<?= e($newLiveUrl) ?>">
+                <span class="material-symbols-outlined text-lg">add</span>
+                Nova live
+            </a>
+        </div>
     </div>
 
     <section class="mt-8 rounded-3xl bg-white p-6 shadow-[0px_20px_40px_rgba(27,28,29,0.06)] lg:p-8">
@@ -517,6 +523,13 @@ include base_path('templates/partials/creator_topbar.php');
         </form>
     </div>
 </div>
+
+<?php
+$liveToolsContext = 'manager';
+$liveToolsIngestServer = '';
+$liveToolsStreamKey = '';
+include base_path('templates/partials/live_tools_modal.php');
+?>
 
 <script>
     (() => {
