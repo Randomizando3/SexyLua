@@ -93,7 +93,7 @@ $liveToolsPlatforms = [
                 'name' => 'PRISM Live Studio',
                 'icon' => 'phone_iphone',
                 'download_label' => 'Abrir na App Store',
-                'download_url' => 'https://apps.apple.com/app/prism-live-studio/id1512936525',
+                'download_url' => 'https://apps.apple.com/br/app/prism-live-streaming-app/id1319056339',
                 'summary' => 'App simples para iniciar transmissão RTMP com poucos toques.',
                 'steps' => [
                     'Instale o PRISM Live Studio no iPhone ou iPad.',
