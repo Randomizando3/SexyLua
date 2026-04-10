@@ -83,26 +83,9 @@
                         <h1 class="font-headline text-4xl font-extrabold tracking-tight text-on-surface md:text-5xl">Entre na atmosfera SexyLua</h1>
                         <p class="max-w-2xl text-lg leading-relaxed text-on-surface-variant">Acesse sua conta para navegar entre as areas publicas, painel do criador, area do assinante e administracao, tudo mantendo o mesmo visual do prototipo.</p>
                     </div>
-                    <div class="grid gap-4 md:grid-cols-3">
-                        <div class="lunar-glass rounded-2xl border border-white/70 p-4 shadow-sm">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Admin</p>
-                            <p class="mt-3 text-sm font-bold">admin</p>
-                            <p class="text-sm text-on-surface-variant">admin123</p>
-                        </div>
-                        <div class="lunar-glass rounded-2xl border border-white/70 p-4 shadow-sm">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Criador</p>
-                            <p class="mt-3 text-sm font-bold">maria</p>
-                            <p class="text-sm text-on-surface-variant">creator123</p>
-                        </div>
-                        <div class="lunar-glass rounded-2xl border border-white/70 p-4 shadow-sm">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Assinante</p>
-                            <p class="mt-3 text-sm font-bold">assinante</p>
-                            <p class="text-sm text-on-surface-variant">subscriber123</p>
-                        </div>
-                    </div>
                     <div class="rounded-[2rem] bg-white/70 p-6 shadow-sm">
                         <h2 class="font-headline text-xl font-bold text-on-surface">Acesso rapido</h2>
-                        <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">Escolha uma conta de teste acima ou entre com seu proprio acesso para seguir direto para a area correspondente.</p>
+                        <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">Entre com seu e-mail ou @usuario para seguir direto para a area correspondente ao seu perfil.</p>
                     </div>
                 </div>
             </section>
